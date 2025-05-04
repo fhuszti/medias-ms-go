@@ -1,0 +1,14 @@
+services:
+  db:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_PASS}
+      MARIADB_DATABASE: ${MARIADB_NAME}
+    ports:
+      - "33068:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+
+volumes:
+  db-data:
