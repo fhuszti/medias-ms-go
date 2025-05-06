@@ -1,14 +1,28 @@
 services:
-  db:
-    image: mariadb:10.11
-    restart: always
-    environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_PASS}
-      MARIADB_DATABASE: ${MARIADB_NAME}
-    ports:
-      - "33068:3306"
-    volumes:
-      - db-data:/var/lib/mysql
+    db:
+        image: mariadb:10.11
+        restart: always
+        environment:
+            MARIADB_ROOT_PASSWORD: ${MARIADB_PASS}
+            MARIADB_DATABASE: ${MARIADB_NAME}
+        ports:
+            - "33068:3306"
+        volumes:
+            - db-data:/var/lib/mysql
+
+    minio:
+        image: minio/minio:latest
+        restart: always
+        environment:
+            MINIO_ROOT_USER: ${MINIO_USER}
+            MINIO_ROOT_PASSWORD: ${MINIO_PASS}
+        ports:
+            - "9000:9000"
+            - "9001:9001" # console UI
+        command: server /data --console-address ":9001"
+        volumes:
+            - minio_data:/data
 
 volumes:
-  db-data:
+    db-data:
+    minio_data:
