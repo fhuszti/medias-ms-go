@@ -3,10 +3,11 @@ package storage
 import (
 	"context"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/service"
 	"net/url"
 	"path/filepath"
 	"time"
+
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -18,10 +19,15 @@ type MinioStorage struct {
 	useSSL     bool
 }
 
-// compile-time check: *MinioStorage must satisfy service.Storage
-var _ service.Storage = (*MinioStorage)(nil)
+type Client struct {
+	client *minio.Client
+	useSSL bool
+}
 
-func NewMinioStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*MinioStorage, error) {
+// compile-time check: *MinioStorage must satisfy media.Storage
+var _ media.Storage = (*MinioStorage)(nil)
+
+func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Client, error) {
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
@@ -29,8 +35,11 @@ func NewMinioStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool)
 	if err != nil {
 		return nil, err
 	}
-	s := &MinioStorage{client: client, bucketName: bucket, useSSL: useSSL}
-	return s, nil
+	return &Client{client: client, useSSL: useSSL}, nil
+}
+
+func (c *Client) WithBucket(bucket string) media.Storage {
+	return &MinioStorage{client: c.client, bucketName: bucket, useSSL: c.useSSL}
 }
 
 func (s *MinioStorage) GeneratePresignedDownloadURL(ctx context.Context, objectKey string, expiry time.Duration, downloadName string, inline bool) (string, error) {

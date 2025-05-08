@@ -28,3 +28,16 @@ func (u *UUID) Scan(src interface{}) error {
 func (u UUID) Value() (driver.Value, error) {
 	return uuid.UUID(u).MarshalBinary()
 }
+
+func (u UUID) MarshalText() ([]byte, error) {
+	return []byte(uuid.UUID(u).String()), nil
+}
+
+func (u *UUID) UnmarshalText(text []byte) error {
+	parsed, err := uuid.ParseBytes(text)
+	if err != nil {
+		return err
+	}
+	*u = UUID(parsed)
+	return nil
+}

@@ -2,6 +2,9 @@ package validation
 
 import (
 	"encoding/json"
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/storage"
+	"github.com/google/uuid"
 	"reflect"
 	"strings"
 
@@ -23,6 +26,29 @@ func init() {
 		}
 		return name
 	})
+
+	// Validate db.UUID as string
+	validate.RegisterCustomTypeFunc(func(field reflect.Value) interface{} {
+		if v, ok := field.Interface().(db.UUID); ok {
+			u := uuid.UUID(v)
+			return u.String()
+		}
+		return nil
+	}, db.UUID{})
+
+	// Validate mime types
+	err := validate.RegisterValidation("mimetype", func(fl validator.FieldLevel) bool {
+		v := fl.Field().String()
+		for _, m := range storage.AllowedMimeTypes {
+			if v == m {
+				return true
+			}
+		}
+		return false
+	})
+	if err != nil {
+		return
+	}
 }
 
 func ValidateStruct(s interface{}) error {

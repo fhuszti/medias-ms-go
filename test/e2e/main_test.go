@@ -10,17 +10,19 @@ import (
 func TestMain(m *testing.M) {
 	ci, err := testutil.StartMariaDBContainer()
 	if err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "failed to start MariaDB: %v\n", err)
-		if err != nil {
-			return
-		}
+		fmt.Fprintf(os.Stderr, "failed to start MariaDB: %v\n", err)
 		os.Exit(1)
 	}
 	defer ci.Cleanup()
 
 	if err := os.Setenv("TEST_DB_DSN", ci.DSN); err != nil {
-		return
+		fmt.Fprintf(os.Stderr, "failed to set TEST_DB_DSN: %v\n", err)
+		ci.Cleanup()
+		os.Exit(1)
 	}
 
-	os.Exit(m.Run())
+	exitCode := m.Run()
+
+	ci.Cleanup()
+	os.Exit(exitCode)
 }

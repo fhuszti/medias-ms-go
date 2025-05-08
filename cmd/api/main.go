@@ -3,19 +3,24 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/config"
+	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
+	"strings"
+	"syscall"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/handler"
-	"github.com/fhuszti/medias-ms-go/internal/repository"
-	"github.com/fhuszti/medias-ms-go/internal/service"
+	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
+	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
+	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"net/http"
 )
 
 func main() {
@@ -28,9 +33,29 @@ func main() {
 
 	r := initRouter()
 
-	npcRepo := repository.NewMariaDBNPCRepository(database.DB)
-	npcSvc := service.NewNPCService(npcRepo)
-	r.Post("/npcs/create", handler.CreateNPCHandler(npcSvc))
+	strgClient, err := storage.NewMinioClient(
+		cfg.MinioEndpoint,
+		cfg.MinioAccessKey,
+		cfg.MinioSecretKey,
+		cfg.MinioUseSSL,
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize MinIO client: %v", err)
+	}
+
+	buckets := strings.Split(cfg.MinioBuckets, ",")
+	storages := make(map[string]mediaService.Storage, len(buckets))
+	for _, b := range buckets {
+		storages[b] = strgClient.WithBucket(b)
+	}
+	_, ok := storages["staging"]
+	if !ok {
+		log.Fatal("You need a bucket named 'staging'")
+	}
+
+	mediaRepo := mariadb.NewMediaRepository(database.DB)
+	mediaSvc := mediaService.NewUploadLinkGenerator(mediaRepo, storages["staging"])
+	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(mediaSvc))
 
 	listenRouter(r, cfg, database)
 }
@@ -61,21 +86,30 @@ func initRouter() *chi.Mux {
 
 func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {
 	srv := &http.Server{Addr: ":" + strconv.Itoa(cfg.ServerPort), Handler: r}
+
+	// start serving
 	go func() {
-		log.Printf("Listening on %s", srv.Addr)
+		log.Printf("🚀 API listening on %s", srv.Addr)
 		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Listen error: %v", err)
 		}
 	}()
 
-	// wait for os.Signal (SIGHUP, SIGINT, SIGTERM), then:
+	// block until we get SIGINT/SIGTERM
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("🛑 shutdown signal received, exiting…")
+
+	// graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Shutdown error: %v", err)
+		log.Fatalf("Server shutdown failed: %v", err)
 	}
-	err := database.Close()
-	if err != nil {
-		return
+	log.Println("✅ server gracefully stopped")
+
+	if err := database.Close(); err != nil {
+		log.Printf("DB close error: %v", err)
 	}
 }
