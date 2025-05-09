@@ -13,14 +13,21 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+type minioClient interface {
+	PresignedGetObject(ctx context.Context, bucketName, objectKey string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
+	PresignedPutObject(ctx context.Context, bucketName, objectKey string, expiry time.Duration) (*url.URL, error)
+	StatObject(ctx context.Context, bucketName, objectKey string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
+	EndpointURL() *url.URL
+}
+
 type MinioStorage struct {
-	client     *minio.Client
+	client     minioClient
 	bucketName string
 	useSSL     bool
 }
 
 type Client struct {
-	client *minio.Client
+	client minioClient
 	useSSL bool
 }
 
