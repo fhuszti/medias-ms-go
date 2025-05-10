@@ -18,6 +18,11 @@ type minioClient interface {
 	PresignedPutObject(ctx context.Context, bucketName, objectKey string, expiry time.Duration) (*url.URL, error)
 	StatObject(ctx context.Context, bucketName, objectKey string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
 	EndpointURL() *url.URL
+	BucketExists(ctx context.Context, bucketName string) (bool, error)
+	MakeBucket(ctx context.Context, bucketName string, opts minio.MakeBucketOptions) (err error)
+	RemoveBucket(ctx context.Context, bucketName string) error
+	ListObjects(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo
+	RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
 }
 
 type MinioStorage struct {
@@ -27,7 +32,7 @@ type MinioStorage struct {
 }
 
 type Client struct {
-	client minioClient
+	Client minioClient
 	useSSL bool
 }
 
@@ -42,11 +47,11 @@ func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Client
 	if err != nil {
 		return nil, err
 	}
-	return &Client{client: client, useSSL: useSSL}, nil
+	return &Client{Client: client, useSSL: useSSL}, nil
 }
 
 func (c *Client) WithBucket(bucket string) media.Storage {
-	return &MinioStorage{client: c.client, bucketName: bucket, useSSL: c.useSSL}
+	return &MinioStorage{client: c.Client, bucketName: bucket, useSSL: c.useSSL}
 }
 
 func (s *MinioStorage) GeneratePresignedDownloadURL(ctx context.Context, objectKey string, expiry time.Duration, downloadName string, inline bool) (string, error) {

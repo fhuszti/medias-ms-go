@@ -9,34 +9,43 @@ import (
 	"log"
 )
 
-type ContainerInfo struct {
+type MariaDBContainerInfo struct {
 	DSN     string
 	Cleanup func()
 }
 
-func StartMariaDBContainer() (*ContainerInfo, error) {
+func StartMariaDBContainer() (*MariaDBContainerInfo, error) {
+	const (
+		image        = "mariadb"
+		tag          = "10.11"
+		rootUser     = "root"
+		rootPassword = "root"
+		internalPort = "3306/tcp"
+	)
+
 	pool, err := dockertest.NewPool("")
 	if err != nil {
-		return nil, fmt.Errorf("connect to docker: %w", err)
+		return nil, fmt.Errorf("could not connect to docker: %w", err)
 	}
 
 	resource, err := pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "mariadb",
-		Tag:        "10.11",
+		Repository: image,
+		Tag:        tag,
 		Env: []string{
-			"MARIADB_ROOT_PASSWORD=secret",
+			fmt.Sprintf("MARIADB_ROOT_PASSWORD=%s", rootPassword),
 		},
 	}, func(hc *docker.HostConfig) {
 		hc.AutoRemove = true
 		hc.RestartPolicy = docker.RestartPolicy{Name: "no"}
 	})
 	if err != nil {
-		return nil, fmt.Errorf("run mariadb: %w", err)
+		return nil, fmt.Errorf("could not start mariadb container: %w", err)
 	}
 
+	var dsn string
 	if err := pool.Retry(func() error {
-		port := resource.GetPort("3306/tcp")
-		dsn := fmt.Sprintf("root:secret@(localhost:%s)/mysql?parseTime=true", port)
+		port := resource.GetPort(internalPort)
+		dsn = fmt.Sprintf("%s:%s@(localhost:%s)/mysql?parseTime=true", rootUser, rootPassword, port)
 		db, err := sql.Open("mysql", dsn)
 		if err != nil {
 			return err
@@ -52,10 +61,8 @@ func StartMariaDBContainer() (*ContainerInfo, error) {
 		_ = pool.Purge(resource)
 		return nil, fmt.Errorf("mariadb did not become ready: %w", err)
 	}
-
-	port := resource.GetPort("3306/tcp")
-	ci := &ContainerInfo{
-		DSN: fmt.Sprintf("root:secret@(localhost:%s)/testdb?parseTime=true", port),
+	ci := &MariaDBContainerInfo{
+		DSN: dsn,
 		Cleanup: func() {
 			if err := pool.Purge(resource); err != nil {
 				log.Printf("could not purge container: %s", err)

@@ -1,19 +1,19 @@
-.PHONY: test slow-test full-test
+.PHONY: test unit-tests functional-tests
 
 migration:
 	bash scripts/create_migration.sh
 
-test:
+unit-tests:
 	go clean -testcache
 	go test ./...
 
-slow-test:
+functional-tests:
 	go clean -testcache
 	cd test/ && go test ./...
 
-full-test:
-	make test
-	make slow-test
+test:
+	make unit-tests
+	make functional-tests
 
 clean:
 	golangci-lint run

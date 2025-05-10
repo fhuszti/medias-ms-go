@@ -111,7 +111,9 @@ func TestCustomTypeValidation(t *testing.T) {
 			}
 			js, _ := ErrorsToJson(err)
 			var got map[string]string
-			json.Unmarshal([]byte(js), &got)
+			if err := json.Unmarshal([]byte(js), &got); err != nil {
+				t.Fatalf("json.Unmarshal err = %v", err)
+			}
 			for f, wantTag := range tt.wantErrMap {
 				if got[f] != wantTag {
 					t.Errorf("field %q: got %q, want %q", f, got[f], wantTag)

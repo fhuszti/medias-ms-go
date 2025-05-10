@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"strings"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type TestDB struct {
@@ -19,24 +21,32 @@ func SetupTestDB() (*TestDB, error) {
 		return nil, fmt.Errorf("TEST_DB_DSN env-var not set")
 	}
 
-	parts := strings.SplitN(dsn, "/testdb", 2)
-	baseDSN := parts[0] + "/"
-
-	rootDB, err := sql.Open("mysql", baseDSN)
+	cfg, err := mysql.ParseDSN(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("open CI root DB: %w", err)
+		return nil, fmt.Errorf("parse DSN %q: %w", dsn, err)
 	}
 
-	dbName := fmt.Sprintf("testdb_%d", time.Now().UnixNano())
+	origName := cfg.DBName
+	cfg.DBName = ""
+	rootDSN := cfg.FormatDSN()
 
+	rootDB, err := sql.Open("mysql", rootDSN)
+	if err != nil {
+		return nil, fmt.Errorf("open root DB: %w", err)
+	}
+
+	dbName := fmt.Sprintf("%s_%d", origName, time.Now().UnixNano())
 	if _, err := rootDB.Exec("CREATE DATABASE " + dbName); err != nil {
 		return nil, err
 	}
 
-	fullDSN := strings.Replace(dsn, "/testdb", "/"+dbName, 1)
-	db, err := sql.Open("mysql", fullDSN)
+	cfg.DBName = dbName
+	testDSN := cfg.FormatDSN()
+	db, err := sql.Open("mysql", testDSN)
 	if err != nil {
-		return nil, fmt.Errorf("open CI DB: %w", err)
+		rootDB.Exec("DROP DATABASE " + dbName)
+		rootDB.Close()
+		return nil, fmt.Errorf("open test DB %q: %w", testDSN, err)
 	}
 
 	cleanup := func() error {
@@ -44,9 +54,12 @@ func SetupTestDB() (*TestDB, error) {
 		if err != nil {
 			return err
 		}
+
 		if _, err := rootDB.Exec("DROP DATABASE " + dbName); err != nil {
-			return err
+			rootDB.Close()
+			return fmt.Errorf("drop database %q: %w", dbName, err)
 		}
+
 		return rootDB.Close()
 	}
 

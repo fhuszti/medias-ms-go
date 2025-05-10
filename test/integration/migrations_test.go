@@ -26,14 +26,18 @@ func TestMigrateUpIntegration(t *testing.T) {
 	// Give some time for migration to finalize
 	time.Sleep(100 * time.Millisecond)
 
-	// Verify a known table exists (e.g., npcs)
+	// Verify a known table exists
 	recs := 0
-	err = db.QueryRow("SELECT COUNT(*) FROM npcs").Scan(&recs)
+	err = db.QueryRow("SELECT COUNT(*) FROM medias").Scan(&recs)
 	if err != nil {
 		t.Fatalf("failed to query migrated table: %v", err)
 	}
 	// No rows inserted yet, but the query should succeed
 	if recs != 0 {
-		t.Errorf("expected 0 rows in npcs after migration, got %d", recs)
+		var (
+			id, objectKey, mimeType string
+		)
+		err = db.QueryRow("SELECT id, object_key, mime_type FROM medias").Scan(&id, &objectKey, &mimeType)
+		t.Errorf("expected 0 rows in medias after migration, got %d results: %s, %s, %s", recs, id, objectKey, mimeType)
 	}
 }

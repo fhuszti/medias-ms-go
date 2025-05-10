@@ -2,27 +2,33 @@ package e2e
 
 import (
 	"fmt"
+	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"os"
 	"testing"
 )
 
+var GlobalMinioClient *storage.Client
+
 func TestMain(m *testing.M) {
-	ci, err := testutil.StartMariaDBContainer()
+	mdb, err := testutil.StartMariaDBContainer()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to start MariaDB: %v\n", err)
 		os.Exit(1)
 	}
-	defer ci.Cleanup()
+	os.Setenv("TEST_DB_DSN", mdb.DSN)
 
-	if err := os.Setenv("TEST_DB_DSN", ci.DSN); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to set TEST_DB_DSN: %v\n", err)
-		ci.Cleanup()
+	minio, err := testutil.StartMinIOContainer()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to start MinIO: %v\n", err)
 		os.Exit(1)
 	}
+	GlobalMinioClient = minio.Client
 
 	exitCode := m.Run()
 
-	ci.Cleanup()
+	minio.Cleanup()
+	mdb.Cleanup()
+
 	os.Exit(exitCode)
 }

@@ -11,20 +11,40 @@ import (
 )
 
 type mockMinio struct {
-	getFn       func(ctx context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error)
-	putFn       func(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error)
-	statFn      func(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
-	endpointURL *url.URL
+	bucketExistsFn       func(ctx context.Context, bucketName string) (bool, error)
+	makeBucketFn         func(ctx context.Context, bucketName string, opts minio.MakeBucketOptions) (err error)
+	removeBucketFn       func(ctx context.Context, bucketName string) error
+	listObjectsFn        func(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo
+	removeObjectFn       func(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
+	presignedGetObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error)
+	presignedPutObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error)
+	statObjectFn         func(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
+	endpointURL          *url.URL
 }
 
+func (m *mockMinio) BucketExists(ctx context.Context, bucketName string) (bool, error) {
+	return m.bucketExistsFn(ctx, bucketName)
+}
+func (m *mockMinio) MakeBucket(ctx context.Context, bucketName string, opts minio.MakeBucketOptions) (err error) {
+	return m.makeBucketFn(ctx, bucketName, opts)
+}
+func (m *mockMinio) RemoveBucket(ctx context.Context, bucketName string) error {
+	return m.removeBucketFn(ctx, bucketName)
+}
+func (m *mockMinio) ListObjects(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo {
+	return m.listObjectsFn(ctx, bucketName, opts)
+}
+func (m *mockMinio) RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error {
+	return m.removeObjectFn(ctx, bucketName, objectName, opts)
+}
 func (m *mockMinio) PresignedGetObject(ctx context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error) {
-	return m.getFn(ctx, bucket, key, expiry, params)
+	return m.presignedGetObjectFn(ctx, bucket, key, expiry, params)
 }
 func (m *mockMinio) PresignedPutObject(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error) {
-	return m.putFn(ctx, bucket, key, expiry)
+	return m.presignedPutObjectFn(ctx, bucket, key, expiry)
 }
 func (m *mockMinio) StatObject(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error) {
-	return m.statFn(ctx, bucket, key, opts)
+	return m.statObjectFn(ctx, bucket, key, opts)
 }
 func (m *mockMinio) EndpointURL() *url.URL {
 	return m.endpointURL
@@ -41,7 +61,7 @@ func makeStorage(mockClient *mockMinio, bucket string, useSSL bool) *MinioStorag
 func TestGeneratePresignedDownloadURL(t *testing.T) {
 	fake, _ := url.Parse("https://cdn.example.com/download?x=1")
 	mock := &mockMinio{
-		getFn: func(_ context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error) {
+		presignedGetObjectFn: func(_ context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error) {
 			// bucket and key should be forwarded
 			if bucket != "my-bucket" {
 				t.Errorf("bucket = %q; want %q", bucket, "my-bucket")
@@ -83,7 +103,7 @@ func TestGeneratePresignedDownloadURL(t *testing.T) {
 func TestGeneratePresignedDownloadURL_InlineAndName(t *testing.T) {
 	fake, _ := url.Parse("http://localhost/get")
 	mock := &mockMinio{
-		getFn: func(_ context.Context, _, _ string, _ time.Duration, params url.Values) (*url.URL, error) {
+		presignedGetObjectFn: func(_ context.Context, _, _ string, _ time.Duration, params url.Values) (*url.URL, error) {
 			disp := params.Get("response-content-disposition")
 			// inline + custom filename
 			expected := `inline; filename="download.dat"`
@@ -113,7 +133,7 @@ func TestGeneratePresignedDownloadURL_InlineAndName(t *testing.T) {
 
 func TestGeneratePresignedDownloadURL_Error(t *testing.T) {
 	mock := &mockMinio{
-		getFn: func(_ context.Context, _, _ string, _ time.Duration, _ url.Values) (*url.URL, error) {
+		presignedGetObjectFn: func(_ context.Context, _, _ string, _ time.Duration, _ url.Values) (*url.URL, error) {
 			return nil, errors.New("fail-get")
 		},
 		endpointURL: &url.URL{Scheme: "https", Host: "x"},
@@ -132,7 +152,7 @@ func TestGeneratePresignedDownloadURL_Error(t *testing.T) {
 func TestGeneratePresignedUploadURL(t *testing.T) {
 	fake, _ := url.Parse("https://cdn.example.com/upload")
 	mock := &mockMinio{
-		putFn: func(_ context.Context, bucket, key string, expiry time.Duration) (*url.URL, error) {
+		presignedPutObjectFn: func(_ context.Context, bucket, key string, expiry time.Duration) (*url.URL, error) {
 			if bucket != "u-bucket" {
 				t.Errorf("bucket = %q; want %q", bucket, "u-bucket")
 			}
@@ -158,7 +178,7 @@ func TestGeneratePresignedUploadURL(t *testing.T) {
 
 func TestGeneratePresignedUploadURL_Error(t *testing.T) {
 	mock := &mockMinio{
-		putFn: func(_ context.Context, _, _ string, _ time.Duration) (*url.URL, error) {
+		presignedPutObjectFn: func(_ context.Context, _, _ string, _ time.Duration) (*url.URL, error) {
 			return nil, errors.New("fail-put")
 		},
 	}
@@ -178,7 +198,7 @@ func TestObjectExists(t *testing.T) {
 
 	// Case: object exists
 	mock1 := &mockMinio{
-		statFn: func(_ context.Context, _, _ string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
+		statObjectFn: func(_ context.Context, _, _ string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
 			return minio.ObjectInfo{}, nil
 		},
 	}
@@ -193,7 +213,7 @@ func TestObjectExists(t *testing.T) {
 
 	// Case: NoSuchKey → does not exist
 	mock2 := &mockMinio{
-		statFn: func(_ context.Context, _, _ string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
+		statObjectFn: func(_ context.Context, _, _ string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
 			e := minio.ToErrorResponse(errors.New("ignored"))
 			e.Code = "NoSuchKey"
 			return minio.ObjectInfo{}, e
@@ -210,7 +230,7 @@ func TestObjectExists(t *testing.T) {
 
 	// Case: other error
 	mock3 := &mockMinio{
-		statFn: func(_ context.Context, _, _ string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
+		statObjectFn: func(_ context.Context, _, _ string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
 			return minio.ObjectInfo{}, errors.New("boom")
 		},
 	}
