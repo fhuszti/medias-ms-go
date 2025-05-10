@@ -33,7 +33,7 @@ func main() {
 
 	r := initRouter()
 
-	strgClient, err := storage.NewMinioClient(
+	strg, err := storage.NewMinioClient(
 		cfg.MinioEndpoint,
 		cfg.MinioAccessKey,
 		cfg.MinioSecretKey,
@@ -46,7 +46,10 @@ func main() {
 	buckets := strings.Split(cfg.MinioBuckets, ",")
 	storages := make(map[string]mediaService.Storage, len(buckets))
 	for _, b := range buckets {
-		storages[b] = strgClient.WithBucket(b)
+		storages[b], err = strg.WithBucket(b)
+		if err != nil {
+			log.Fatalf("Failed to initialize bucket '%s': %v", b, err)
+		}
 	}
 	_, ok := storages["staging"]
 	if !ok {
@@ -61,6 +64,8 @@ func main() {
 }
 
 func initDb(cfg *config.Settings) *db.Database {
+	log.Println("initialising database...")
+
 	dbCfg := db.MariaDbConfig{
 		Dsn:             cfg.MariaDBDSN,
 		MaxOpenConns:    cfg.MaxOpenConns,
@@ -77,6 +82,8 @@ func initDb(cfg *config.Settings) *db.Database {
 }
 
 func initRouter() *chi.Mux {
+	log.Println("initialising router...")
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)

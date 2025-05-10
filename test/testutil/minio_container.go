@@ -15,7 +15,7 @@ import (
 
 type MinIOContainerInfo struct {
 	DSN     string
-	Client  *storage.Client
+	Client  *storage.Strg
 	Cleanup func()
 }
 

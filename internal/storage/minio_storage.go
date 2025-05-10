@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"path/filepath"
 	"time"
@@ -23,6 +24,7 @@ type minioClient interface {
 	RemoveBucket(ctx context.Context, bucketName string) error
 	ListObjects(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo
 	RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
+	GetObject(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
 }
 
 type MinioStorage struct {
@@ -31,7 +33,7 @@ type MinioStorage struct {
 	useSSL     bool
 }
 
-type Client struct {
+type Strg struct {
 	Client minioClient
 	useSSL bool
 }
@@ -39,7 +41,8 @@ type Client struct {
 // compile-time check: *MinioStorage must satisfy media.Storage
 var _ media.Storage = (*MinioStorage)(nil)
 
-func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Client, error) {
+func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Strg, error) {
+	log.Println("initialising minio client...")
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
@@ -47,14 +50,26 @@ func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Client
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Client: client, useSSL: useSSL}, nil
+	return &Strg{Client: client, useSSL: useSSL}, nil
 }
 
-func (c *Client) WithBucket(bucket string) media.Storage {
-	return &MinioStorage{client: c.Client, bucketName: bucket, useSSL: c.useSSL}
+func (c *Strg) WithBucket(bucket string) (media.Storage, error) {
+	ok, err := c.Client.BucketExists(context.Background(), bucket)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		log.Printf("bucket '%s' does not exist, creating it...", bucket)
+		if err := c.Client.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{}); err != nil {
+			return nil, err
+		}
+	}
+	return &MinioStorage{client: c.Client, bucketName: bucket, useSSL: c.useSSL}, nil
 }
 
 func (s *MinioStorage) GeneratePresignedDownloadURL(ctx context.Context, objectKey string, expiry time.Duration, downloadName string, inline bool) (string, error) {
+	log.Printf("generating a presigned download link for media '%s' in bucket '%s'...", objectKey, s.bucketName)
+
 	dispositionType := "attachment"
 	if inline {
 		dispositionType = "inline"
@@ -77,6 +92,8 @@ func (s *MinioStorage) GeneratePresignedDownloadURL(ctx context.Context, objectK
 }
 
 func (s *MinioStorage) GeneratePresignedUploadURL(ctx context.Context, objectKey string, expiry time.Duration) (string, error) {
+	log.Printf("generating a presigned upload link for media '%s' in bucket '%s'...", objectKey, s.bucketName)
+
 	presignedURL, err := s.client.PresignedPutObject(ctx, s.bucketName, objectKey, expiry)
 	if err != nil {
 		return "", err
@@ -86,6 +103,8 @@ func (s *MinioStorage) GeneratePresignedUploadURL(ctx context.Context, objectKey
 }
 
 func (s *MinioStorage) ObjectExists(ctx context.Context, objectKey string) (bool, error) {
+	log.Printf("checking if media '%s' exists in bucket '%s'...", objectKey, s.bucketName)
+
 	_, err := s.client.StatObject(ctx, s.bucketName, objectKey, minio.StatObjectOptions{})
 	if err != nil {
 		if minio.ToErrorResponse(err).Code == "NoSuchKey" {

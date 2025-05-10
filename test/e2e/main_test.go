@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var GlobalMinioClient *storage.Client
+var GlobalMinioClient *storage.Strg
 
 func TestMain(m *testing.M) {
 	mdb, err := testutil.StartMariaDBContainer()

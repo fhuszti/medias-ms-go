@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"net/url"
 	"testing"
 	"time"
@@ -19,9 +20,13 @@ type mockMinio struct {
 	presignedGetObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error)
 	presignedPutObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error)
 	statObjectFn         func(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
+	getObjectFn          func(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
 	endpointURL          *url.URL
 }
 
+func (m *mockMinio) GetObject(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error) {
+	return m.getObjectFn(ctx, bucketName, objectName, opts)
+}
 func (m *mockMinio) BucketExists(ctx context.Context, bucketName string) (bool, error) {
 	return m.bucketExistsFn(ctx, bucketName)
 }
@@ -50,11 +55,92 @@ func (m *mockMinio) EndpointURL() *url.URL {
 	return m.endpointURL
 }
 
-func makeStorage(mockClient *mockMinio, bucket string, useSSL bool) *MinioStorage {
+func makeStorage(mockClient *mockMinio, bucket string, useSSL bool) media.Storage {
 	return &MinioStorage{
 		client:     mockClient,
 		bucketName: bucket,
 		useSSL:     useSSL,
+	}
+}
+
+func TestWithBucket(t *testing.T) {
+	tests := []struct {
+		name           string
+		exists         bool
+		existsErr      error
+		makeErr        error
+		wantMakeCalled bool
+		wantErr        string
+	}{
+		{
+			name:           "bucket exists, no create",
+			exists:         true,
+			wantMakeCalled: false,
+		},
+		{
+			name:           "bucket does not exist, create succeeds",
+			exists:         false,
+			wantMakeCalled: true,
+		},
+		{
+			name:      "BucketExists error bubbles up",
+			existsErr: errors.New("exist fail"),
+			wantErr:   "exist fail",
+		},
+		{
+			name:           "MakeBucket error bubbles up",
+			exists:         false,
+			makeErr:        errors.New("make fail"),
+			wantMakeCalled: true,
+			wantErr:        "make fail",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			makeCalled := false
+
+			mock := &mockMinio{
+				bucketExistsFn: func(ctx context.Context, bucketName string) (bool, error) {
+					return tc.exists, tc.existsErr
+				},
+				makeBucketFn: func(ctx context.Context, bucketName string, opts minio.MakeBucketOptions) error {
+					makeCalled = true
+					return tc.makeErr
+				},
+			}
+
+			strg := &Strg{Client: mock, useSSL: true}
+			s, err := strg.WithBucket("my-bucket")
+
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tc.wantErr)
+				}
+				if err.Error() != tc.wantErr {
+					t.Fatalf("error = %q; want %q", err.Error(), tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if makeCalled != tc.wantMakeCalled {
+				t.Errorf("MakeBucket called = %v; want %v", makeCalled, tc.wantMakeCalled)
+			}
+
+			ms, ok := s.(*MinioStorage)
+			if !ok {
+				t.Fatalf("returned type = %T; want *MinioStorage", s)
+			}
+			if ms.bucketName != "my-bucket" {
+				t.Errorf("bucketName = %q; want %q", ms.bucketName, "my-bucket")
+			}
+			if ms.useSSL != strg.useSSL {
+				t.Errorf("useSSL = %v; want %v", ms.useSSL, strg.useSSL)
+			}
+		})
 	}
 }
 

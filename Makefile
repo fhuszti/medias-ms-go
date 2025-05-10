@@ -7,6 +7,14 @@ unit-tests:
 	go clean -testcache
 	go test ./...
 
+e2e-tests:
+	go clean -testcache
+	cd test/e2e/ && go test ./...
+
+integration-tests:
+	go clean -testcache
+	cd test/integration/ && go test ./...
+
 functional-tests:
 	go clean -testcache
 	cd test/ && go test ./...

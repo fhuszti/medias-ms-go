@@ -22,6 +22,8 @@ type Settings struct {
 }
 
 func Load() (*Settings, error) {
+	log.Println("loading env variables...")
+
 	if err := godotenv.Load(".env"); err != nil {
 		log.Println("No .env file found; proceeding with OS environment variables")
 	}

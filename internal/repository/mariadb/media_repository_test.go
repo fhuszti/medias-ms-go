@@ -2,7 +2,6 @@ package mariadb
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"github.com/google/uuid"
 	"regexp"
@@ -18,12 +17,7 @@ func TestMediaRepository_Create_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error when opening stub database: %s", err)
 	}
-	defer func(sqlDB *sql.DB) {
-		err := sqlDB.Close()
-		if err != nil {
-			t.Errorf("failed to close the db: %v", err)
-		}
-	}(sqlDB)
+	defer func() { _ = sqlDB.Close() }()
 
 	repo := NewMediaRepository(sqlDB)
 
@@ -70,12 +64,7 @@ func TestMediaRepository_Create_ExecError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error when opening stub database: %s", err)
 	}
-	defer func(sqlDB *sql.DB) {
-		err := sqlDB.Close()
-		if err != nil {
-			t.Errorf("failed to close the db: %v", err)
-		}
-	}(sqlDB)
+	defer func() { _ = sqlDB.Close() }()
 
 	repo := NewMediaRepository(sqlDB)
 

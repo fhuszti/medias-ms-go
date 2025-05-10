@@ -8,11 +8,11 @@ import (
 )
 
 type TestBuckets struct {
-	Client  *storage.Client
-	Cleanup func() error
+	StrgClient *storage.Strg
+	Cleanup    func() error
 }
 
-func SetupTestBuckets(strg *storage.Client) (*TestBuckets, error) {
+func SetupTestBuckets(strg *storage.Strg) (*TestBuckets, error) {
 	buckets := []string{"staging", "images", "docs"}
 	ctx := context.Background()
 	client := strg.Client
@@ -52,7 +52,7 @@ func SetupTestBuckets(strg *storage.Client) (*TestBuckets, error) {
 	}
 
 	return &TestBuckets{
-		Client:  strg,
-		Cleanup: cleanup,
+		StrgClient: strg,
+		Cleanup:    cleanup,
 	}, nil
 }

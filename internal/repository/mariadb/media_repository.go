@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"log"
 )
 
 type MediaRepository struct {
@@ -19,6 +20,7 @@ func NewMediaRepository(db *sql.DB) *MediaRepository {
 }
 
 func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error {
+	log.Printf("creating database record for media '%s', at status '%s'...", media.ObjectKey, media.Status)
 	const query = `
       INSERT INTO medias 
         (id, object_key, mime_type, size_bytes, status, failure_message, metadata)

@@ -34,7 +34,11 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 	}()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaService.NewUploadLinkGenerator(mediaRepo, tb.Client.WithBucket("staging"))
+	strg, err := tb.StrgClient.WithBucket("staging")
+	if err != nil {
+		t.Fatalf("failed to initialise bucket 'staging': %v", err)
+	}
+	svc := mediaService.NewUploadLinkGenerator(mediaRepo, strg)
 
 	in := mediaService.GenerateUploadLinkInput{
 		Name: "file_example",
