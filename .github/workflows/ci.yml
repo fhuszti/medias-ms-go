@@ -76,8 +76,7 @@ jobs:
                     --health-interval=10s
                     --health-timeout=5s
                     --health-retries=3
-                volumes:
-                    - minio_data:/data
+                command: server /data
         env:
             TEST_DB_DSN: root:secret@(localhost:3306)/testdb?parseTime=true
             TEST_MINIO_ENDPOINT: localhost:9000
