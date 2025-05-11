@@ -65,14 +65,14 @@ jobs:
                     --health-timeout=5s
                     --health-retries=3
             minio:
-                image: minio/minio:latest
+                image: maragudk/minio-ci:latest
                 env:
                     MINIO_ROOT_USER: minioadmin
                     MINIO_ROOT_PASSWORD: minioadmin
                 ports:
                     - 9000:9000
                 options: >-
-                    --health-cmd="curl -f http://localhost:9000/minio/health/ready || exit 1"
+                    --health-cmd="curl -f http://localhost:9000/minio/health/live"
                     --health-interval=10s
                     --health-timeout=5s
                     --health-retries=3
@@ -90,9 +90,6 @@ jobs:
                   go-version: ${{ matrix.go-version }}
             - name: Install dependencies
               run: go mod download
-            - name: Confirm MinIO is ready
-              run: |
-                curl --retry 5 --retry-connrefused --fail http://localhost:9000/minio/health/ready
             - name: Run integration tests
               run: go test ./test/integration -v -timeout 10m
 
@@ -118,7 +115,7 @@ jobs:
                     --health-timeout=5s
                     --health-retries=3
             minio:
-                image: minio/minio:latest
+                image: maragudk/minio-ci:latest
                 env:
                     MINIO_ROOT_USER: minioadmin
                     MINIO_ROOT_PASSWORD: minioadmin
