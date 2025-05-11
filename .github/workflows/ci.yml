@@ -72,11 +72,12 @@ jobs:
                 ports:
                     - 9000:9000
                 options: >-
-                    --entrypoint="minio server /data"
                     --health-cmd="curl -f http://localhost:9000/minio/health/live"
                     --health-interval=10s
                     --health-timeout=5s
                     --health-retries=3
+                volumes:
+                    - minio_data:/data
         env:
             TEST_DB_DSN: root:secret@(localhost:3306)/testdb?parseTime=true
             TEST_MINIO_ENDPOINT: localhost:9000
@@ -123,7 +124,6 @@ jobs:
                 ports:
                     - 9000:9000
                 options: >-
-                    --entrypoint="minio server /data"
                     --health-cmd="curl -f http://localhost:9000/minio/health/live"
                     --health-interval=10s
                     --health-timeout=5s
