@@ -72,11 +72,10 @@ jobs:
                 ports:
                     - 9000:9000
                 options: >-
-                    --health-cmd="curl -f http://localhost:9000/minio/health/live"
+                    --health-cmd="curl -f http://localhost:9000/minio/health/ready || exit 1"
                     --health-interval=10s
                     --health-timeout=5s
                     --health-retries=3
-                command: server /data
         env:
             TEST_DB_DSN: root:secret@(localhost:3306)/testdb?parseTime=true
             TEST_MINIO_ENDPOINT: localhost:9000
@@ -91,6 +90,9 @@ jobs:
                   go-version: ${{ matrix.go-version }}
             - name: Install dependencies
               run: go mod download
+            - name: Confirm MinIO is ready
+              run: |
+                curl --retry 5 --retry-connrefused --fail http://localhost:9000/minio/health/ready
             - name: Run integration tests
               run: go test ./test/integration -v -timeout 10m
 
