@@ -1,0 +1,146 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+    lint:
+        name: Linting Checks
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - "1.24.2"   # current
+                    - "1.23"     # previous
+                    - "1.22"     # earlier LTS
+        steps:
+            - uses: actions/checkout@v4
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: ${{ matrix.go-version }}
+            - name: Run golangci-lint
+              uses: golangci/golangci-lint-action@v7
+              with:
+                  version: v2.0
+
+    test:
+        name: Unit Tests
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - "1.24.2"   # current
+                    - "1.23"     # previous
+                    - "1.22"     # earlier LTS
+        steps:
+            - uses: actions/checkout@v4
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: ${{ matrix.go-version }}
+            - name: Install dependencies
+              run: go mod download
+            - name: Run unit tests
+              run: go test -v ./... -parallel=4
+
+    integration:
+        name: Integration Tests
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - "1.24.2"   # current
+                    - "1.23"     # previous
+                    - "1.22"     # earlier LTS
+        services:
+            mariadb:
+                image: mariadb:10.11
+                env:
+                    MARIADB_ROOT_PASSWORD: secret
+                    MARIADB_DATABASE: testdb
+                ports: ['3306:3306']
+                options: >-
+                    --health-cmd="mysqladmin ping --silent"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
+            minio:
+                image: minio/minio:latest
+                env:
+                    MINIO_ROOT_USER: minioadmin
+                    MINIO_ROOT_PASSWORD: minioadmin
+                ports:
+                    - 9000:9000
+                options: >-
+                    --entrypoint ["minio","server","/data"]
+                    --health-cmd="curl -f http://localhost:9000/minio/health/ready || exit 1"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
+        env:
+            TEST_DB_DSN: root:secret@(localhost:3306)/testdb?parseTime=true
+            TEST_MINIO_ENDPOINT: localhost:9000
+            TEST_MINIO_ACCESS_KEY: minioadmin
+            TEST_MINIO_SECRET_KEY: minioadmin
+            TEST_MINIO_USE_SSL: false
+        steps:
+            - uses: actions/checkout@v4
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: ${{ matrix.go-version }}
+            - name: Install dependencies
+              run: go mod download
+            - name: Run integration tests
+              run: go test ./test/integration -v -timeout 10m
+
+    e2e:
+        name: End-to-End Tests
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                go-version:
+                    - "1.24.2"   # current
+                    - "1.23"     # previous
+                    - "1.22"     # earlier LTS
+        services:
+            mariadb:
+                image: mariadb:10.11
+                env:
+                    MARIADB_ROOT_PASSWORD: secret
+                    MARIADB_DATABASE: testdb
+                ports: [ '3306:3306' ]
+                options: >-
+                    --health-cmd="mysqladmin ping --silent"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
+            minio:
+                image: minio/minio:latest
+                env:
+                    MINIO_ROOT_USER: minioadmin
+                    MINIO_ROOT_PASSWORD: minioadmin
+                ports:
+                    - 9000:9000
+                options: >-
+                    --entrypoint ["minio","server","/data"]
+                    --health-cmd="curl -f http://localhost:9000/minio/health/ready || exit 1"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
+        env:
+            TEST_DB_DSN: root:secret@(localhost:3306)/testdb?parseTime=true
+            TEST_MINIO_ENDPOINT: localhost:9000
+            TEST_MINIO_ACCESS_KEY: minioadmin
+            TEST_MINIO_SECRET_KEY: minioadmin
+            TEST_MINIO_USE_SSL: false
+        steps:
+            -   uses: actions/checkout@v4
+            -   name: Set up Go
+                uses: actions/setup-go@v5
+                with:
+                    go-version: ${{ matrix.go-version }}
+            -   name: Install dependencies
+                run: go mod download
+            -   name: Run E2E tests
+                run: go test ./test/e2e -v -timeout 10m
