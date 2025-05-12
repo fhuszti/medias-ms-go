@@ -8,15 +8,15 @@ import (
 type MediaStatus string
 
 const (
-	MediaStatusPending  MediaStatus = "pending"
-	MediaStatusUploaded MediaStatus = "uploaded"
-	MediaStatusFailed   MediaStatus = "failed"
+	MediaStatusPending   MediaStatus = "pending"
+	MediaStatusCompleted MediaStatus = "completed"
+	MediaStatusFailed    MediaStatus = "failed"
 )
 
 type Media struct {
 	ID             db.UUID     `json:"id"`
 	ObjectKey      string      `json:"object_key"`
-	MimeType       string      `json:"mime_type"`
+	MimeType       *string     `json:"mime_type,omitempty"`
 	SizeBytes      *int        `json:"size_bytes,omitempty"`
 	Status         MediaStatus `json:"status"`
 	FailureMessage *string     `json:"failure_message,omitempty"`

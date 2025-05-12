@@ -3,19 +3,29 @@ package media
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
+	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 )
 
-type GenerateUploadLinkRequest struct {
-	Name string `json:"name" validate:"required,max=80"`
+type FinaliseUploadRequest struct {
+	ID db.UUID `json:"id" validate:"required,uuid"`
 }
 
-func GenerateUploadLinkHandler(svc media.UploadLinkGenerator) http.HandlerFunc {
+func FinaliseUploadHandler(svc media.UploadFinaliser) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req GenerateUploadLinkRequest
+		destBucket := chi.URLParam(r, "destBucket")
+		if destBucket == "" {
+			errStr := "❌  Invalid request: a destination bucket is necessary for this operation"
+			log.Print(errStr)
+			http.Error(w, errStr, http.StatusBadRequest)
+			return
+		}
+
+		var req FinaliseUploadRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			errStr := fmt.Sprintf("❌  Invalid request: %s", err.Error())
 			log.Print(errStr)
@@ -31,32 +41,34 @@ func GenerateUploadLinkHandler(svc media.UploadLinkGenerator) http.HandlerFunc {
 				http.Error(w, errStr, http.StatusInternalServerError)
 			}
 
-			log.Printf("❌  Validation errors on file upload link request: %s", errsJson)
 			http.Error(w, errsJson, http.StatusBadRequest)
 			return
 		}
 
-		in := media.GenerateUploadLinkInput(req)
+		in := media.FinaliseUploadInput{
+			ID:         req.ID,
+			DestBucket: destBucket,
+		}
 
-		output, err := svc.GenerateUploadLink(r.Context(), in)
+		output, err := svc.FinaliseUpload(r.Context(), in)
 		if err != nil {
-			errStr := fmt.Sprintf("❌  Could not generate presigned URL for upload: %s", err.Error())
+			errStr := fmt.Sprintf("❌  Could not finalise upload of media #%s: %s", in.ID, err.Error())
 			log.Print(errStr)
 			http.Error(w, errStr, http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 
 		err = json.NewEncoder(w).Encode(output)
 		if err != nil {
-			errStr := fmt.Sprintf("❌  Could not encode newly generated presigned URL for upload: %s", err.Error())
+			errStr := fmt.Sprintf("❌  Could not encode media entity following upload completion: %s", err.Error())
 			log.Print(errStr)
 			http.Error(w, errStr, http.StatusInternalServerError)
 			return
 		}
 
-		log.Printf("✅  Successfully generated upload link for media #%s", output.ID)
+		log.Printf("✅  Successfully finalised upload of media #%s", in.ID)
 	}
 }

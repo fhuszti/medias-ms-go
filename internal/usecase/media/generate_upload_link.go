@@ -10,41 +10,47 @@ import (
 )
 
 type UploadLinkGenerator interface {
-	GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (string, error)
+	GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (*GenerateUploadLinkOutput, error)
 }
 
-type service struct {
+type uploadLinkGeneratorSrv struct {
 	repo Repository
 	strg Storage
 }
 
 func NewUploadLinkGenerator(repo Repository, strg Storage) UploadLinkGenerator {
-	return &service{repo: repo, strg: strg}
+	return &uploadLinkGeneratorSrv{repo: repo, strg: strg}
 }
 
 type GenerateUploadLinkInput struct {
 	Name string
-	Type string
 }
 
-func (s *service) GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (string, error) {
+type GenerateUploadLinkOutput struct {
+	ID  db.UUID `json:"id"`
+	URL string  `json:"url"`
+}
+
+func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (*GenerateUploadLinkOutput, error) {
 	now := time.Now().UTC()
 	objectKey := fmt.Sprintf("%s_%d", in.Name, now.UnixNano())
 	media := &model.Media{
 		ID:        db.NewUUID(),
 		ObjectKey: objectKey,
-		MimeType:  in.Type,
 		Status:    model.MediaStatusPending,
 	}
 
 	if err := s.repo.Create(ctx, media); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	url, err := s.strg.GeneratePresignedUploadURL(ctx, objectKey, 5*time.Minute)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return url, nil
+	return &GenerateUploadLinkOutput{
+		ID:  media.ID,
+		URL: url,
+	}, nil
 }

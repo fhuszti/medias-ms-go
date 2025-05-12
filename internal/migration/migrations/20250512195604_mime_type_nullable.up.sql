@@ -1,0 +1,2 @@
+ALTER TABLE medias
+    MODIFY COLUMN mime_type VARCHAR(50) NULL

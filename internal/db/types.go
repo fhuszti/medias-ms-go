@@ -12,6 +12,10 @@ func NewUUID() UUID {
 	return UUID(uuid.New())
 }
 
+func (u UUID) String() string {
+	return uuid.UUID(u).String()
+}
+
 func (u *UUID) Scan(src interface{}) error {
 	b, ok := src.([]byte)
 	if !ok {

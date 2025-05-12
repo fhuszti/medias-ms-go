@@ -3,11 +3,12 @@ package storage
 import (
 	"context"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"io"
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/minio/minio-go/v7"
 )
 
@@ -21,6 +22,7 @@ type mockMinio struct {
 	presignedPutObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error)
 	statObjectFn         func(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
 	getObjectFn          func(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
+	putObjectFn          func(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error)
 	endpointURL          *url.URL
 }
 
@@ -50,6 +52,9 @@ func (m *mockMinio) PresignedPutObject(ctx context.Context, bucket, key string, 
 }
 func (m *mockMinio) StatObject(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error) {
 	return m.statObjectFn(ctx, bucket, key, opts)
+}
+func (m *mockMinio) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error) {
+	return m.putObjectFn(ctx, bucketName, objectName, reader, objectSize, opts)
 }
 func (m *mockMinio) EndpointURL() *url.URL {
 	return m.endpointURL
@@ -289,7 +294,7 @@ func TestObjectExists(t *testing.T) {
 		},
 	}
 	s1 := makeStorage(mock1, "b", false)
-	exists, err := s1.ObjectExists(ctx, "foo")
+	exists, err := s1.FileExists(ctx, "foo")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -306,7 +311,7 @@ func TestObjectExists(t *testing.T) {
 		},
 	}
 	s2 := makeStorage(mock2, "b", false)
-	exists2, err2 := s2.ObjectExists(ctx, "bar")
+	exists2, err2 := s2.FileExists(ctx, "bar")
 	if err2 != nil {
 		t.Fatalf("unexpected error: %v", err2)
 	}
@@ -321,7 +326,7 @@ func TestObjectExists(t *testing.T) {
 		},
 	}
 	s3 := makeStorage(mock3, "b", true)
-	exists3, err3 := s3.ObjectExists(ctx, "baz")
+	exists3, err3 := s3.FileExists(ctx, "baz")
 	if err3 == nil {
 		t.Fatal("expected error, got nil")
 	}

@@ -3,7 +3,7 @@ package validation
 import (
 	"encoding/json"
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/storage"
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/google/uuid"
 	"reflect"
 	"strings"
@@ -39,12 +39,7 @@ func init() {
 	// Validate mime types
 	err := validate.RegisterValidation("mimetype", func(fl validator.FieldLevel) bool {
 		v := fl.Field().String()
-		for _, m := range storage.AllowedMimeTypes {
-			if v == m {
-				return true
-			}
-		}
-		return false
+		return media.IsMimeTypeAllowed(v)
 	})
 	if err != nil {
 		return

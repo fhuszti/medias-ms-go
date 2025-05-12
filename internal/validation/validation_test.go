@@ -3,7 +3,6 @@ package validation
 import (
 	"encoding/json"
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/google/uuid"
 	"testing"
 )
@@ -86,7 +85,7 @@ func TestCustomTypeValidation(t *testing.T) {
 	}{
 		{
 			name:    "all good",
-			in:      Input{ID: db.UUID(uuid.New()), Type: storage.AllowedMimeTypes[0]},
+			in:      Input{ID: db.UUID(uuid.New()), Type: "text/markdown"},
 			wantErr: false,
 		},
 		{

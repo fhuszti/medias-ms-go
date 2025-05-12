@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/fhuszti/medias-ms-go/internal/handler"
 	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"log"
 	"net/http"
@@ -57,8 +59,19 @@ func main() {
 	}
 
 	mediaRepo := mariadb.NewMediaRepository(database.DB)
-	mediaSvc := mediaService.NewUploadLinkGenerator(mediaRepo, storages["staging"])
-	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(mediaSvc))
+
+	uploadLinkGeneratorSvc := mediaService.NewUploadLinkGenerator(mediaRepo, storages["staging"])
+	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
+
+	var getDestBucket mediaService.StorageGetter = func(bucket string) (mediaService.Storage, error) {
+		st, ok := storages[bucket]
+		if !ok {
+			return nil, fmt.Errorf("bucket %q is not configured", bucket)
+		}
+		return st, nil
+	}
+	uploadFinaliserSvc := mediaService.NewUploadFinaliser(mediaRepo, storages["staging"], getDestBucket)
+	r.Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
 
 	listenRouter(r, cfg, database)
 }
@@ -87,6 +100,9 @@ func initRouter() *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
+
+	r.NotFound(handler.NotFoundHandler())
+	r.MethodNotAllowed(handler.MethodNotAllowedHandler())
 
 	return r
 }
