@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log"
 	"net/url"
@@ -48,7 +49,7 @@ func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Strg, 
 		Secure: useSSL,
 	})
 	if err != nil {
-		return nil, err
+		return nil, mapMinioErr(err)
 	}
 	return &Strg{Client: client, useSSL: useSSL}, nil
 }
@@ -56,12 +57,12 @@ func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Strg, 
 func (c *Strg) WithBucket(bucket string) (media.Storage, error) {
 	ok, err := c.Client.BucketExists(context.Background(), bucket)
 	if err != nil {
-		return nil, err
+		return nil, mapMinioErr(err)
 	}
 	if !ok {
 		log.Printf("bucket '%s' does not exist, creating it...", bucket)
 		if err := c.Client.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{}); err != nil {
-			return nil, err
+			return nil, mapMinioErr(err)
 		}
 	}
 	return &MinioStorage{client: c.Client, bucketName: bucket, useSSL: c.useSSL}, nil
@@ -72,7 +73,7 @@ func (s *MinioStorage) GeneratePresignedUploadURL(ctx context.Context, fileKey s
 
 	presignedURL, err := s.client.PresignedPutObject(ctx, s.bucketName, fileKey, expiry)
 	if err != nil {
-		return "", err
+		return "", mapMinioErr(err)
 	}
 
 	return presignedURL.String(), nil
@@ -82,42 +83,58 @@ func (s *MinioStorage) FileExists(ctx context.Context, fileKey string) (bool, er
 	log.Printf("checking if file '%s' exists in bucket '%s'...", fileKey, s.bucketName)
 
 	_, err := s.StatFile(ctx, fileKey)
+	if errors.Is(err, media.ErrObjectNotFound) {
+		return false, nil
+	}
 	if err != nil {
-		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
-			return false, nil
-		}
 		return false, err
 	}
 	return true, nil
 }
 
-func (s *MinioStorage) StatFile(ctx context.Context, fileKey string) (minio.ObjectInfo, error) {
+func (s *MinioStorage) StatFile(ctx context.Context, fileKey string) (media.FileInfo, error) {
 	log.Printf("getting stats on file '%s' in bucket '%s'...", fileKey, s.bucketName)
 
-	return s.client.StatObject(ctx, s.bucketName, fileKey, minio.StatObjectOptions{})
+	info, err := s.client.StatObject(ctx, s.bucketName, fileKey, minio.StatObjectOptions{})
+	if err != nil {
+		return media.FileInfo{}, mapMinioErr(err)
+	}
+	return media.FileInfo{
+		SizeBytes:   info.Size,
+		ContentType: info.ContentType,
+	}, nil
 }
 
 func (s *MinioStorage) RemoveFile(ctx context.Context, fileKey string) error {
 	log.Printf("removing file '%s' from bucket '%s'...", fileKey, s.bucketName)
 
-	return s.client.RemoveObject(ctx, s.bucketName, fileKey, minio.RemoveObjectOptions{})
+	err := s.client.RemoveObject(ctx, s.bucketName, fileKey, minio.RemoveObjectOptions{})
+	return mapMinioErr(err)
 }
 
-func (s *MinioStorage) GetFile(ctx context.Context, fileKey string) (*minio.Object, error) {
+func (s *MinioStorage) GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error) {
 	log.Printf("getting file '%s' from bucket '%s'...", fileKey, s.bucketName)
 
-	return s.client.GetObject(ctx, s.bucketName, fileKey, minio.GetObjectOptions{})
+	obj, err := s.client.GetObject(ctx, s.bucketName, fileKey, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, mapMinioErr(err)
+	}
+	return obj, nil
 }
 
-func (s *MinioStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) (minio.UploadInfo, error) {
+func (s *MinioStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
 	log.Printf("saving file '%s' into bucket '%s'...", fileKey, s.bucketName)
 
-	minioOpts := minio.PutObjectOptions{}
-	if opts["Content-Type"] != "" {
-		minioOpts.ContentType = opts["Content-Type"]
+	putOpts := minio.PutObjectOptions{}
+	if ct := opts["Content-Type"]; ct != "" {
+		putOpts.ContentType = ct
 	}
 
-	return s.client.PutObject(ctx, s.bucketName, fileKey, reader, fileSize, minioOpts)
+	_, err := s.client.PutObject(ctx, s.bucketName, fileKey, reader, fileSize, putOpts)
+	if err != nil {
+		return mapMinioErr(err)
+	}
+	return nil
 }
 
 func (s *MinioStorage) PublicURL(fileKey string) string {

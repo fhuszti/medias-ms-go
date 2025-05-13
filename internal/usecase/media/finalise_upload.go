@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
-	"github.com/minio/minio-go/v7"
 )
 
 type UploadFinaliser interface {
@@ -35,74 +35,54 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 	if err != nil {
 		return nil, err
 	}
-
 	if media.Status != model.MediaStatusPending {
 		return nil, errors.New("media status should be 'pending' to be finalised")
 	}
 
-	exists, err := s.stagingStrg.FileExists(ctx, media.ObjectKey)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		errStr := fmt.Sprintf("file '%s' does not exist in staging", media.ObjectKey)
-		if err := s.markAsFailed(ctx, media, errStr); err != nil {
-			return nil, err
+	// Cleanup function
+	var finalErr error
+	defer func() {
+		if finalErr != nil {
+			if err := s.cleanupFile(media.ObjectKey); err != nil {
+				log.Printf("cleanup failed for file %q: %v", media.ObjectKey, err)
+			}
+			if markErr := s.markAsFailed(ctx, media, finalErr.Error()); markErr != nil {
+				log.Printf("markAsFailed failed for file %q: %v", media.ObjectKey, markErr)
+			}
 		}
-		return nil, errors.New(errStr)
-	}
+	}()
 
 	info, err := s.stagingStrg.StatFile(ctx, media.ObjectKey)
 	if err != nil {
-		errStr := fmt.Sprintf("could not get stats of file '%s' in staging", media.ObjectKey)
-		if err := s.cleanupFile(media.ObjectKey); err != nil {
-			return nil, err
+		if errors.Is(err, ErrObjectNotFound) {
+			finalErr = fmt.Errorf("staging file %q not found", media.ObjectKey)
+		} else {
+			finalErr = fmt.Errorf("stats for file %q failed: %w", media.ObjectKey, err)
 		}
-		if err := s.markAsFailed(ctx, media, errStr); err != nil {
-			return nil, err
-		}
-		return nil, err
+		return nil, finalErr
 	}
 
-	intSize := int(info.Size)
-	if intSize > MaxFileSize {
-		errStr := fmt.Sprintf("file '%s' is too large (%d bytes)", media.ObjectKey, info.Size)
-		if err := s.cleanupFile(media.ObjectKey); err != nil {
-			return nil, err
-		}
-		if err := s.markAsFailed(ctx, media, errStr); err != nil {
-			return nil, err
-		}
-		return nil, errors.New(errStr)
+	if info.SizeBytes > MaxFileSize {
+		finalErr = fmt.Errorf("file %q too large: %d bytes", media.ObjectKey, info.SizeBytes)
+		return nil, finalErr
 	}
 
 	if !IsMimeTypeAllowed(info.ContentType) {
-		errStr := fmt.Sprintf("unsupported content type for file '%s': %s", media.ObjectKey, info.ContentType)
-		if err := s.cleanupFile(media.ObjectKey); err != nil {
-			return nil, err
-		}
-		if err := s.markAsFailed(ctx, media, errStr); err != nil {
-			return nil, err
-		}
-		return nil, errors.New(errStr)
+		finalErr = fmt.Errorf("unsupported mime-type %q for file %q", info.ContentType, media.ObjectKey)
+		return nil, finalErr
 	}
 
-	if err := s.moveFile(ctx, media, info.Size, info.ContentType, in.DestBucket); err != nil {
-		errStr := fmt.Sprintf("failed to move file '%s' from staging to destination bucket", media.ObjectKey)
-		if err := s.cleanupFile(media.ObjectKey); err != nil {
-			return nil, err
-		}
-		if err := s.markAsFailed(ctx, media, errStr); err != nil {
-			return nil, err
-		}
-		return nil, err
+	if err := s.moveFile(ctx, media, info.SizeBytes, info.ContentType, in.DestBucket); err != nil {
+		finalErr = fmt.Errorf("move file %q from staging to bucket %q failed: %w", media.ObjectKey, in.DestBucket, err)
+		return nil, finalErr
 	}
 
 	media.Status = model.MediaStatusCompleted
-	media.SizeBytes = &intSize
+	media.SizeBytes = &info.SizeBytes
 	media.MimeType = &info.ContentType
 	if err := s.repo.Update(ctx, media); err != nil {
-		return nil, err
+		finalErr = fmt.Errorf("failed updating media after finalising the upload: %w", err)
+		return nil, finalErr
 	}
 
 	return media, nil
@@ -128,20 +108,20 @@ func (s *uploadFinaliserSrv) markAsFailed(ctx context.Context, media *model.Medi
 func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, size int64, contentType string, destBucket string) error {
 	destStrg, err := s.getDestBucket(destBucket)
 	if err != nil {
-		return fmt.Errorf("unknown destination bucket %s: %w", destBucket, err)
+		return fmt.Errorf("unknown destination bucket %q: %w", destBucket, err)
 	}
 
 	objReader, err := s.stagingStrg.GetFile(ctx, media.ObjectKey)
 	if err != nil {
 		return err
 	}
-	defer func(objReader *minio.Object) {
+	defer func(objReader io.ReadCloser) {
 		if err := objReader.Close(); err != nil {
 			log.Printf("failed to close reader")
 		}
 	}(objReader)
 
-	if _, err := destStrg.SaveFile(
+	if err := destStrg.SaveFile(
 		ctx,
 		media.ObjectKey,
 		objReader,
@@ -154,7 +134,7 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 	}
 
 	if err := s.stagingStrg.RemoveFile(ctx, media.ObjectKey); err != nil {
-		log.Printf("failed to clean up file '%s' in staging: %v", media.ObjectKey, err)
+		log.Printf("failed to clean up file %q in staging: %v", media.ObjectKey, err)
 	}
 
 	return nil

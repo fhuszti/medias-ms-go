@@ -17,7 +17,7 @@ type Media struct {
 	ID             db.UUID     `json:"id"`
 	ObjectKey      string      `json:"object_key"`
 	MimeType       *string     `json:"mime_type,omitempty"`
-	SizeBytes      *int        `json:"size_bytes,omitempty"`
+	SizeBytes      *int64      `json:"size_bytes,omitempty"`
 	Status         MediaStatus `json:"status"`
 	FailureMessage *string     `json:"failure_message,omitempty"`
 	Metadata       *string     `json:"metadata,omitempty"`
