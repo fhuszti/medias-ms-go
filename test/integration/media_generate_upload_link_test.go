@@ -2,11 +2,13 @@ package integration
 
 import (
 	"context"
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
+	"github.com/google/uuid"
 	"net/url"
 	"strings"
 	"testing"
@@ -42,20 +44,23 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 
 	in := mediaService.GenerateUploadLinkInput{
 		Name: "file_example",
-		Type: "image/png",
 	}
 
-	presignedURL, err := svc.GenerateUploadLink(context.Background(), in)
+	out, err := svc.GenerateUploadLink(context.Background(), in)
 	if err != nil {
 		t.Fatalf("GenerateUploadLink returned error: %v", err)
 	}
 
-	if presignedURL == "" {
+	if out.ID == db.UUID(uuid.Nil) {
+		t.Fatal("expected non-empty ID")
+	}
+
+	if out.URL == "" {
 		t.Fatal("expected non-empty presigned URL")
 	}
-	u, err := url.Parse(presignedURL)
+	u, err := url.Parse(out.URL)
 	if err != nil {
-		t.Fatalf("invalid URL %q: %v", presignedURL, err)
+		t.Fatalf("invalid URL %q: %v", out.URL, err)
 	}
 	parts := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
 	if len(parts) != 2 {
@@ -70,17 +75,17 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 	}
 
 	var (
-		id       string
-		mimeType string
-		status   model.MediaStatus
+		id     db.UUID
+		status model.MediaStatus
 	)
 	row := testDB.DB.QueryRowContext(context.Background(),
-		"SELECT id, mime_type, status FROM medias WHERE object_key = ?", objectKey)
-	if err := row.Scan(&id, &mimeType, &status); err != nil {
+		"SELECT id, status FROM medias WHERE object_key = ?", objectKey)
+	if err := row.Scan(&id, &status); err != nil {
 		t.Fatalf("failed to scan media record: %v", err)
 	}
-	if mimeType != in.Type {
-		t.Errorf("expected mime type %q, got %q", in.Type, mimeType)
+
+	if id != out.ID {
+		t.Errorf("expected ID %q, got %q", out.ID, id)
 	}
 	if status != model.MediaStatusPending {
 		t.Errorf("expected status %q, got %q", model.MediaStatusPending, status)
