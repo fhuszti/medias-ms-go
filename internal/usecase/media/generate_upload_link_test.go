@@ -1,14 +1,14 @@
-// internal/media/service_test.go
 package media
 
 import (
 	"context"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"io"
 	"regexp"
 	"testing"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/google/uuid"
 )
@@ -18,6 +18,12 @@ type fakeRepo struct {
 	mediaArg *model.Media
 }
 
+func (f *fakeRepo) Update(ctx context.Context, media *model.Media) error {
+	panic("implement me")
+}
+func (f *fakeRepo) GetByID(ctx context.Context, ID db.UUID) (*model.Media, error) {
+	panic("implement me")
+}
 func (f *fakeRepo) Create(ctx context.Context, m *model.Media) error {
 	f.mediaArg = m
 	if f.createFn != nil {
@@ -33,18 +39,21 @@ type fakeStorage struct {
 	ttlArg     time.Duration
 }
 
-func (f *fakeStorage) GeneratePresignedDownloadURL(ctx context.Context, objectKey string, expiry time.Duration, downloadName string, inline bool) (string, error) {
+func (f *fakeStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
 	panic("implement me")
 }
-
-func (f *fakeStorage) ObjectExists(ctx context.Context, objectKey string) (bool, error) {
+func (f *fakeStorage) StatFile(ctx context.Context, fileKey string) (FileInfo, error) {
 	panic("implement me")
 }
-
-func (f *fakeStorage) PublicURL(objectKey string) string {
+func (f *fakeStorage) RemoveFile(ctx context.Context, fileKey string) error {
 	panic("implement me")
 }
-
+func (f *fakeStorage) GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error) {
+	panic("implement me")
+}
+func (f *fakeStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
+	panic("implement me")
+}
 func (f *fakeStorage) GeneratePresignedUploadURL(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
 	f.called = true
 	f.keyArg = objectKey
@@ -64,13 +73,16 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	}
 	svc := NewUploadLinkGenerator(repo, storage)
 
-	in := GenerateUploadLinkInput{Name: "testName", Type: "image/png"}
-	gotURL, err := svc.GenerateUploadLink(context.Background(), in)
+	in := GenerateUploadLinkInput{Name: "testName"}
+	out, err := svc.GenerateUploadLink(context.Background(), in)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if gotURL != "https://example.com/upload" {
-		t.Errorf("expected url %q, got %q", "https://example.com/upload", gotURL)
+	if out.ID == db.UUID(uuid.Nil) {
+		t.Error("expected non-zero UUID, got nil")
+	}
+	if out.URL != "https://example.com/upload" {
+		t.Errorf("expected url %q, got %q", "https://example.com/upload", out.URL)
 	}
 
 	// verify repo.Create was called with a valid Media
@@ -78,7 +90,6 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	if m == nil {
 		t.Fatal("expected repo.Create to be called")
 	}
-	// ID should not be the nil-UUID
 	if m.ID == db.UUID(uuid.Nil) {
 		t.Error("expected non-zero UUID, got nil")
 	}
@@ -86,10 +97,6 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	pattern := `^testName_\d+$`
 	if matched, _ := regexp.MatchString(pattern, m.ObjectKey); !matched {
 		t.Errorf("objectKey %q does not match %q", m.ObjectKey, pattern)
-	}
-	// MimeType & Status
-	if m.MimeType != in.Type {
-		t.Errorf("expected MimeType %q, got %q", in.Type, m.MimeType)
 	}
 	if m.Status != model.MediaStatusPending {
 		t.Errorf("expected Status Pending, got %v", m.Status)
@@ -116,12 +123,15 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 	storage := &fakeStorage{}
 	svc := NewUploadLinkGenerator(repo, storage)
 
-	url, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo", Type: "bar"})
+	out, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if url != "" {
-		t.Errorf("expected empty url, got %q", url)
+	if out.ID != db.UUID(uuid.Nil) {
+		t.Errorf("expected zero UUID, got %q", out.ID)
+	}
+	if out.URL != "" {
+		t.Errorf("expected empty url, got %q", out.URL)
 	}
 	if storage.called {
 		t.Error("did not expect storage.GeneratePresignedUploadURL to be called")
@@ -137,12 +147,15 @@ func TestGenerateUploadLink_StorageError(t *testing.T) {
 	}
 	svc := NewUploadLinkGenerator(repo, storage)
 
-	url, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo", Type: "bar"})
+	out, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if url != "" {
-		t.Errorf("expected empty url, got %q", url)
+	if out.ID != db.UUID(uuid.Nil) {
+		t.Errorf("expected zero UUID, got %q", out.ID)
+	}
+	if out.URL != "" {
+		t.Errorf("expected empty url, got %q", out.URL)
 	}
 	if !storage.called {
 		t.Error("expected storage.GeneratePresignedUploadURL to be called")
