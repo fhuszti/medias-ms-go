@@ -10,7 +10,7 @@ import (
 )
 
 type UploadLinkGenerator interface {
-	GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (*GenerateUploadLinkOutput, error)
+	GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (GenerateUploadLinkOutput, error)
 }
 
 type uploadLinkGeneratorSrv struct {
@@ -31,7 +31,7 @@ type GenerateUploadLinkOutput struct {
 	URL string  `json:"url"`
 }
 
-func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (*GenerateUploadLinkOutput, error) {
+func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (GenerateUploadLinkOutput, error) {
 	now := time.Now().UTC()
 	objectKey := fmt.Sprintf("%s_%d", in.Name, now.UnixNano())
 	media := &model.Media{
@@ -41,15 +41,15 @@ func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in Gene
 	}
 
 	if err := s.repo.Create(ctx, media); err != nil {
-		return nil, err
+		return GenerateUploadLinkOutput{}, err
 	}
 
 	url, err := s.strg.GeneratePresignedUploadURL(ctx, objectKey, 5*time.Minute)
 	if err != nil {
-		return nil, err
+		return GenerateUploadLinkOutput{}, err
 	}
 
-	return &GenerateUploadLinkOutput{
+	return GenerateUploadLinkOutput{
 		ID:  media.ID,
 		URL: url,
 	}, nil

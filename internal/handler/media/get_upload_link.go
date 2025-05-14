@@ -17,46 +17,52 @@ func GenerateUploadLinkHandler(svc media.UploadLinkGenerator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req GenerateUploadLinkRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errStr := fmt.Sprintf("❌  Invalid request: %s", err.Error())
-			log.Print(errStr)
-			http.Error(w, errStr, http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, "Invalid request", fmt.Errorf("invalid JSON: %w", err))
 			return
 		}
 
 		if errs := validation.ValidateStruct(req); errs != nil {
-			errsJson, err := validation.ErrorsToJson(errs)
+			errsJSON, err := validation.ErrorsToJson(errs)
 			if err != nil {
-				errStr := fmt.Sprintf("❌  Could not encode validation errors: %s", err.Error())
-				log.Print(errStr)
-				http.Error(w, errStr, http.StatusInternalServerError)
+				writeError(w, http.StatusInternalServerError, "Validation error (could not encode details)", fmt.Errorf("encoding validation errors: %w", err))
+				return
 			}
 
-			log.Printf("❌  Validation errors on file upload link request: %s", errsJson)
-			http.Error(w, errsJson, http.StatusBadRequest)
+			// return the validation errors payload directly
+			respondRawJSON(w, http.StatusBadRequest, []byte(errsJSON))
+			log.Printf("❌  Validation failed: %s", errsJSON)
 			return
 		}
 
 		in := media.GenerateUploadLinkInput(req)
-
-		output, err := svc.GenerateUploadLink(r.Context(), in)
+		out, err := svc.GenerateUploadLink(r.Context(), in)
 		if err != nil {
-			errStr := fmt.Sprintf("❌  Could not generate presigned URL for upload: %s", err.Error())
-			log.Print(errStr)
-			http.Error(w, errStr, http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, "Could not generate upload link", err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
+		respondJSON(w, http.StatusCreated, out)
+		log.Printf("✅  Successfully generated upload link for media #%s", out.ID)
+	}
+}
 
-		err = json.NewEncoder(w).Encode(output)
-		if err != nil {
-			errStr := fmt.Sprintf("❌  Could not encode newly generated presigned URL for upload: %s", err.Error())
-			log.Print(errStr)
-			http.Error(w, errStr, http.StatusInternalServerError)
-			return
-		}
+func writeError(w http.ResponseWriter, status int, msg string, err error) {
+	log.Printf("❌  %s: %v", msg, err)
+	http.Error(w, msg, status)
+}
 
-		log.Printf("✅  Successfully generated upload link for media #%s", output.ID)
+func respondJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("❌  Failed to JSON‐encode response: %v", err)
+	}
+}
+
+func respondRawJSON(w http.ResponseWriter, status int, raw []byte) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if _, err := w.Write(raw); err != nil {
+		log.Printf("❌  write error: %v", err)
 	}
 }

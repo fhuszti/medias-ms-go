@@ -1,6 +1,7 @@
 package media
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,123 +10,137 @@ import (
 	"strings"
 	"testing"
 
-	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/google/uuid"
 )
 
-type fakeService struct {
-	outURL string
-	outErr error
-	called bool
-	in     mediaService.GenerateUploadLinkInput
+type mockUploadLinkGenerator struct {
+	out mediaSvc.GenerateUploadLinkOutput
+	err error
+	in  mediaSvc.GenerateUploadLinkInput
 }
 
-func (f *fakeService) GenerateUploadLink(ctx context.Context, in mediaService.GenerateUploadLinkInput) (string, error) {
-	f.called = true
-	f.in = in
-	return f.outURL, f.outErr
+func (m *mockUploadLinkGenerator) GenerateUploadLink(ctx context.Context, in mediaSvc.GenerateUploadLinkInput) (mediaSvc.GenerateUploadLinkOutput, error) {
+	m.in = in
+	return m.out, m.err
 }
 
-func TestGenerateUploadLinkHandler_InvalidJSON(t *testing.T) {
-	fsvc := &fakeService{}
-	h := GenerateUploadLinkHandler(fsvc)
+func TestGenerateUploadLinkHandler(t *testing.T) {
+	tests := []struct {
+		name            string
+		body            string
+		svcOut          mediaSvc.GenerateUploadLinkOutput
+		svcErr          error
+		wantStatus      int
+		wantContentType string
 
-	req := httptest.NewRequest("POST", "/", strings.NewReader("{not json"))
-	rec := httptest.NewRecorder()
-	h(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, "Invalid request:") {
-		t.Errorf("body = %q; want to contain %q", body, "Invalid request:")
-	}
-	if fsvc.called {
-		t.Error("service should not have been called on invalid JSON")
-	}
-}
-
-func TestGenerateUploadLinkHandler_ValidationError(t *testing.T) {
-	fsvc := &fakeService{}
-	h := GenerateUploadLinkHandler(fsvc)
-
-	// Missing "name", invalid "type"
-	payload := `{"type":"application/x-foo"}`
-	req := httptest.NewRequest("POST", "/", strings.NewReader(payload))
-	rec := httptest.NewRecorder()
-	h(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
-	}
-	body := strings.TrimSpace(rec.Body.String())
-	// Should be a JSON object mapping "name" → "required" or "type"→"mimetype"
-	var errs map[string]string
-	if err := json.Unmarshal([]byte(body), &errs); err != nil {
-		t.Fatalf("response body is not valid JSON map: %v", err)
-	}
-	if errs["name"] != "required" {
-		t.Errorf(`errs["name"] = %q; want "required"`, errs["name"])
-	}
-	if fsvc.called {
-		t.Error("service should not have been called on validation error")
-	}
-}
-
-func TestGenerateUploadLinkHandler_ServiceError(t *testing.T) {
-	fsvc := &fakeService{outErr: errors.New("boom")}
-	h := GenerateUploadLinkHandler(fsvc)
-
-	// Valid payload
-	payload := `{"name":"foo","type":"image/png"}`
-	req := httptest.NewRequest("POST", "/", strings.NewReader(payload))
-	rec := httptest.NewRecorder()
-	h(rec, req)
-
-	if rec.Code != http.StatusInternalServerError {
-		t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
-	}
-	if !strings.Contains(rec.Body.String(), "Could not generate presigned URL for upload: boom") {
-		t.Errorf("body = %q; want to contain service error", rec.Body.String())
-	}
-	if !fsvc.called {
-		t.Error("service should have been called once")
-	}
-}
-
-func TestGenerateUploadLinkHandler_Success(t *testing.T) {
-	const wantURL = "https://cdn/upload/123"
-	fsvc := &fakeService{outURL: wantURL}
-	h := GenerateUploadLinkHandler(fsvc)
-
-	payload := `{"name":"myfile","type":"image/png"}`
-	req := httptest.NewRequest("POST", "/", strings.NewReader(payload))
-	rec := httptest.NewRecorder()
-	h(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Errorf("status = %d; want %d", rec.Code, http.StatusCreated)
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
-		t.Errorf("Content-Type = %q; want application/json", ct)
+		wantOutput       *mediaSvc.GenerateUploadLinkOutput
+		wantErrorMap     map[string]string
+		wantBodyContains string
+	}{
+		{
+			name:            "happy path",
+			body:            `{"name":"my-file.png"}`,
+			svcOut:          mediaSvc.GenerateUploadLinkOutput{ID: db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), URL: "https://cdn.example.com/presigned"},
+			svcErr:          nil,
+			wantStatus:      http.StatusCreated,
+			wantContentType: "application/json",
+			wantOutput:      &mediaSvc.GenerateUploadLinkOutput{},
+		},
+		{
+			name:             "invalid JSON",
+			body:             `{"name":`, // malformed
+			svcOut:           mediaSvc.GenerateUploadLinkOutput{},
+			svcErr:           nil,
+			wantStatus:       http.StatusBadRequest,
+			wantContentType:  "text/plain; charset=utf-8",
+			wantBodyContains: "Invalid request",
+		},
+		{
+			name:            "validation error: empty name",
+			body:            `{"name":""}`,
+			svcOut:          mediaSvc.GenerateUploadLinkOutput{},
+			svcErr:          nil,
+			wantStatus:      http.StatusBadRequest,
+			wantContentType: "application/json",
+			wantErrorMap:    map[string]string{"name": "required"},
+		},
+		{
+			name:             "service error",
+			body:             `{"name":"ok.png"}`,
+			svcOut:           mediaSvc.GenerateUploadLinkOutput{},
+			svcErr:           errors.New("boom"),
+			wantStatus:       http.StatusInternalServerError,
+			wantContentType:  "text/plain; charset=utf-8",
+			wantBodyContains: "Could not generate upload link",
+		},
 	}
 
-	var got string
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-		t.Fatalf("decoding response JSON: %v", err)
-	}
-	if got != wantURL {
-		t.Errorf("body = %q; want %q", got, wantURL)
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSvc := &mockUploadLinkGenerator{
+				out: tc.svcOut,
+				err: tc.svcErr,
+			}
+			handlerFn := GenerateUploadLinkHandler(mockSvc)
 
-	// Make sure the service got the right input
-	if !fsvc.called {
-		t.Fatal("service was not called")
-	}
-	if fsvc.in.Name != "myfile" {
-		t.Errorf("service in.Name = %q; want %q", fsvc.in.Name, "myfile")
-	}
-	if fsvc.in.Type != "image/png" {
-		t.Errorf("service in.Type = %q; want %q", fsvc.in.Type, "image/png")
+			req := httptest.NewRequest(http.MethodPost, "/upload", strings.NewReader(tc.body))
+			// we don't need any special headers; JSON decoder uses Body only
+
+			rec := httptest.NewRecorder()
+
+			handlerFn(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status = %d; want %d", rec.Code, tc.wantStatus)
+			}
+
+			gotCT := rec.Header().Get("Content-Type")
+			if gotCT != tc.wantContentType {
+				t.Errorf("Content-Type = %q; want %q", gotCT, tc.wantContentType)
+			}
+
+			data := rec.Body.Bytes()
+
+			switch {
+			case tc.wantOutput != nil:
+				// decode into your output struct
+				dec := json.NewDecoder(bytes.NewReader(data))
+				dec.DisallowUnknownFields()
+				if err := dec.Decode(tc.wantOutput); err != nil {
+					t.Fatalf("JSON decode = %v (body=%q)", err, string(data))
+				}
+				// then assert each field:
+				if got, want := tc.wantOutput.ID, tc.svcOut.ID; got != want {
+					t.Errorf("ID = %v; want %v", got, want)
+				}
+				if got, want := tc.wantOutput.URL, tc.svcOut.URL; got != want {
+					t.Errorf("URL = %q; want %q", got, want)
+				}
+
+			case tc.wantErrorMap != nil:
+				// unmarshal into a map and compare
+				var errs map[string]string
+				if err := json.Unmarshal(data, &errs); err != nil {
+					t.Fatalf("error JSON: %v; body=%q", err, string(data))
+				}
+				for k, want := range tc.wantErrorMap {
+					if got, ok := errs[k]; !ok {
+						t.Errorf("missing key %q in error response: %v", k, errs)
+					} else if got != want {
+						t.Errorf("errs[%q] = %q; want %q", k, got, want)
+					}
+				}
+
+			case tc.wantBodyContains != "":
+				if !strings.Contains(string(data), tc.wantBodyContains) {
+					t.Errorf("body = %q; want to contain %q", string(data), tc.wantBodyContains)
+				}
+
+			default:
+				t.Fatal("test case has no assertion target!")
+			}
+		})
 	}
 }
