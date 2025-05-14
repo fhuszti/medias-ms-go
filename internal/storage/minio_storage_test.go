@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,12 +19,10 @@ type mockMinio struct {
 	removeBucketFn       func(ctx context.Context, bucketName string) error
 	listObjectsFn        func(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo
 	removeObjectFn       func(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
-	presignedGetObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error)
 	presignedPutObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error)
 	statObjectFn         func(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
 	getObjectFn          func(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
 	putObjectFn          func(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error)
-	endpointURL          *url.URL
 }
 
 func (m *mockMinio) GetObject(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error) {
@@ -44,9 +43,6 @@ func (m *mockMinio) ListObjects(ctx context.Context, bucketName string, opts min
 func (m *mockMinio) RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error {
 	return m.removeObjectFn(ctx, bucketName, objectName, opts)
 }
-func (m *mockMinio) PresignedGetObject(ctx context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error) {
-	return m.presignedGetObjectFn(ctx, bucket, key, expiry, params)
-}
 func (m *mockMinio) PresignedPutObject(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error) {
 	return m.presignedPutObjectFn(ctx, bucket, key, expiry)
 }
@@ -55,9 +51,6 @@ func (m *mockMinio) StatObject(ctx context.Context, bucket, key string, opts min
 }
 func (m *mockMinio) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error) {
 	return m.putObjectFn(ctx, bucketName, objectName, reader, objectSize, opts)
-}
-func (m *mockMinio) EndpointURL() *url.URL {
-	return m.endpointURL
 }
 
 func makeStorage(mockClient *mockMinio, bucket string, useSSL bool) media.Storage {
@@ -75,7 +68,7 @@ func TestWithBucket(t *testing.T) {
 		existsErr      error
 		makeErr        error
 		wantMakeCalled bool
-		wantErr        string
+		wantErr        error
 	}{
 		{
 			name:           "bucket exists, no create",
@@ -90,14 +83,14 @@ func TestWithBucket(t *testing.T) {
 		{
 			name:      "BucketExists error bubbles up",
 			existsErr: errors.New("exist fail"),
-			wantErr:   "exist fail",
+			wantErr:   media.ErrInternal,
 		},
 		{
 			name:           "MakeBucket error bubbles up",
 			exists:         false,
 			makeErr:        errors.New("make fail"),
 			wantMakeCalled: true,
-			wantErr:        "make fail",
+			wantErr:        media.ErrInternal,
 		},
 	}
 
@@ -118,11 +111,11 @@ func TestWithBucket(t *testing.T) {
 			strg := &Strg{Client: mock, useSSL: true}
 			s, err := strg.WithBucket("my-bucket")
 
-			if tc.wantErr != "" {
+			if tc.wantErr != nil {
 				if err == nil {
 					t.Fatalf("expected error %q, got nil", tc.wantErr)
 				}
-				if err.Error() != tc.wantErr {
+				if !errors.Is(err, tc.wantErr) {
 					t.Fatalf("error = %q; want %q", err.Error(), tc.wantErr)
 				}
 				return
@@ -146,97 +139,6 @@ func TestWithBucket(t *testing.T) {
 				t.Errorf("useSSL = %v; want %v", ms.useSSL, strg.useSSL)
 			}
 		})
-	}
-}
-
-func TestGeneratePresignedDownloadURL(t *testing.T) {
-	fake, _ := url.Parse("https://cdn.example.com/download?x=1")
-	mock := &mockMinio{
-		presignedGetObjectFn: func(_ context.Context, bucket, key string, expiry time.Duration, params url.Values) (*url.URL, error) {
-			// bucket and key should be forwarded
-			if bucket != "my-bucket" {
-				t.Errorf("bucket = %q; want %q", bucket, "my-bucket")
-			}
-			if key != "path/to/asset.png" {
-				t.Errorf("key = %q; want %q", key, "path/to/asset.png")
-			}
-			// expiry should be preserved
-			if expiry != 15*time.Minute {
-				t.Errorf("expiry = %v; want %v", expiry, 15*time.Minute)
-			}
-			// default disposition: attachment + basename
-			disp := params.Get("response-content-disposition")
-			expected := `attachment; filename="asset.png"`
-			if disp != expected {
-				t.Errorf("disposition = %q; want %q", disp, expected)
-			}
-			return fake, nil
-		},
-		endpointURL: &url.URL{Scheme: "https", Host: "cdn.example.com"},
-	}
-	s := makeStorage(mock, "my-bucket", true)
-
-	out, err := s.GeneratePresignedDownloadURL(
-		context.Background(),
-		"path/to/asset.png",
-		15*time.Minute,
-		"",
-		false,
-	)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if out != fake.String() {
-		t.Errorf("url = %q; want %q", out, fake.String())
-	}
-}
-
-func TestGeneratePresignedDownloadURL_InlineAndName(t *testing.T) {
-	fake, _ := url.Parse("http://localhost/get")
-	mock := &mockMinio{
-		presignedGetObjectFn: func(_ context.Context, _, _ string, _ time.Duration, params url.Values) (*url.URL, error) {
-			disp := params.Get("response-content-disposition")
-			// inline + custom filename
-			expected := `inline; filename="download.dat"`
-			if disp != expected {
-				t.Errorf("disposition = %q; want %q", disp, expected)
-			}
-			return fake, nil
-		},
-		endpointURL: &url.URL{Scheme: "http", Host: "localhost:9000"},
-	}
-	s := makeStorage(mock, "bucket", false)
-
-	out, err := s.GeneratePresignedDownloadURL(
-		context.Background(),
-		"any/key.txt",
-		1*time.Minute,
-		"download.dat",
-		true, // inline
-	)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if out != fake.String() {
-		t.Errorf("url = %q; want %q", out, fake.String())
-	}
-}
-
-func TestGeneratePresignedDownloadURL_Error(t *testing.T) {
-	mock := &mockMinio{
-		presignedGetObjectFn: func(_ context.Context, _, _ string, _ time.Duration, _ url.Values) (*url.URL, error) {
-			return nil, errors.New("fail-get")
-		},
-		endpointURL: &url.URL{Scheme: "https", Host: "x"},
-	}
-	s := makeStorage(mock, "b", true)
-
-	_, err := s.GeneratePresignedDownloadURL(context.Background(), "k", 5*time.Minute, "", false)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if err.Error() != "fail-get" {
-		t.Errorf("error = %q; want %q", err.Error(), "fail-get")
 	}
 }
 
@@ -279,7 +181,7 @@ func TestGeneratePresignedUploadURL_Error(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if err.Error() != "fail-put" {
+	if !errors.Is(err, media.ErrInternal) {
 		t.Errorf("error = %q; want %q", err.Error(), "fail-put")
 	}
 }
@@ -335,21 +237,256 @@ func TestObjectExists(t *testing.T) {
 	}
 }
 
-func TestPublicURL(t *testing.T) {
-	endp, _ := url.Parse("https://files.example")
-	mock := &mockMinio{endpointURL: endp}
+func TestStatFile_Success(t *testing.T) {
+	ctx := context.Background()
+	expected := minio.ObjectInfo{
+		Size:        123,
+		ContentType: "image/png",
+	}
+	mock := &mockMinio{
+		statObjectFn: func(_ context.Context, bucket, key string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
+			if bucket != "b" {
+				t.Errorf("bucket = %q; want %q", bucket, "b")
+			}
+			if key != "f.txt" {
+				t.Errorf("key = %q; want %q", key, "f.txt")
+			}
+			return expected, nil
+		},
+	}
+	s := makeStorage(mock, "b", false)
+	fi, err := s.StatFile(ctx, "f.txt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fi.SizeBytes != expected.Size {
+		t.Errorf("SizeBytes = %d; want %d", fi.SizeBytes, expected.Size)
+	}
+	if fi.ContentType != expected.ContentType {
+		t.Errorf("ContentType = %q; want %q", fi.ContentType, expected.ContentType)
+	}
+}
 
-	s1 := makeStorage(mock, "buck", false)
-	got1 := s1.PublicURL("f.txt")
-	want1 := "http://files.example/buck/f.txt"
-	if got1 != want1 {
-		t.Errorf("PublicURL = %q; want %q", got1, want1)
+func TestStatFile_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		statObjectFn: func(_ context.Context, _, _ string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
+			e := minio.ToErrorResponse(errors.New("ignored"))
+			e.Code = "NoSuchKey"
+			return minio.ObjectInfo{}, e
+		},
+	}
+	s := makeStorage(mock, "bucket", true)
+	_, err := s.StatFile(ctx, "k")
+	if !errors.Is(err, media.ErrObjectNotFound) {
+		t.Fatalf("err = %v; want ErrObjectNotFound", err)
+	}
+}
+
+func TestStatFile_OtherError(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		statObjectFn: func(_ context.Context, _, _ string, _ minio.StatObjectOptions) (minio.ObjectInfo, error) {
+			return minio.ObjectInfo{}, errors.New("some failure")
+		},
+	}
+	s := makeStorage(mock, "bucket", false)
+	_, err := s.StatFile(ctx, "k")
+	if !errors.Is(err, media.ErrInternal) {
+		t.Fatalf("err = %v; want ErrInternal", err)
+	}
+}
+
+func TestRemoveFile_Success(t *testing.T) {
+	ctx := context.Background()
+	called := false
+	mock := &mockMinio{
+		removeObjectFn: func(_ context.Context, bucket, key string, _ minio.RemoveObjectOptions) error {
+			called = true
+			if bucket != "my-bucket" {
+				t.Errorf("bucket = %q; want %q", bucket, "my-bucket")
+			}
+			if key != "file" {
+				t.Errorf("key = %q; want %q", key, "file")
+			}
+			return nil
+		},
+	}
+	s := makeStorage(mock, "my-bucket", false)
+	if err := s.RemoveFile(ctx, "file"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Error("RemoveObject was not called")
+	}
+}
+
+func TestRemoveFile_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		removeObjectFn: func(_ context.Context, _, _ string, _ minio.RemoveObjectOptions) error {
+			e := minio.ToErrorResponse(errors.New("ignored"))
+			e.Code = "NoSuchKey"
+			return e
+		},
+	}
+	s := makeStorage(mock, "bucket", false)
+	err := s.RemoveFile(ctx, "f")
+	if !errors.Is(err, media.ErrObjectNotFound) {
+		t.Fatalf("err = %v; want ErrObjectNotFound", err)
+	}
+}
+
+func TestRemoveFile_OtherError(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		removeObjectFn: func(_ context.Context, _, _ string, _ minio.RemoveObjectOptions) error {
+			return errors.New("boom")
+		},
+	}
+	s := makeStorage(mock, "bucket", false)
+	err := s.RemoveFile(ctx, "f")
+	if !errors.Is(err, media.ErrInternal) {
+		t.Fatalf("err = %v; want ErrInternal", err)
+	}
+}
+
+func TestSaveFile_Success(t *testing.T) {
+	ctx := context.Background()
+	var (
+		gotReader io.Reader
+		gotSize   int64
+		gotOpts   minio.PutObjectOptions
+	)
+	mock := &mockMinio{
+		putObjectFn: func(_ context.Context, bucket, key string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error) {
+			if bucket != "dest" {
+				t.Errorf("bucket = %q; want %q", bucket, "dest")
+			}
+			if key != "obj" {
+				t.Errorf("key = %q; want %q", key, "obj")
+			}
+			gotReader = reader
+			gotSize = objectSize
+			gotOpts = opts
+			return minio.UploadInfo{Size: objectSize}, nil
+		},
+	}
+	s := makeStorage(mock, "dest", true)
+	content := "hello"
+	err := s.SaveFile(ctx, "obj", strings.NewReader(content), int64(len(content)), map[string]string{"Content-Type": "text/plain"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotSize != int64(len(content)) {
+		t.Errorf("size = %d; want %d", gotSize, len(content))
+	}
+	if gotOpts.ContentType != "text/plain" {
+		t.Errorf("ContentType = %q; want %q", gotOpts.ContentType, "text/plain")
+	}
+	// verify the reader was passed through
+	buf := new(strings.Builder)
+	if _, err := io.Copy(buf, gotReader); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if buf.String() != content {
+		t.Errorf("reader content = %q; want %q", buf.String(), content)
+	}
+}
+
+func TestSaveFile_NoContentType(t *testing.T) {
+	ctx := context.Background()
+	var gotOpts minio.PutObjectOptions
+	mock := &mockMinio{
+		putObjectFn: func(_ context.Context, _, _ string, _ io.Reader, _ int64, opts minio.PutObjectOptions) (minio.UploadInfo, error) {
+			gotOpts = opts
+			return minio.UploadInfo{}, nil
+		},
+	}
+	s := makeStorage(mock, "bucket", false)
+	if err := s.SaveFile(ctx, "k", nil, 0, map[string]string{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if gotOpts.ContentType != "" {
+		t.Errorf("ContentType = %q; want empty", gotOpts.ContentType)
+	}
+}
+
+func TestSaveFile_ErrorMapping(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		putObjectFn: func(_ context.Context, _, _ string, _ io.Reader, _ int64, _ minio.PutObjectOptions) (minio.UploadInfo, error) {
+			e := minio.ToErrorResponse(errors.New("denied"))
+			e.Code = "AccessDenied"
+			return minio.UploadInfo{}, e
+		},
+	}
+	s := makeStorage(mock, "bucket", true)
+	err := s.SaveFile(ctx, "k", nil, 0, map[string]string{})
+	if !errors.Is(err, media.ErrUnauthorized) {
+		t.Fatalf("err = %v; want ErrUnauthorized", err)
 	}
 
-	s2 := makeStorage(mock, "buck", true)
-	got2 := s2.PublicURL("dir/x.jpg")
-	want2 := "https://files.example/buck/dir/x.jpg"
-	if got2 != want2 {
-		t.Errorf("PublicURL = %q; want %q", got2, want2)
+	// another error case
+	mock.putObjectFn = func(_ context.Context, _, _ string, _ io.Reader, _ int64, _ minio.PutObjectOptions) (minio.UploadInfo, error) {
+		return minio.UploadInfo{}, errors.New("boom")
+	}
+	err2 := s.SaveFile(ctx, "k", nil, 0, map[string]string{})
+	if !errors.Is(err2, media.ErrInternal) {
+		t.Fatalf("err = %v; want ErrInternal", err2)
+	}
+}
+
+func TestGetFile_Success(t *testing.T) {
+	ctx := context.Background()
+	dummy := &minio.Object{} // zero-value is non-nil pointer
+	mock := &mockMinio{
+		getObjectFn: func(_ context.Context, bucket, key string, _ minio.GetObjectOptions) (*minio.Object, error) {
+			if bucket != "b" {
+				t.Errorf("bucket = %q; want %q", bucket, "b")
+			}
+			if key != "key" {
+				t.Errorf("key = %q; want %q", key, "key")
+			}
+			return dummy, nil
+		},
+	}
+	s := makeStorage(mock, "b", false)
+	rc, err := s.GetFile(ctx, "key")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rc != dummy {
+		t.Errorf("reader = %v; want %v", rc, dummy)
+	}
+}
+
+func TestGetFile_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		getObjectFn: func(_ context.Context, _, _ string, _ minio.GetObjectOptions) (*minio.Object, error) {
+			e := minio.ToErrorResponse(errors.New("missing"))
+			e.Code = "NoSuchKey"
+			return nil, e
+		},
+	}
+	s := makeStorage(mock, "b", true)
+	_, err := s.GetFile(ctx, "k")
+	if !errors.Is(err, media.ErrObjectNotFound) {
+		t.Fatalf("err = %v; want ErrObjectNotFound", err)
+	}
+}
+
+func TestGetFile_OtherError(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		getObjectFn: func(_ context.Context, _, _ string, _ minio.GetObjectOptions) (*minio.Object, error) {
+			return nil, errors.New("boom")
+		},
+	}
+	s := makeStorage(mock, "b", true)
+	_, err := s.GetFile(ctx, "k")
+	if !errors.Is(err, media.ErrInternal) {
+		t.Fatalf("err = %v; want ErrInternal", err)
 	}
 }

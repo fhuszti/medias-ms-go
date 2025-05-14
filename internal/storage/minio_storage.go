@@ -15,10 +15,8 @@ import (
 )
 
 type minioClient interface {
-	PresignedGetObject(ctx context.Context, bucketName, fileKey string, expiry time.Duration, reqParams url.Values) (*url.URL, error)
 	PresignedPutObject(ctx context.Context, bucketName, fileKey string, expiry time.Duration) (*url.URL, error)
 	StatObject(ctx context.Context, bucketName, fileKey string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
-	EndpointURL() *url.URL
 	BucketExists(ctx context.Context, bucketName string) (bool, error)
 	MakeBucket(ctx context.Context, bucketName string, opts minio.MakeBucketOptions) (err error)
 	RemoveBucket(ctx context.Context, bucketName string) error
@@ -135,12 +133,4 @@ func (s *MinioStorage) SaveFile(ctx context.Context, fileKey string, reader io.R
 		return mapMinioErr(err)
 	}
 	return nil
-}
-
-func (s *MinioStorage) PublicURL(fileKey string) string {
-	scheme := "https"
-	if !s.useSSL {
-		scheme = "http"
-	}
-	return scheme + "://" + s.client.EndpointURL().Host + "/" + s.bucketName + "/" + fileKey
 }
