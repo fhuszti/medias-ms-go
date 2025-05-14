@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
+	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"io"
 	"net/http"
@@ -70,17 +72,21 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 		t.Fatalf("expected status 201, got %d", resp.StatusCode)
 	}
 
-	var presignedURL string
-	if err := json.NewDecoder(resp.Body).Decode(&presignedURL); err != nil {
+	var out mediaService.GenerateUploadLinkOutput
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		t.Fatalf("could not decode response: %v", err)
 	}
 
-	if presignedURL == "" {
+	if out.ID == db.UUID(uuid.Nil) {
+		t.Fatal("expected non-empty ID")
+	}
+
+	if out.URL == "" {
 		t.Fatal("expected non-empty presigned URL")
 	}
-	u, err := url.Parse(presignedURL)
+	u, err := url.Parse(out.URL)
 	if err != nil {
-		t.Fatalf("invalid URL %q: %v", presignedURL, err)
+		t.Fatalf("invalid URL %q: %v", out.URL, err)
 	}
 	parts := strings.Split(strings.TrimPrefix(u.Path, "/"), "/")
 	if len(parts) != 2 {
@@ -95,7 +101,7 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 	}
 
 	payload := []byte("hello-minio")
-	uploadToPresignedURL(t, presignedURL, payload)
+	uploadToPresignedURL(t, out.URL, payload)
 	obj, err := tb.StrgClient.Client.GetObject(context.Background(), bucketName, objectKey, minio.GetObjectOptions{})
 	if err != nil {
 		t.Fatalf("failed to get object: %v", err)
@@ -109,17 +115,17 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 	}
 
 	var (
-		id       string
-		mimeType string
-		status   model.MediaStatus
+		id     db.UUID
+		status model.MediaStatus
 	)
 	row := testDB.DB.QueryRowContext(context.Background(),
-		"SELECT id, mime_type, status FROM medias WHERE object_key = ?", objectKey)
-	if err := row.Scan(&id, &mimeType, &status); err != nil {
+		"SELECT id, status FROM medias WHERE object_key = ?", objectKey)
+	if err := row.Scan(&id, &status); err != nil {
 		t.Fatalf("failed to scan media record: %v", err)
 	}
-	if mimeType != "text/markdown" {
-		t.Errorf("expected mime type text/markdown, got %q", mimeType)
+
+	if id != out.ID {
+		t.Errorf("expected ID %q, got %q", out.ID, id)
 	}
 	if status != model.MediaStatusPending {
 		t.Errorf("expected status %q, got %q", model.MediaStatusPending, status)
