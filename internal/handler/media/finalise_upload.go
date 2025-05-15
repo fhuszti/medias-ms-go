@@ -6,7 +6,6 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
-	"github.com/go-chi/chi/v5"
 	"log"
 	"net/http"
 )
@@ -17,58 +16,40 @@ type FinaliseUploadRequest struct {
 
 func FinaliseUploadHandler(svc media.UploadFinaliser) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		destBucket := chi.URLParam(r, "destBucket")
-		if destBucket == "" {
-			errStr := "❌  Invalid request: a destination bucket is necessary for this operation"
-			log.Print(errStr)
-			http.Error(w, errStr, http.StatusBadRequest)
+		destBucket, ok := BucketFromContext(r.Context())
+		if !ok {
+			writeError(w, http.StatusBadRequest, "destination bucket is required", nil)
 			return
 		}
 
 		var req FinaliseUploadRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errStr := fmt.Sprintf("❌  Invalid request: %s", err.Error())
-			log.Print(errStr)
-			http.Error(w, errStr, http.StatusBadRequest)
+			writeError(w, http.StatusBadRequest, "invalid request payload", err)
 			return
 		}
 
 		if errs := validation.ValidateStruct(req); errs != nil {
-			errsJson, err := validation.ErrorsToJson(errs)
+			errsJSON, err := validation.ErrorsToJson(errs)
 			if err != nil {
-				errStr := fmt.Sprintf("❌  Could not encode validation errors: %s", err.Error())
-				log.Print(errStr)
-				http.Error(w, errStr, http.StatusInternalServerError)
+				writeError(w, http.StatusInternalServerError, "failed to encode validation errors", err)
+				return
 			}
-
-			http.Error(w, errsJson, http.StatusBadRequest)
+			respondRawJSON(w, http.StatusBadRequest, []byte(errsJSON))
+			log.Printf("❌  Validation failed: %s", errsJSON)
 			return
 		}
 
-		in := media.FinaliseUploadInput{
+		input := media.FinaliseUploadInput{
 			ID:         req.ID,
 			DestBucket: destBucket,
 		}
-
-		output, err := svc.FinaliseUpload(r.Context(), in)
+		output, err := svc.FinaliseUpload(r.Context(), input)
 		if err != nil {
-			errStr := fmt.Sprintf("❌  Could not finalise upload of media #%s: %s", in.ID, err.Error())
-			log.Print(errStr)
-			http.Error(w, errStr, http.StatusInternalServerError)
+			writeError(w, http.StatusInternalServerError, fmt.Sprintf("could not finalise upload of media #%s", input.ID), err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		err = json.NewEncoder(w).Encode(output)
-		if err != nil {
-			errStr := fmt.Sprintf("❌  Could not encode media entity following upload completion: %s", err.Error())
-			log.Print(errStr)
-			http.Error(w, errStr, http.StatusInternalServerError)
-			return
-		}
-
-		log.Printf("✅  Successfully finalised upload of media #%s", in.ID)
+		respondJSON(w, http.StatusOK, output)
+		log.Printf("✅  Successfully finalised upload of media #%s", input.ID)
 	}
 }

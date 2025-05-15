@@ -19,7 +19,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
-	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -35,43 +35,22 @@ func main() {
 
 	r := initRouter()
 
-	strg, err := storage.NewMinioClient(
-		cfg.MinioEndpoint,
-		cfg.MinioAccessKey,
-		cfg.MinioSecretKey,
-		cfg.MinioUseSSL,
-	)
-	if err != nil {
-		log.Fatalf("Failed to initialize MinIO client: %v", err)
-	}
-
-	buckets := strings.Split(cfg.MinioBuckets, ",")
-	storages := make(map[string]mediaService.Storage, len(buckets))
-	for _, b := range buckets {
-		storages[b], err = strg.WithBucket(b)
-		if err != nil {
-			log.Fatalf("Failed to initialize bucket '%s': %v", b, err)
-		}
-	}
-	_, ok := storages["staging"]
-	if !ok {
-		log.Fatal("You need a bucket named 'staging'")
-	}
-
+	storages := initBucketStorages(cfg)
 	mediaRepo := mariadb.NewMediaRepository(database.DB)
 
-	uploadLinkGeneratorSvc := mediaService.NewUploadLinkGenerator(mediaRepo, storages["staging"])
+	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, storages["staging"])
 	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
-	var getDestBucket mediaService.StorageGetter = func(bucket string) (mediaService.Storage, error) {
+	var getDestBucket mediaSvc.StorageGetter = func(bucket string) (mediaSvc.Storage, error) {
 		st, ok := storages[bucket]
 		if !ok {
 			return nil, fmt.Errorf("bucket %q is not configured", bucket)
 		}
 		return st, nil
 	}
-	uploadFinaliserSvc := mediaService.NewUploadFinaliser(mediaRepo, storages["staging"], getDestBucket)
-	r.Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
+	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, storages["staging"], getDestBucket)
+	r.With(mediaHandler.WithDestBucket).
+		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
 
 	listenRouter(r, cfg, database)
 }
@@ -105,6 +84,34 @@ func initRouter() *chi.Mux {
 	r.MethodNotAllowed(handler.MethodNotAllowedHandler())
 
 	return r
+}
+
+func initBucketStorages(cfg *config.Settings) map[string]mediaSvc.Storage {
+	strg, err := storage.NewMinioClient(
+		cfg.MinioEndpoint,
+		cfg.MinioAccessKey,
+		cfg.MinioSecretKey,
+		cfg.MinioUseSSL,
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize MinIO client: %v", err)
+	}
+
+	buckets := strings.Split(cfg.MinioBuckets, ",")
+	storages := make(map[string]mediaSvc.Storage, len(buckets))
+	for _, b := range buckets {
+		storages[b], err = strg.WithBucket(b)
+		if err != nil {
+			log.Fatalf("Failed to initialize bucket '%s': %v", b, err)
+		}
+	}
+
+	_, ok := storages["staging"]
+	if !ok {
+		log.Fatal("You need a bucket named 'staging'")
+	}
+
+	return storages
 }
 
 func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {

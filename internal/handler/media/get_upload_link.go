@@ -45,24 +45,3 @@ func GenerateUploadLinkHandler(svc media.UploadLinkGenerator) http.HandlerFunc {
 		log.Printf("✅  Successfully generated upload link for media #%s", out.ID)
 	}
 }
-
-func writeError(w http.ResponseWriter, status int, msg string, err error) {
-	log.Printf("❌  %s: %v", msg, err)
-	http.Error(w, msg, status)
-}
-
-func respondJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		log.Printf("❌  Failed to JSON‐encode response: %v", err)
-	}
-}
-
-func respondRawJSON(w http.ResponseWriter, status int, raw []byte) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if _, err := w.Write(raw); err != nil {
-		log.Printf("❌  write error: %v", err)
-	}
-}
