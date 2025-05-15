@@ -1,6 +1,8 @@
 # medias-ms-go
 Performant microservice to manage files uploads via a neat API
 
+***STILL WIP, NOT READY FOR USAGE**
+
 ## Local setup
 
 - update ``.env`` with any ``MINIO_USER`` and ``MINIO_PASS`` (password has to be eight characters min.)
