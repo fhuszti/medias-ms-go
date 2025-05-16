@@ -35,6 +35,9 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 	if err != nil {
 		return nil, err
 	}
+	if media.Status == model.MediaStatusCompleted {
+		return media, nil
+	}
 	if media.Status != model.MediaStatusPending {
 		return nil, errors.New("media status should be 'pending' to be finalised")
 	}
@@ -62,6 +65,10 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 		return nil, finalErr
 	}
 
+	if info.SizeBytes < MinFileSize {
+		finalErr = fmt.Errorf("file %q too small: %d bytes", media.ObjectKey, info.SizeBytes)
+		return nil, finalErr
+	}
 	if info.SizeBytes > MaxFileSize {
 		finalErr = fmt.Errorf("file %q too large: %d bytes", media.ObjectKey, info.SizeBytes)
 		return nil, finalErr

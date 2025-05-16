@@ -1,5 +1,6 @@
 package media
 
+const MinFileSize = 1 * 1024         // 1 KB
 const MaxFileSize = 10 * 1024 * 1024 // 10 MB
 
 var AllowedMimeTypes = map[string]bool{
