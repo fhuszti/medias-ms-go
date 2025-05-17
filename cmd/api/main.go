@@ -49,7 +49,7 @@ func main() {
 		return st, nil
 	}
 	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, storages["staging"], getDestBucket)
-	r.With(mediaHandler.WithDestBucket).
+	r.With(mediaHandler.WithDestBucket(strings.Split(cfg.MinioBuckets, ","))).
 		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
 
 	listenRouter(r, cfg, database)
