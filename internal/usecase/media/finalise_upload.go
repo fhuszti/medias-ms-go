@@ -66,11 +66,11 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 	}
 
 	if info.SizeBytes < MinFileSize {
-		finalErr = fmt.Errorf("file %q too small: %d bytes", media.ObjectKey, info.SizeBytes)
+		finalErr = fmt.Errorf("file %q too small: %d bytes (min size: %d bytes)", media.ObjectKey, info.SizeBytes, MinFileSize)
 		return nil, finalErr
 	}
 	if info.SizeBytes > MaxFileSize {
-		finalErr = fmt.Errorf("file %q too large: %d bytes", media.ObjectKey, info.SizeBytes)
+		finalErr = fmt.Errorf("file %q too large: %d bytes (max size: %d bytes)", media.ObjectKey, info.SizeBytes, MaxFileSize)
 		return nil, finalErr
 	}
 
@@ -79,11 +79,13 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 		return nil, finalErr
 	}
 
-	if err := s.moveFile(ctx, media, info.SizeBytes, info.ContentType, in.DestBucket); err != nil {
+	newObjectKey, err := s.moveFile(ctx, media, info.SizeBytes, info.ContentType, in.DestBucket)
+	if err != nil {
 		finalErr = fmt.Errorf("move file %q from staging to bucket %q failed: %w", media.ObjectKey, in.DestBucket, err)
 		return nil, finalErr
 	}
 
+	media.ObjectKey = newObjectKey
 	media.Status = model.MediaStatusCompleted
 	media.SizeBytes = &info.SizeBytes
 	media.MimeType = &info.ContentType
@@ -112,15 +114,15 @@ func (s *uploadFinaliserSrv) markAsFailed(ctx context.Context, media *model.Medi
 	return nil
 }
 
-func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, size int64, contentType string, destBucket string) error {
+func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, size int64, contentType string, destBucket string) (string, error) {
 	destStrg, err := s.getDestBucket(destBucket)
 	if err != nil {
-		return fmt.Errorf("unknown destination bucket %q: %w", destBucket, err)
+		return "", fmt.Errorf("unknown destination bucket %q: %w", destBucket, err)
 	}
 
 	objReader, err := s.stagingStrg.GetFile(ctx, media.ObjectKey)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func(objReader io.ReadCloser) {
 		if err := objReader.Close(); err != nil {
@@ -128,21 +130,27 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 		}
 	}(objReader)
 
+	ext, err := MimeTypeToExtension(contentType)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert mime-type %q to extension: %w", contentType, err)
+	}
+	newObjectKey := fmt.Sprintf("%s%s", media.ObjectKey, ext)
+
 	if err := destStrg.SaveFile(
 		ctx,
-		media.ObjectKey,
+		newObjectKey,
 		objReader,
 		size,
 		map[string]string{
 			"Content-Type": contentType,
 		},
 	); err != nil {
-		return err
+		return "", err
 	}
 
 	if err := s.stagingStrg.RemoveFile(ctx, media.ObjectKey); err != nil {
 		log.Printf("failed to clean up file %q in staging: %v", media.ObjectKey, err)
 	}
 
-	return nil
+	return newObjectKey, nil
 }

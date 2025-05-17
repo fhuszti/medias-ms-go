@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -55,12 +56,13 @@ func TestFinaliseUploadE2E(t *testing.T) {
 	svc := mediaService.NewUploadFinaliser(mediaRepo, stgStrg, getDest)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	objectKey := "doc.md"
-	content := []byte("# Hello E2E Test")
+	objectKey := id.String()
+	destObjectKey := objectKey + ".md"
+	content := []byte("# Hello E2E Test" + strings.Repeat(".", 1024))
 	prepareDataForTest(id, objectKey, content, ctx, t, mediaRepo, stgStrg)
 
 	r := chi.NewRouter()
-	r.With(mediaHandler.WithDestBucket).
+	r.With(mediaHandler.WithDestBucket([]string{"staging", "images"})).
 		Post("/medias/{destBucket}/complete", mediaHandler.FinaliseUploadHandler(svc))
 	srv := httptest.NewServer(r)
 	defer srv.Close()
@@ -117,7 +119,7 @@ func TestFinaliseUploadE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init dest bucket: %v", err)
 	}
-	exists, err := destStrg.FileExists(ctx, objectKey)
+	exists, err := destStrg.FileExists(ctx, destObjectKey)
 	if err != nil {
 		t.Fatalf("checking dest FileExists: %v", err)
 	}
@@ -131,7 +133,7 @@ func TestFinaliseUploadE2E(t *testing.T) {
 	if still {
 		t.Error("expected staging file removed")
 	}
-	rc, err := destStrg.GetFile(ctx, objectKey)
+	rc, err := destStrg.GetFile(ctx, destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}

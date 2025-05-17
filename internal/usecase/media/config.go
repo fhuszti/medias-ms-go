@@ -1,5 +1,9 @@
 package media
 
+import (
+	"fmt"
+)
+
 const MinFileSize = 1 * 1024         // 1 KB
 const MaxFileSize = 10 * 1024 * 1024 // 10 MB
 
@@ -13,6 +17,23 @@ var AllowedMimeTypes = map[string]bool{
 
 func IsMimeTypeAllowed(mimeType string) bool {
 	return AllowedMimeTypes[mimeType]
+}
+
+func MimeTypeToExtension(mimeType string) (string, error) {
+	switch mimeType {
+	case "image/png":
+		return ".png", nil
+	case "image/jpeg":
+		return ".jpg", nil
+	case "image/webp":
+		return ".webp", nil
+	case "application/pdf":
+		return ".pdf", nil
+	case "text/markdown":
+		return ".md", nil
+	default:
+		return "", fmt.Errorf("unsupported mime type: %s", mimeType)
+	}
 }
 
 func IsImage(mimeType string) bool {

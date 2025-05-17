@@ -54,8 +54,7 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 	defer srv.Close()
 
 	reqBody := map[string]interface{}{
-		"name": "file_example",
-		"type": "text/markdown",
+		"name": "file_example.pdf",
 	}
 	b, err := json.Marshal(reqBody)
 	if err != nil {
@@ -96,8 +95,8 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 	if bucketName != "staging" {
 		t.Errorf("expected bucket 'staging', got %q", bucketName)
 	}
-	if !strings.HasPrefix(objectKey, "file_example_") {
-		t.Errorf("expected objectkey to start with 'file_example_', got %q", objectKey)
+	if objectKey != out.ID.String() {
+		t.Errorf("expected objectKey to be %q, got %q", objectKey, out.ID.String())
 	}
 
 	payload := []byte("hello-minio")
@@ -115,17 +114,21 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 	}
 
 	var (
-		id     db.UUID
-		status model.MediaStatus
+		id               db.UUID
+		originalFilename string
+		status           model.MediaStatus
 	)
 	row := testDB.DB.QueryRowContext(context.Background(),
-		"SELECT id, status FROM medias WHERE object_key = ?", objectKey)
-	if err := row.Scan(&id, &status); err != nil {
+		"SELECT id, original_filename, status FROM medias WHERE object_key = ?", objectKey)
+	if err := row.Scan(&id, &originalFilename, &status); err != nil {
 		t.Fatalf("failed to scan media record: %v", err)
 	}
 
 	if id != out.ID {
 		t.Errorf("expected ID %q, got %q", out.ID, id)
+	}
+	if originalFilename != "file_example.pdf" {
+		t.Errorf("expected originalFilename to be 'file_example.pdf', got %q", originalFilename)
 	}
 	if status != model.MediaStatusPending {
 		t.Errorf("expected status %q, got %q", model.MediaStatusPending, status)

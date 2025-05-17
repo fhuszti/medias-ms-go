@@ -11,6 +11,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/google/uuid"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -48,8 +49,9 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	svc := mediaService.NewUploadFinaliser(mediaRepo, stgStrg, getDestBucket)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	objectKey := "test-object.md"
-	content := []byte("hello integration test")
+	objectKey := id.String()
+	destObjectKey := objectKey + ".md"
+	content := []byte("# Hello E2E Test" + strings.Repeat(".", 1024))
 	prepareDataForTest(id, objectKey, content, ctx, t, mediaRepo, stgStrg)
 
 	out, err := svc.FinaliseUpload(ctx, mediaService.FinaliseUploadInput{
@@ -88,7 +90,7 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init dest bucket: %v", err)
 	}
-	exists, err := destStrg.FileExists(ctx, objectKey)
+	exists, err := destStrg.FileExists(ctx, destObjectKey)
 	if err != nil {
 		t.Fatalf("checking dest FileExists: %v", err)
 	}
@@ -105,7 +107,7 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	}
 
 	// Assert content round-trips
-	rc, err := destStrg.GetFile(ctx, objectKey)
+	rc, err := destStrg.GetFile(ctx, destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}

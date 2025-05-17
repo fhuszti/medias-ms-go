@@ -25,14 +25,14 @@ func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error 
 
 	const query = `
       INSERT INTO medias 
-        (id, object_key, mime_type, size_bytes, status, failure_message, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+        (id, object_key, original_filename, mime_type, size_bytes, status, failure_message, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `
 	_, err := r.db.ExecContext(ctx, query,
 		media.ID, media.ObjectKey,
-		media.MimeType, media.SizeBytes,
-		media.Status, media.FailureMessage,
-		media.Metadata,
+		media.OriginalFilename, media.MimeType,
+		media.SizeBytes, media.Status,
+		media.FailureMessage, media.Metadata,
 	)
 	if err != nil {
 		return err
@@ -75,16 +75,18 @@ func (r *MediaRepository) GetByID(ctx context.Context, ID db.UUID) (*model.Media
 	log.Printf("fetching media #%v from the database...", ID)
 
 	const query = `
-      SELECT id, object_key, mime_type, size_bytes, status, failure_message, metadata, created_at, updated_at
+      SELECT id, object_key, original_filename, mime_type, size_bytes, status, failure_message, metadata, created_at, updated_at
       FROM medias
       WHERE id = ?
     `
 	row := r.db.QueryRowContext(ctx, query, ID)
 	var media model.Media
 	if err := row.Scan(
-		&media.ID, &media.ObjectKey, &media.MimeType,
-		&media.SizeBytes, &media.Status, &media.FailureMessage,
-		&media.Metadata, &media.CreatedAt, &media.UpdatedAt,
+		&media.ID, &media.ObjectKey,
+		&media.OriginalFilename, &media.MimeType,
+		&media.SizeBytes, &media.Status,
+		&media.FailureMessage, &media.Metadata,
+		&media.CreatedAt, &media.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}

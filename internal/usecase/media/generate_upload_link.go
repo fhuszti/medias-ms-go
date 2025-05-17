@@ -2,7 +2,6 @@ package media
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
@@ -32,12 +31,13 @@ type GenerateUploadLinkOutput struct {
 }
 
 func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (GenerateUploadLinkOutput, error) {
-	now := time.Now().UTC()
-	objectKey := fmt.Sprintf("%s_%d", in.Name, now.UnixNano())
+	id := db.NewUUID()
+	objectKey := id.String()
 	media := &model.Media{
-		ID:        db.NewUUID(),
-		ObjectKey: objectKey,
-		Status:    model.MediaStatusPending,
+		ID:               id,
+		ObjectKey:        objectKey,
+		OriginalFilename: in.Name,
+		Status:           model.MediaStatusPending,
 	}
 
 	if err := s.repo.Create(ctx, media); err != nil {

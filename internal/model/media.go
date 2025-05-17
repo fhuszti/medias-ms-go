@@ -14,13 +14,14 @@ const (
 )
 
 type Media struct {
-	ID             db.UUID     `json:"id"`
-	ObjectKey      string      `json:"object_key"`
-	MimeType       *string     `json:"mime_type,omitempty"`
-	SizeBytes      *int64      `json:"size_bytes,omitempty"`
-	Status         MediaStatus `json:"status"`
-	FailureMessage *string     `json:"failure_message,omitempty"`
-	Metadata       *string     `json:"metadata,omitempty"`
-	CreatedAt      time.Time   `json:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at"`
+	ID               db.UUID     `json:"id"`
+	ObjectKey        string      `json:"object_key"`
+	OriginalFilename string      `json:"original_filename"`
+	MimeType         *string     `json:"mime_type,omitempty"`
+	SizeBytes        *int64      `json:"size_bytes,omitempty"`
+	Status           MediaStatus `json:"status"`
+	FailureMessage   *string     `json:"failure_message,omitempty"`
+	Metadata         *string     `json:"metadata,omitempty"`
+	CreatedAt        time.Time   `json:"created_at"`
+	UpdatedAt        time.Time   `json:"updated_at"`
 }
