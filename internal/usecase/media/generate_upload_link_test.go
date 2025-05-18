@@ -13,18 +13,18 @@ import (
 	"github.com/google/uuid"
 )
 
-type mockRepo struct {
+type fakeRepo struct {
 	createFn func(ctx context.Context, m *model.Media) error
 	mediaArg *model.Media
 }
 
-func (f *mockRepo) Update(ctx context.Context, media *model.Media) error {
+func (f *fakeRepo) Update(ctx context.Context, media *model.Media) error {
 	panic("implement me")
 }
-func (f *mockRepo) GetByID(ctx context.Context, ID db.UUID) (*model.Media, error) {
+func (f *fakeRepo) GetByID(ctx context.Context, ID db.UUID) (*model.Media, error) {
 	panic("implement me")
 }
-func (f *mockRepo) Create(ctx context.Context, m *model.Media) error {
+func (f *fakeRepo) Create(ctx context.Context, m *model.Media) error {
 	f.mediaArg = m
 	if f.createFn != nil {
 		return f.createFn(ctx, m)
@@ -32,29 +32,29 @@ func (f *mockRepo) Create(ctx context.Context, m *model.Media) error {
 	return nil
 }
 
-type mockStorage struct {
+type fakeStorage struct {
 	generateFn func(ctx context.Context, objectKey string, ttl time.Duration) (string, error)
 	called     bool
 	keyArg     string
 	ttlArg     time.Duration
 }
 
-func (f *mockStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
+func (f *fakeStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
 	panic("implement me")
 }
-func (f *mockStorage) StatFile(ctx context.Context, fileKey string) (FileInfo, error) {
+func (f *fakeStorage) StatFile(ctx context.Context, fileKey string) (FileInfo, error) {
 	panic("implement me")
 }
-func (f *mockStorage) RemoveFile(ctx context.Context, fileKey string) error {
+func (f *fakeStorage) RemoveFile(ctx context.Context, fileKey string) error {
 	panic("implement me")
 }
-func (f *mockStorage) GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error) {
+func (f *fakeStorage) GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error) {
 	panic("implement me")
 }
-func (f *mockStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
+func (f *fakeStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
 	panic("implement me")
 }
-func (f *mockStorage) GeneratePresignedUploadURL(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
+func (f *fakeStorage) GeneratePresignedUploadURL(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
 	f.called = true
 	f.keyArg = objectKey
 	f.ttlArg = ttl
@@ -65,8 +65,8 @@ func (f *mockStorage) GeneratePresignedUploadURL(ctx context.Context, objectKey 
 }
 
 func TestGenerateUploadLink_Success(t *testing.T) {
-	repo := &mockRepo{}
-	storage := &mockStorage{
+	repo := &fakeRepo{}
+	storage := &fakeStorage{
 		generateFn: func(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
 			return "https://example.com/upload", nil
 		},
@@ -119,12 +119,12 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 }
 
 func TestGenerateUploadLink_RepoError(t *testing.T) {
-	repo := &mockRepo{
+	repo := &fakeRepo{
 		createFn: func(ctx context.Context, m *model.Media) error {
 			return errors.New("repo failure")
 		},
 	}
-	storage := &mockStorage{}
+	storage := &fakeStorage{}
 	svc := NewUploadLinkGenerator(repo, storage)
 
 	out, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo"})
@@ -143,8 +143,8 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 }
 
 func TestGenerateUploadLink_StorageError(t *testing.T) {
-	repo := &mockRepo{}
-	storage := &mockStorage{
+	repo := &fakeRepo{}
+	storage := &fakeStorage{
 		generateFn: func(ctx context.Context, objectKey string, ttl time.Duration) (string, error) {
 			return "", errors.New("storage failure")
 		},

@@ -130,7 +130,7 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 
 	ext, err := MimeTypeToExtension(contentType)
 	if err != nil {
-		return fmt.Errorf("failed to convert mime-type %q to extension: %w", contentType, err)
+		return err
 	}
 	newObjectKey := fmt.Sprintf("%s%s", media.ObjectKey, ext)
 
