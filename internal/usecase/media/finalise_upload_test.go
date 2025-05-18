@@ -10,85 +10,10 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 )
-
-type mockRepo struct {
-	mediaRecord *model.Media
-	getErr      error
-	updateErr   error
-	updated     *model.Media
-}
-
-func (m *mockRepo) GetByID(ctx context.Context, id db.UUID) (*model.Media, error) {
-	if m.getErr != nil {
-		return nil, m.getErr
-	}
-	return m.mediaRecord, nil
-}
-func (m *mockRepo) Update(ctx context.Context, media *model.Media) error {
-	m.updated = media
-	return m.updateErr
-}
-func (m *mockRepo) Create(ctx context.Context, media *model.Media) error { panic("not used") }
-
-type mockStorage struct {
-	statInfo     FileInfo
-	statErr      error
-	getErr       error
-	saveErr      error
-	getCalled    bool
-	saveCalled   bool
-	removeCalled bool
-}
-
-func (m *mockStorage) GeneratePresignedUploadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
-	panic("not used")
-}
-func (m *mockStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
-	panic("not used")
-}
-func (m *mockStorage) StatFile(ctx context.Context, fileKey string) (FileInfo, error) {
-	return m.statInfo, m.statErr
-}
-func (m *mockStorage) RemoveFile(ctx context.Context, fileKey string) error {
-	m.removeCalled = true
-	return nil
-}
-func (m *mockStorage) GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error) {
-	m.getCalled = true
-	return io.NopCloser(bytes.NewReader([]byte("dummy"))), m.getErr
-}
-func (m *mockStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
-	m.saveCalled = true
-	return m.saveErr
-}
-
-type mockStorageGetter struct {
-	dest *mockStorage
-	err  error
-}
-
-func (m *mockStorageGetter) Get(bucket string) (Storage, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.dest, nil
-}
-
-// pngStorage wraps mockStorage to return a fixed reader
-type pngStorage struct {
-	*mockStorage
-	reader io.ReadCloser
-}
-
-func (p *pngStorage) GetFile(ctx context.Context, key string) (io.ReadCloser, error) {
-	p.getCalled = true
-	return p.reader, nil
-}
 
 func TestFinaliseUpload_ErrGetByID(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
@@ -215,9 +140,7 @@ func TestFinaliseUpload_MoveExtensionError(t *testing.T) {
 func TestFinaliseUpload_MoveMetadataError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
 	repo := &mockRepo{mediaRecord: mrec}
-	reader := io.NopCloser(strings.NewReader("not-a-png"))
-	stgBase := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}}
-	stg := &pngStorage{mockStorage: stgBase, reader: reader}
+	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: strings.NewReader("not-a-png")}
 	svc := NewUploadFinaliser(repo, stg, (&mockStorageGetter{}).Get)
 
 	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
@@ -229,9 +152,7 @@ func TestFinaliseUpload_MoveMetadataError(t *testing.T) {
 func TestFinaliseUpload_MoveSaveFileError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
 	repo := &mockRepo{mediaRecord: mrec}
-	reader := io.NopCloser(getPNGReader(t))
-	stgBase := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}}
-	stg := &pngStorage{mockStorage: stgBase, reader: reader}
+	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
 	dest := &mockStorage{saveErr: errors.New("save fail")}
 	svc := NewUploadFinaliser(repo, stg, (&mockStorageGetter{dest: dest}).Get)
 
@@ -244,9 +165,7 @@ func TestFinaliseUpload_MoveSaveFileError(t *testing.T) {
 func TestFinaliseUpload_MoveUpdateMediaError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
 	repo := &mockRepo{mediaRecord: mrec, updateErr: errors.New("update fail")}
-	reader := io.NopCloser(getPNGReader(t))
-	stgBase := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}}
-	stg := &pngStorage{mockStorage: stgBase, reader: reader}
+	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
 	dest := &mockStorage{}
 	svc := NewUploadFinaliser(repo, stg, (&mockStorageGetter{dest: dest}).Get)
 
@@ -259,9 +178,7 @@ func TestFinaliseUpload_MoveUpdateMediaError(t *testing.T) {
 func TestFinaliseUpload_Success(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "name"}
 	repo := &mockRepo{mediaRecord: mrec}
-	reader := io.NopCloser(getPNGReader(t))
-	stgBase := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}}
-	stg := &pngStorage{mockStorage: stgBase, reader: reader}
+	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
 	dest := &mockStorage{}
 	svc := NewUploadFinaliser(repo, stg, (&mockStorageGetter{dest: dest}).Get)
 

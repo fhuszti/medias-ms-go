@@ -38,7 +38,7 @@ func main() {
 	storages := initBucketStorages(cfg)
 	mediaRepo := mariadb.NewMediaRepository(database.DB)
 
-	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, storages["staging"])
+	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, storages["staging"], db.NewUUID)
 	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
 	var getDestBucket mediaSvc.StorageGetter = func(bucket string) (mediaSvc.Storage, error) {

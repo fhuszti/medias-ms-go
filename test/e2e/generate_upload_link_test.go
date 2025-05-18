@@ -48,7 +48,7 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to initialise bucket 'staging': %v", err)
 	}
-	svc := mediaService.NewUploadLinkGenerator(mediaRepo, strg)
+	svc := mediaService.NewUploadLinkGenerator(mediaRepo, strg, db.NewUUID)
 	h := mediaHandler.GenerateUploadLinkHandler(svc)
 
 	srv := httptest.NewServer(h)

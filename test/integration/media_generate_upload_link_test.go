@@ -41,7 +41,7 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to initialise bucket 'staging': %v", err)
 	}
-	svc := mediaService.NewUploadLinkGenerator(mediaRepo, strg)
+	svc := mediaService.NewUploadLinkGenerator(mediaRepo, strg, db.NewUUID)
 
 	in := mediaService.GenerateUploadLinkInput{
 		Name: "file_example.png",

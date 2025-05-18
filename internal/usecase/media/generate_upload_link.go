@@ -8,17 +8,20 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/model"
 )
 
+type UUIDGen func() db.UUID
+
 type UploadLinkGenerator interface {
 	GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (GenerateUploadLinkOutput, error)
 }
 
 type uploadLinkGeneratorSrv struct {
-	repo Repository
-	strg Storage
+	repo    Repository
+	strg    Storage
+	genUUID UUIDGen
 }
 
-func NewUploadLinkGenerator(repo Repository, strg Storage) UploadLinkGenerator {
-	return &uploadLinkGeneratorSrv{repo: repo, strg: strg}
+func NewUploadLinkGenerator(repo Repository, strg Storage, genUUID UUIDGen) UploadLinkGenerator {
+	return &uploadLinkGeneratorSrv{repo, strg, genUUID}
 }
 
 type GenerateUploadLinkInput struct {
@@ -31,7 +34,7 @@ type GenerateUploadLinkOutput struct {
 }
 
 func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (GenerateUploadLinkOutput, error) {
-	id := db.NewUUID()
+	id := s.genUUID()
 	objectKey := id.String()
 	media := &model.Media{
 		ID:               id,
