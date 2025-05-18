@@ -11,6 +11,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/google/uuid"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -74,6 +75,9 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	}
 	if out.MimeType == nil || *out.MimeType != "text/markdown" {
 		t.Errorf("returned MimeType = %q; want %q", *out.MimeType, "text/markdown")
+	}
+	if reflect.DeepEqual(out.Metadata, model.Metadata{}) {
+		t.Errorf("expected non-empty Metadata struct, got %+v", out.Metadata)
 	}
 
 	// Assert DB was updated

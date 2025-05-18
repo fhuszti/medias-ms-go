@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -103,6 +104,9 @@ func TestFinaliseUploadE2E(t *testing.T) {
 	}
 	if got.MimeType == nil || *got.MimeType != "text/markdown" {
 		t.Errorf("resp MimeType = %q; want %q", *got.MimeType, "text/markdown")
+	}
+	if reflect.DeepEqual(got.Metadata, model.Metadata{}) {
+		t.Errorf("expected non-empty Metadata struct, got %+v", got.Metadata)
 	}
 
 	// Assert DB updated
