@@ -1,14 +1,22 @@
 package media
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	_ "golang.org/x/image/webp"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"log"
+	"regexp"
+	"strings"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/ledongthuc/pdf"
 )
 
 type UploadFinaliser interface {
@@ -79,18 +87,8 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 		return nil, finalErr
 	}
 
-	newObjectKey, err := s.moveFile(ctx, media, info.SizeBytes, info.ContentType, in.DestBucket)
-	if err != nil {
+	if err := s.moveFile(ctx, media, info.SizeBytes, info.ContentType, in.DestBucket); err != nil {
 		finalErr = fmt.Errorf("move file %q from staging to bucket %q failed: %w", media.ObjectKey, in.DestBucket, err)
-		return nil, finalErr
-	}
-
-	media.ObjectKey = newObjectKey
-	media.Status = model.MediaStatusCompleted
-	media.SizeBytes = &info.SizeBytes
-	media.MimeType = &info.ContentType
-	if err := s.repo.Update(ctx, media); err != nil {
-		finalErr = fmt.Errorf("failed updating media after finalising the upload: %w", err)
 		return nil, finalErr
 	}
 
@@ -114,43 +112,130 @@ func (s *uploadFinaliserSrv) markAsFailed(ctx context.Context, media *model.Medi
 	return nil
 }
 
-func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, size int64, contentType string, destBucket string) (string, error) {
+func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, size int64, contentType string, destBucket string) error {
 	destStrg, err := s.getDestBucket(destBucket)
 	if err != nil {
-		return "", fmt.Errorf("unknown destination bucket %q: %w", destBucket, err)
+		return fmt.Errorf("unknown destination bucket %q: %w", destBucket, err)
 	}
 
-	objReader, err := s.stagingStrg.GetFile(ctx, media.ObjectKey)
+	file, err := s.stagingStrg.GetFile(ctx, media.ObjectKey)
 	if err != nil {
-		return "", err
+		return err
 	}
-	defer func(objReader io.ReadCloser) {
-		if err := objReader.Close(); err != nil {
+	defer func(file io.ReadCloser) {
+		if err := file.Close(); err != nil {
 			log.Printf("failed to close reader")
 		}
-	}(objReader)
+	}(file)
 
 	ext, err := MimeTypeToExtension(contentType)
 	if err != nil {
-		return "", fmt.Errorf("failed to convert mime-type %q to extension: %w", contentType, err)
+		return fmt.Errorf("failed to convert mime-type %q to extension: %w", contentType, err)
 	}
 	newObjectKey := fmt.Sprintf("%s%s", media.ObjectKey, ext)
+
+	metadata, err := fillMetadata(contentType, file)
+	if err != nil {
+		return fmt.Errorf("failed to fill metadata: %w", err)
+	}
 
 	if err := destStrg.SaveFile(
 		ctx,
 		newObjectKey,
-		objReader,
+		file,
 		size,
 		map[string]string{
 			"Content-Type": contentType,
 		},
 	); err != nil {
-		return "", err
+		return err
 	}
 
 	if err := s.stagingStrg.RemoveFile(ctx, media.ObjectKey); err != nil {
 		log.Printf("failed to clean up file %q in staging: %v", media.ObjectKey, err)
 	}
 
-	return newObjectKey, nil
+	media.ObjectKey = newObjectKey
+	media.Status = model.MediaStatusCompleted
+	media.SizeBytes = &size
+	media.MimeType = &contentType
+	media.Metadata = metadata
+	if err := s.repo.Update(ctx, media); err != nil {
+		return fmt.Errorf("failed updating media: %w", err)
+	}
+
+	return nil
+}
+
+func fillMetadata(mimeType string, file io.Reader) (model.Metadata, error) {
+
+	switch {
+	case IsImage(mimeType):
+		return fillImageMetadata(file)
+	case IsPdf(mimeType):
+		return fillPdfMetadata(file)
+	case IsMarkdown(mimeType):
+		return fillMarkdownMetadata(file)
+	default:
+		return model.Metadata{}, errors.New("unsupported mime-type")
+	}
+}
+
+func fillImageMetadata(file io.Reader) (model.Metadata, error) {
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return model.Metadata{}, fmt.Errorf("error reading image data: %w", err)
+	}
+
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return model.Metadata{}, fmt.Errorf("error decoding image config: %w", err)
+	}
+
+	return model.Metadata{
+		Width:  cfg.Width,
+		Height: cfg.Height,
+	}, nil
+}
+
+func fillPdfMetadata(file io.Reader) (model.Metadata, error) {
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return model.Metadata{}, fmt.Errorf("error reading PDF data: %w", err)
+	}
+
+	reader, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return model.Metadata{}, fmt.Errorf("error opening pdf reader: %w", err)
+	}
+
+	return model.Metadata{
+		PageCount: reader.NumPage(),
+	}, nil
+}
+
+func fillMarkdownMetadata(file io.Reader) (model.Metadata, error) {
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return model.Metadata{}, fmt.Errorf("error reading markdown data: %w", err)
+	}
+	text := string(data)
+
+	words := strings.Fields(text)
+
+	headingCount := 0
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "##") {
+			headingCount++
+		}
+	}
+
+	linkRe := regexp.MustCompile(`\[[^]]+]\([^)]+\)`)
+	links := linkRe.FindAllString(text, -1)
+
+	return model.Metadata{
+		WordCount:    int64(len(words)),
+		HeadingCount: int64(headingCount),
+		LinkCount:    int64(len(links)),
+	}, nil
 }

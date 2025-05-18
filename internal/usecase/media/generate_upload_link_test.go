@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"reflect"
 	"testing"
 	"time"
 
@@ -100,6 +101,9 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	}
 	if m.Status != model.MediaStatusPending {
 		t.Errorf("expected Status Pending, got %v", m.Status)
+	}
+	if !reflect.DeepEqual(m.Metadata, model.Metadata{}) {
+		t.Errorf("expected empty Metadata struct, got %+v", m.Metadata)
 	}
 
 	// verify storage call
