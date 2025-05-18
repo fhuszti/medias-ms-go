@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -117,10 +118,11 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 		id               db.UUID
 		originalFilename string
 		status           model.MediaStatus
+		metadata         model.Metadata
 	)
 	row := testDB.DB.QueryRowContext(context.Background(),
-		"SELECT id, original_filename, status FROM medias WHERE object_key = ?", objectKey)
-	if err := row.Scan(&id, &originalFilename, &status); err != nil {
+		"SELECT id, original_filename, status, metadata FROM medias WHERE object_key = ?", objectKey)
+	if err := row.Scan(&id, &originalFilename, &status, &metadata); err != nil {
 		t.Fatalf("failed to scan media record: %v", err)
 	}
 
@@ -132,6 +134,9 @@ func TestGenerateUploadLinkE2E(t *testing.T) {
 	}
 	if status != model.MediaStatusPending {
 		t.Errorf("expected status %q, got %q", model.MediaStatusPending, status)
+	}
+	if !reflect.DeepEqual(metadata, model.Metadata{}) {
+		t.Errorf("expected empty Metadata struct, got %+v", metadata)
 	}
 }
 
