@@ -23,6 +23,7 @@ type mockMinio struct {
 	statObjectFn         func(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
 	getObjectFn          func(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
 	putObjectFn          func(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error)
+	copyObjectFn         func(ctx context.Context, dst minio.CopyDestOptions, src minio.CopySrcOptions) (minio.UploadInfo, error)
 }
 
 func (m *mockMinio) GetObject(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error) {
@@ -51,6 +52,9 @@ func (m *mockMinio) StatObject(ctx context.Context, bucket, key string, opts min
 }
 func (m *mockMinio) PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error) {
 	return m.putObjectFn(ctx, bucketName, objectName, reader, objectSize, opts)
+}
+func (m *mockMinio) CopyObject(ctx context.Context, dst minio.CopyDestOptions, src minio.CopySrcOptions) (minio.UploadInfo, error) {
+	return m.copyObjectFn(ctx, dst, src)
 }
 
 func makeStorage(mockClient *mockMinio, bucket string, useSSL bool) media.Storage {
@@ -486,6 +490,67 @@ func TestGetFile_OtherError(t *testing.T) {
 	}
 	s := makeStorage(mock, "b", true)
 	_, err := s.GetFile(ctx, "k")
+	if !errors.Is(err, media.ErrInternal) {
+		t.Fatalf("err = %v; want ErrInternal", err)
+	}
+}
+
+func TestCopyFile_Success(t *testing.T) {
+	ctx := context.Background()
+	called := false
+	mock := &mockMinio{
+		copyObjectFn: func(_ context.Context, dst minio.CopyDestOptions, src minio.CopySrcOptions) (minio.UploadInfo, error) {
+			called = true
+			if dst.Bucket != "my-bucket" {
+				t.Errorf("dst bucket = %q; want %q", dst.Bucket, "my-bucket")
+			}
+			if src.Bucket != "my-bucket" {
+				t.Errorf("src bucket = %q; want %q", src.Bucket, "my-bucket")
+			}
+
+			if dst.Object != "destKey" {
+				t.Errorf("dst key = %q; want %q", dst.Object, "file")
+			}
+			if src.Object != "srcKey" {
+				t.Errorf("dst key = %q; want %q", src.Object, "file")
+			}
+			return minio.UploadInfo{}, nil
+		},
+	}
+	s := makeStorage(mock, "my-bucket", false)
+	if err := s.CopyFile(ctx, "srcKey", "destKey"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Error("CopyObject was not called")
+	}
+}
+
+func TestCopyFile_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		copyObjectFn: func(_ context.Context, dst minio.CopyDestOptions, src minio.CopySrcOptions) (minio.UploadInfo, error) {
+			e := minio.ToErrorResponse(errors.New("ignored"))
+			e.Code = "NoSuchKey"
+			return minio.UploadInfo{}, e
+		},
+	}
+	s := makeStorage(mock, "bucket", false)
+	err := s.CopyFile(ctx, "srcKey", "destKey")
+	if !errors.Is(err, media.ErrObjectNotFound) {
+		t.Fatalf("err = %v; want ErrObjectNotFound", err)
+	}
+}
+
+func TestCopyFile_OtherError(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockMinio{
+		copyObjectFn: func(_ context.Context, dst minio.CopyDestOptions, src minio.CopySrcOptions) (minio.UploadInfo, error) {
+			return minio.UploadInfo{}, errors.New("boom")
+		},
+	}
+	s := makeStorage(mock, "bucket", false)
+	err := s.CopyFile(ctx, "srcKey", "destKey")
 	if !errors.Is(err, media.ErrInternal) {
 		t.Fatalf("err = %v; want ErrInternal", err)
 	}

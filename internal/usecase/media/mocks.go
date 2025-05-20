@@ -45,12 +45,14 @@ type mockStorage struct {
 	statErr                 error
 	getErr                  error
 	saveErr                 error
+	copyErr                 error
 
 	generateUploadLinkCalled bool
 	statCalled               bool
 	getCalled                bool
 	saveCalled               bool
 	removeCalled             bool
+	copyCalled               bool
 }
 
 func (m *mockStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
@@ -89,6 +91,10 @@ func (m *mockStorage) GetFile(ctx context.Context, fileKey string) (io.ReadClose
 func (m *mockStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
 	m.saveCalled = true
 	return m.saveErr
+}
+func (m *mockStorage) CopyFile(ctx context.Context, srcKey, destKey string) error {
+	m.copyCalled = true
+	return m.copyErr
 }
 
 type mockStorageGetter struct {

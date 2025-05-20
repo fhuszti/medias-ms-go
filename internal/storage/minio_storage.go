@@ -24,6 +24,7 @@ type minioClient interface {
 	RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
 	GetObject(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
 	PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error)
+	CopyObject(ctx context.Context, dst minio.CopyDestOptions, src minio.CopySrcOptions) (minio.UploadInfo, error)
 }
 
 type MinioStorage struct {
@@ -129,6 +130,25 @@ func (s *MinioStorage) SaveFile(ctx context.Context, fileKey string, reader io.R
 	}
 
 	_, err := s.client.PutObject(ctx, s.bucketName, fileKey, reader, fileSize, putOpts)
+	if err != nil {
+		return mapMinioErr(err)
+	}
+	return nil
+}
+
+func (s *MinioStorage) CopyFile(ctx context.Context, srcKey, destKey string) error {
+	log.Printf("copying file '%s' to '%s' inside bucket '%s'...", srcKey, destKey, s.bucketName)
+
+	destOpts := minio.CopyDestOptions{
+		Bucket: s.bucketName,
+		Object: destKey,
+	}
+	srcOpts := minio.CopySrcOptions{
+		Bucket: s.bucketName,
+		Object: srcKey,
+	}
+
+	_, err := s.client.CopyObject(ctx, destOpts, srcOpts)
 	if err != nil {
 		return mapMinioErr(err)
 	}

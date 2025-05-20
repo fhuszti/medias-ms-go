@@ -26,6 +26,7 @@ type Storage interface {
 	RemoveFile(ctx context.Context, fileKey string) error
 	GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error)
 	SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error
+	CopyFile(ctx context.Context, srcKey, destKey string) error
 }
 
 type StorageGetter func(bucket string) (Storage, error)

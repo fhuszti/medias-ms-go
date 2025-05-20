@@ -73,7 +73,9 @@ func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *m
 	}
 
 	if !exists {
-		//TODO copy original file to variant key
+		if err := strg.CopyFile(ctx, media.ObjectKey, variantKey); err != nil {
+			return GetMediaOutput{}, fmt.Errorf("error copying placeholder variant image: %w", err)
+		}
 	}
 
 	//TODO generate presigned download link
