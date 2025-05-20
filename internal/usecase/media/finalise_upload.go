@@ -24,13 +24,13 @@ type UploadFinaliser interface {
 }
 
 type uploadFinaliserSrv struct {
-	repo          Repository
-	stagingStrg   Storage
-	getDestBucket StorageGetter
+	repo        Repository
+	stagingStrg Storage
+	getDestStrg StorageGetter
 }
 
-func NewUploadFinaliser(repo Repository, stagingStrg Storage, getDestBucket StorageGetter) UploadFinaliser {
-	return &uploadFinaliserSrv{repo: repo, stagingStrg: stagingStrg, getDestBucket: getDestBucket}
+func NewUploadFinaliser(repo Repository, stagingStrg Storage, getDestStrg StorageGetter) UploadFinaliser {
+	return &uploadFinaliserSrv{repo: repo, stagingStrg: stagingStrg, getDestStrg: getDestStrg}
 }
 
 type FinaliseUploadInput struct {
@@ -113,7 +113,7 @@ func (s *uploadFinaliserSrv) markAsFailed(ctx context.Context, media *model.Medi
 }
 
 func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, size int64, contentType string, destBucket string) error {
-	destStrg, err := s.getDestBucket(destBucket)
+	destStrg, err := s.getDestStrg(destBucket)
 	if err != nil {
 		return fmt.Errorf("unknown destination bucket %q: %w", destBucket, err)
 	}

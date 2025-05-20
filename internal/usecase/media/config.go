@@ -40,6 +40,10 @@ func IsImage(mimeType string) bool {
 	return mimeType == "image/png" || mimeType == "image/jpeg" || mimeType == "image/webp"
 }
 
+func isDocument(mimeType string) bool {
+	return IsPdf(mimeType) || IsMarkdown(mimeType)
+}
+
 func IsPdf(mimeType string) bool {
 	return mimeType == "application/pdf"
 }

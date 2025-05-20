@@ -44,10 +44,10 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to initialise bucket 'staging': %v", err)
 	}
-	getDestBucket := func(bucket string) (mediaService.Storage, error) {
+	getDestStrg := func(bucket string) (mediaService.Storage, error) {
 		return tb.StrgClient.WithBucket(bucket)
 	}
-	svc := mediaService.NewUploadFinaliser(mediaRepo, stgStrg, getDestBucket)
+	svc := mediaService.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String()
@@ -90,7 +90,7 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	}
 
 	// Assert file moved to "images" and absent from "staging"
-	destStrg, err := getDestBucket("images")
+	destStrg, err := getDestStrg("images")
 	if err != nil {
 		t.Fatalf("init dest bucket: %v", err)
 	}
