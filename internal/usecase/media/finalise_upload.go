@@ -156,6 +156,7 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 	}
 
 	media.ObjectKey = newObjectKey
+	media.Bucket = destBucket
 	media.Status = model.MediaStatusCompleted
 	media.SizeBytes = &size
 	media.MimeType = &contentType

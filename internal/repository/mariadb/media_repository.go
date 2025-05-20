@@ -25,11 +25,11 @@ func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error 
 
 	const query = `
       INSERT INTO medias 
-        (id, object_key, original_filename, mime_type, size_bytes, status, failure_message, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id, object_key, bucket, original_filename, mime_type, size_bytes, status, failure_message, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	_, err := r.db.ExecContext(ctx, query,
-		media.ID, media.ObjectKey,
+		media.ID, media.ObjectKey, media.Bucket,
 		media.OriginalFilename, media.MimeType,
 		media.SizeBytes, media.Status,
 		media.FailureMessage, media.Metadata,
@@ -42,12 +42,13 @@ func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error 
 }
 
 func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error {
-	log.Printf("updating database record for media #%v, with status '%s'...", media.ID, media.Status)
+	log.Printf("updating database record for media #%s, with status '%s'...", media.ID, media.Status)
 
 	const query = `
       UPDATE medias
       SET
         object_key      = ?,
+        bucket     		= ?,
         mime_type       = ?,
         size_bytes      = ?,
         status          = ?,
@@ -57,6 +58,7 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
     `
 	_, err := r.db.ExecContext(ctx, query,
 		media.ObjectKey,
+		media.Bucket,
 		media.MimeType,
 		media.SizeBytes,
 		media.Status,
@@ -72,17 +74,17 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
 }
 
 func (r *MediaRepository) GetByID(ctx context.Context, ID db.UUID) (*model.Media, error) {
-	log.Printf("fetching media #%v from the database...", ID)
+	log.Printf("fetching media #%s from the database...", ID)
 
 	const query = `
-      SELECT id, object_key, original_filename, mime_type, size_bytes, status, failure_message, metadata, created_at, updated_at
+      SELECT id, object_key, bucket, original_filename, mime_type, size_bytes, status, failure_message, metadata, created_at, updated_at
       FROM medias
       WHERE id = ?
     `
 	row := r.db.QueryRowContext(ctx, query, ID)
 	var media model.Media
 	if err := row.Scan(
-		&media.ID, &media.ObjectKey,
+		&media.ID, &media.ObjectKey, &media.Bucket,
 		&media.OriginalFilename, &media.MimeType,
 		&media.SizeBytes, &media.Status,
 		&media.FailureMessage, &media.Metadata,

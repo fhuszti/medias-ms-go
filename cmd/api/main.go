@@ -41,14 +41,14 @@ func main() {
 	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, storages["staging"], db.NewUUID)
 	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
-	var getDestStrg mediaSvc.StorageGetter = func(bucket string) (mediaSvc.Storage, error) {
+	var getStrgFromBucket mediaSvc.StorageGetter = func(bucket string) (mediaSvc.Storage, error) {
 		st, ok := storages[bucket]
 		if !ok {
 			return nil, fmt.Errorf("bucket %q is not configured", bucket)
 		}
 		return st, nil
 	}
-	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, storages["staging"], getDestStrg)
+	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, storages["staging"], getStrgFromBucket)
 	r.With(mediaHandler.WithDestBucket(strings.Split(cfg.MinioBuckets, ","))).
 		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
 

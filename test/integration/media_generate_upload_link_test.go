@@ -77,18 +77,22 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 
 	var (
 		id               db.UUID
+		bucket           string
 		originalFilename string
 		status           model.MediaStatus
 		metadata         model.Metadata
 	)
 	row := testDB.DB.QueryRowContext(context.Background(),
-		"SELECT id, original_filename, status, metadata FROM medias WHERE object_key = ?", objectKey)
-	if err := row.Scan(&id, &originalFilename, &status, &metadata); err != nil {
+		"SELECT id, bucket, original_filename, status, metadata FROM medias WHERE object_key = ?", objectKey)
+	if err := row.Scan(&id, &bucket, &originalFilename, &status, &metadata); err != nil {
 		t.Fatalf("failed to scan media record: %v", err)
 	}
 
 	if id != out.ID {
 		t.Errorf("expected ID %q, got %q", out.ID, id)
+	}
+	if bucket != "staging" {
+		t.Errorf("bucket should be 'staging', got %q", bucket)
 	}
 	if originalFilename != "file_example.png" {
 		t.Errorf("expected originalFilename to be 'file_example.pdf', got %q", originalFilename)

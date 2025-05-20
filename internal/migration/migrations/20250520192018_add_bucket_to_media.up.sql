@@ -1,0 +1,2 @@
+ALTER TABLE medias
+    ADD COLUMN bucket VARCHAR(100) NOT NULL;

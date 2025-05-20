@@ -186,6 +186,9 @@ func TestFinaliseUpload_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	if out.Bucket != "images" {
+		t.Errorf("bucket should be 'images', got %q", out.Bucket)
+	}
 	if out.Status != model.MediaStatusCompleted {
 		t.Errorf("Status = %q; want Completed", out.Status)
 	}

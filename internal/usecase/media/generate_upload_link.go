@@ -39,6 +39,7 @@ func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in Gene
 	media := &model.Media{
 		ID:               id,
 		ObjectKey:        objectKey,
+		Bucket:           "staging",
 		OriginalFilename: in.Name,
 		Status:           model.MediaStatusPending,
 		Metadata:         model.Metadata{},

@@ -15,12 +15,12 @@ type Getter interface {
 }
 
 type mediaGetterSrv struct {
-	repo Repository
-	strg Storage
+	repo          Repository
+	getTargetStrg StorageGetter
 }
 
-func NewMediaGetter(repo Repository, strg Storage) Getter {
-	return &mediaGetterSrv{repo, strg}
+func NewMediaGetter(repo Repository, getTargetStrg StorageGetter) Getter {
+	return &mediaGetterSrv{repo, getTargetStrg}
 }
 
 type GetMediaInput struct {
@@ -42,17 +42,22 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMed
 		return GetMediaOutput{}, errors.New("media status should be 'completed' to be returned")
 	}
 
+	strg, err := s.getTargetStrg(media.Bucket)
+	if err != nil {
+		return GetMediaOutput{}, fmt.Errorf("unknown target bucket %q: %w", media.Bucket, err)
+	}
+
 	switch {
 	case IsImage(*media.MimeType):
-		return s.handleImage(ctx, media, in.Width)
+		return s.handleImage(ctx, strg, media, in.Width)
 	case isDocument(*media.MimeType):
-		return s.handleDocument(ctx, media)
+		return s.handleDocument(ctx, strg, media)
 	default:
 		return GetMediaOutput{}, fmt.Errorf("unknown mime type for media %q: %s", media.ID, *media.MimeType)
 	}
 }
 
-func (s *mediaGetterSrv) handleImage(ctx context.Context, media *model.Media, w int) (GetMediaOutput, error) {
+func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *model.Media, w int) (GetMediaOutput, error) {
 	variantKey := media.ObjectKey
 	if w > 0 {
 		// Add the required width as a suffix to the object key
@@ -62,7 +67,7 @@ func (s *mediaGetterSrv) handleImage(ctx context.Context, media *model.Media, w 
 		variantKey = path.Join(dir, "variants", fmt.Sprintf("%s_%d%s", name, w, ext))
 	}
 
-	exists, err := s.strg.FileExists(ctx, variantKey)
+	exists, err := strg.FileExists(ctx, variantKey)
 	if err != nil {
 		return GetMediaOutput{}, fmt.Errorf("error checking if file %q already exists: %w", variantKey, err)
 	}
@@ -76,7 +81,7 @@ func (s *mediaGetterSrv) handleImage(ctx context.Context, media *model.Media, w 
 	return GetMediaOutput{}, nil
 }
 
-func (s *mediaGetterSrv) handleDocument(ctx context.Context, media *model.Media) (GetMediaOutput, error) {
+func (s *mediaGetterSrv) handleDocument(ctx context.Context, strg Storage, media *model.Media) (GetMediaOutput, error) {
 	//TODO generate presigned download link
 
 	return GetMediaOutput{}, nil

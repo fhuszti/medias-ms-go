@@ -67,6 +67,9 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	if out.ID != id {
 		t.Errorf("returned ID = %v; want %v", out.ID, id)
 	}
+	if out.Bucket != "images" {
+		t.Errorf("bucket should be 'images', got %q", out.Bucket)
+	}
 	if out.Status != model.MediaStatusCompleted {
 		t.Errorf("returned Status = %q; want %q", out.Status, model.MediaStatusCompleted)
 	}
@@ -84,6 +87,9 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	fromDB, err := mediaRepo.GetByID(ctx, id)
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
+	}
+	if fromDB.Bucket != "images" {
+		t.Errorf("bucket should be 'images', got %q", fromDB.Bucket)
 	}
 	if fromDB.Status != model.MediaStatusCompleted {
 		t.Errorf("DB Status = %q; want %q", fromDB.Status, model.MediaStatusCompleted)

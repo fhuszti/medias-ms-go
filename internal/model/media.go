@@ -16,6 +16,7 @@ const (
 type Media struct {
 	ID               db.UUID     `json:"id"`
 	ObjectKey        string      `json:"object_key"`
+	Bucket           string      `json:"bucket"`
 	OriginalFilename string      `json:"original_filename"`
 	MimeType         *string     `json:"mime_type,omitempty"`
 	SizeBytes        *int64      `json:"size_bytes,omitempty"`

@@ -96,6 +96,9 @@ func TestFinaliseUploadE2E(t *testing.T) {
 	if got.ID != id {
 		t.Errorf("resp ID = %v; want %v", got.ID, id)
 	}
+	if got.Bucket != "images" {
+		t.Errorf("bucket should be 'images', got %q", got.Bucket)
+	}
 	if got.Status != model.MediaStatusCompleted {
 		t.Errorf("resp Status = %q; want %q", got.Status, model.MediaStatusCompleted)
 	}
@@ -113,6 +116,9 @@ func TestFinaliseUploadE2E(t *testing.T) {
 	saved, err := mediaRepo.GetByID(ctx, id)
 	if err != nil {
 		t.Fatalf("GetByID after: %v", err)
+	}
+	if saved.Bucket != "images" {
+		t.Errorf("bucket should be 'images', got %q", saved.Bucket)
 	}
 	if saved.Status != model.MediaStatusCompleted {
 		t.Errorf("db Status = %q; want %q", saved.Status, model.MediaStatusCompleted)

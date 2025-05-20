@@ -42,6 +42,9 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	if m.ObjectKey != mockID.String() {
 		t.Errorf("objectKey %q does not match ID %q", m.ObjectKey, mockID.String())
 	}
+	if m.Bucket != "staging" {
+		t.Errorf("bucket should be 'staging', got %q", m.Bucket)
+	}
 	if m.OriginalFilename != in.Name {
 		t.Errorf("expected OriginalFilename %q, got %q", in.Name, m.OriginalFilename)
 	}
