@@ -7,6 +7,10 @@ import (
 )
 
 type Metadata struct {
+	// generic
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+	MimeType  string `json:"mime_type,omitempty"`
+
 	// image-specific
 	Width  int `json:"width,omitempty"`
 	Height int `json:"height,omitempty"`

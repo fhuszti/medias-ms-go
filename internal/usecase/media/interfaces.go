@@ -20,6 +20,7 @@ type Repository interface {
 }
 
 type Storage interface {
+	GeneratePresignedDownloadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error)
 	GeneratePresignedUploadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error)
 	FileExists(ctx context.Context, fileKey string) (bool, error)
 	StatFile(ctx context.Context, fileKey string) (FileInfo, error)

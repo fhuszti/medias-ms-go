@@ -41,22 +41,33 @@ type mockStorage struct {
 	objectKey string
 	ttl       time.Duration
 
-	generateUploadLinkError error
-	statErr                 error
-	getErr                  error
-	saveErr                 error
-	copyErr                 error
+	generateDownloadLinkError error
+	generateUploadLinkError   error
+	statErr                   error
+	getErr                    error
+	saveErr                   error
+	copyErr                   error
 
-	generateUploadLinkCalled bool
-	statCalled               bool
-	getCalled                bool
-	saveCalled               bool
-	removeCalled             bool
-	copyCalled               bool
+	generateDownloadLinkCalled bool
+	generateUploadLinkCalled   bool
+	statCalled                 bool
+	getCalled                  bool
+	saveCalled                 bool
+	removeCalled               bool
+	copyCalled                 bool
 }
 
 func (m *mockStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
 	panic("not used")
+}
+func (m *mockStorage) GeneratePresignedDownloadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
+	m.generateDownloadLinkCalled = true
+	m.objectKey = fileKey
+	m.ttl = expiry
+	if m.generateDownloadLinkError != nil {
+		return "", m.generateDownloadLinkError
+	}
+	return "https://example.com/upload", nil
 }
 func (m *mockStorage) GeneratePresignedUploadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
 	m.generateUploadLinkCalled = true

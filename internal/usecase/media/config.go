@@ -2,10 +2,13 @@ package media
 
 import (
 	"fmt"
+	"time"
 )
 
 const MinFileSize = 1 * 1024         // 1 KB
 const MaxFileSize = 10 * 1024 * 1024 // 10 MB
+
+const DownloadUrlTTL = 2 * time.Hour
 
 var AllowedMimeTypes = map[string]bool{
 	"image/png":       true,

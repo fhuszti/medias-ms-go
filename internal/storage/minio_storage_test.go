@@ -19,6 +19,7 @@ type mockMinio struct {
 	removeBucketFn       func(ctx context.Context, bucketName string) error
 	listObjectsFn        func(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo
 	removeObjectFn       func(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
+	presignedGetObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error)
 	presignedPutObjectFn func(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error)
 	statObjectFn         func(ctx context.Context, bucket, key string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
 	getObjectFn          func(ctx context.Context, bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
@@ -43,6 +44,9 @@ func (m *mockMinio) ListObjects(ctx context.Context, bucketName string, opts min
 }
 func (m *mockMinio) RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error {
 	return m.removeObjectFn(ctx, bucketName, objectName, opts)
+}
+func (m *mockMinio) PresignedGetObject(ctx context.Context, bucket, key string, expiry time.Duration, reqParams url.Values) (*url.URL, error) {
+	return m.presignedGetObjectFn(ctx, bucket, key, expiry)
 }
 func (m *mockMinio) PresignedPutObject(ctx context.Context, bucket, key string, expiry time.Duration) (*url.URL, error) {
 	return m.presignedPutObjectFn(ctx, bucket, key, expiry)
@@ -143,6 +147,50 @@ func TestWithBucket(t *testing.T) {
 				t.Errorf("useSSL = %v; want %v", ms.useSSL, strg.useSSL)
 			}
 		})
+	}
+}
+
+func TestGeneratePresignedDownloadURL(t *testing.T) {
+	fake, _ := url.Parse("https://cdn.example.com/upload")
+	mock := &mockMinio{
+		presignedGetObjectFn: func(_ context.Context, bucket, key string, expiry time.Duration) (*url.URL, error) {
+			if bucket != "u-bucket" {
+				t.Errorf("bucket = %q; want %q", bucket, "u-bucket")
+			}
+			if key != "obj.bin" {
+				t.Errorf("key = %q; want %q", key, "obj.bin")
+			}
+			if expiry != 5*time.Minute {
+				t.Errorf("expiry = %v; want %v", expiry, 5*time.Minute)
+			}
+			return fake, nil
+		},
+	}
+	s := makeStorage(mock, "u-bucket", true)
+
+	out, err := s.GeneratePresignedDownloadURL(context.Background(), "obj.bin", 5*time.Minute)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out != fake.String() {
+		t.Errorf("url = %q; want %q", out, fake.String())
+	}
+}
+
+func TestGeneratePresignedDownloadURL_Error(t *testing.T) {
+	mock := &mockMinio{
+		presignedGetObjectFn: func(_ context.Context, _, _ string, _ time.Duration) (*url.URL, error) {
+			return nil, errors.New("fail-put")
+		},
+	}
+	s := makeStorage(mock, "any", false)
+
+	_, err := s.GeneratePresignedDownloadURL(context.Background(), "k", time.Minute)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, media.ErrInternal) {
+		t.Errorf("error = %q; want %q", err.Error(), "fail-put")
 	}
 }
 

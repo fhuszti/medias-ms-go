@@ -15,10 +15,11 @@ import (
 )
 
 type minioClient interface {
+	PresignedGetObject(ctx context.Context, bucketName string, objectName string, expires time.Duration, reqParams url.Values) (*url.URL, error)
 	PresignedPutObject(ctx context.Context, bucketName, fileKey string, expiry time.Duration) (*url.URL, error)
 	StatObject(ctx context.Context, bucketName, fileKey string, opts minio.StatObjectOptions) (minio.ObjectInfo, error)
 	BucketExists(ctx context.Context, bucketName string) (bool, error)
-	MakeBucket(ctx context.Context, bucketName string, opts minio.MakeBucketOptions) (err error)
+	MakeBucket(ctx context.Context, bucketName string, opts minio.MakeBucketOptions) error
 	RemoveBucket(ctx context.Context, bucketName string) error
 	ListObjects(ctx context.Context, bucketName string, opts minio.ListObjectsOptions) <-chan minio.ObjectInfo
 	RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
@@ -65,6 +66,17 @@ func (c *Strg) WithBucket(bucket string) (media.Storage, error) {
 		}
 	}
 	return &MinioStorage{client: c.Client, bucketName: bucket, useSSL: c.useSSL}, nil
+}
+
+func (s *MinioStorage) GeneratePresignedDownloadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
+	log.Printf("generating a presigned download link for file '%s' in bucket '%s'...", fileKey, s.bucketName)
+
+	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucketName, fileKey, expiry, url.Values{})
+	if err != nil {
+		return "", mapMinioErr(err)
+	}
+
+	return presignedURL.String(), nil
 }
 
 func (s *MinioStorage) GeneratePresignedUploadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {

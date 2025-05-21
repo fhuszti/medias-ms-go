@@ -28,9 +28,15 @@ type GetMediaInput struct {
 	Width int
 }
 
+type MetadataOutput struct {
+	model.Metadata
+	SizeBytes int64  `json:"size_bytes"`
+	MimeType  string `json:"mime_type"`
+}
+
 type GetMediaOutput struct {
 	URL      string         `json:"url"`
-	Metadata model.Metadata `json:"metadata"`
+	Metadata MetadataOutput `json:"metadata"`
 }
 
 func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMediaOutput, error) {
@@ -78,13 +84,37 @@ func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *m
 		}
 	}
 
-	//TODO generate presigned download link
+	url, err := strg.GeneratePresignedDownloadURL(ctx, variantKey, DownloadUrlTTL)
+	if err != nil {
+		return GetMediaOutput{}, fmt.Errorf("error generating presigned download URL for file %q: %w", variantKey, err)
+	}
 
-	return GetMediaOutput{}, nil
+	mt := MetadataOutput{
+		Metadata:  media.Metadata,
+		SizeBytes: *media.SizeBytes,
+		MimeType:  *media.MimeType,
+	}
+
+	return GetMediaOutput{
+		URL:      url,
+		Metadata: mt,
+	}, nil
 }
 
 func (s *mediaGetterSrv) handleDocument(ctx context.Context, strg Storage, media *model.Media) (GetMediaOutput, error) {
-	//TODO generate presigned download link
+	url, err := strg.GeneratePresignedDownloadURL(ctx, media.ObjectKey, DownloadUrlTTL)
+	if err != nil {
+		return GetMediaOutput{}, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
+	}
 
-	return GetMediaOutput{}, nil
+	mt := MetadataOutput{
+		Metadata:  media.Metadata,
+		SizeBytes: *media.SizeBytes,
+		MimeType:  *media.MimeType,
+	}
+
+	return GetMediaOutput{
+		URL:      url,
+		Metadata: mt,
+	}, nil
 }
