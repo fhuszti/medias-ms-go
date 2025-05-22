@@ -36,10 +36,11 @@ func (m *mockRepo) Create(ctx context.Context, media *model.Media) error {
 }
 
 type mockStorage struct {
-	reader    io.Reader
-	statInfo  FileInfo
-	objectKey string
-	ttl       time.Duration
+	reader     io.Reader
+	statInfo   FileInfo
+	objectKey  string
+	ttl        time.Duration
+	fileExists bool
 
 	generateDownloadLinkError error
 	generateUploadLinkError   error
@@ -47,6 +48,7 @@ type mockStorage struct {
 	getErr                    error
 	saveErr                   error
 	copyErr                   error
+	fileExistsErr             error
 
 	generateDownloadLinkCalled bool
 	generateUploadLinkCalled   bool
@@ -55,10 +57,15 @@ type mockStorage struct {
 	saveCalled                 bool
 	removeCalled               bool
 	copyCalled                 bool
+	fileExistsCalled           bool
 }
 
 func (m *mockStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
-	panic("not used")
+	m.fileExistsCalled = true
+	if m.fileExistsErr != nil {
+		return false, m.fileExistsErr
+	}
+	return m.fileExists, nil
 }
 func (m *mockStorage) GeneratePresignedDownloadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
 	m.generateDownloadLinkCalled = true
@@ -109,7 +116,7 @@ func (m *mockStorage) CopyFile(ctx context.Context, srcKey, destKey string) erro
 }
 
 type mockStorageGetter struct {
-	dest *mockStorage
+	strg *mockStorage
 	err  error
 }
 
@@ -117,5 +124,5 @@ func (m *mockStorageGetter) Get(bucket string) (Storage, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return m.dest, nil
+	return m.strg, nil
 }
