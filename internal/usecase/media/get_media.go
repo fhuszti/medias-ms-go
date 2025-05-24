@@ -8,6 +8,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"path"
 	"strings"
+	"time"
 )
 
 type Getter interface {
@@ -34,9 +35,18 @@ type MetadataOutput struct {
 	MimeType  string `json:"mime_type"`
 }
 
+type VariantOutput struct {
+	URL       string `json:"url"`
+	Width     int    `json:"width"`
+	Height    int    `json:"height"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
 type GetMediaOutput struct {
-	URL      string         `json:"url"`
-	Metadata MetadataOutput `json:"metadata"`
+	ValidUntil time.Time       `json:"valid_until"`
+	URL        string          `json:"url"`
+	Metadata   MetadataOutput  `json:"metadata"`
+	Variants   []VariantOutput `json:"variants"`
 }
 
 func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMediaOutput, error) {
@@ -96,8 +106,9 @@ func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *m
 	}
 
 	return GetMediaOutput{
-		URL:      url,
-		Metadata: mt,
+		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
+		URL:        url,
+		Metadata:   mt,
 	}, nil
 }
 
@@ -114,7 +125,8 @@ func (s *mediaGetterSrv) handleDocument(ctx context.Context, strg Storage, media
 	}
 
 	return GetMediaOutput{
-		URL:      url,
-		Metadata: mt,
+		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
+		URL:        url,
+		Metadata:   mt,
 	}, nil
 }

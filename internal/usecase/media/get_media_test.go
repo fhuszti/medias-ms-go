@@ -136,3 +136,77 @@ func TestGetMedia_HandleImage_VariantExists(t *testing.T) {
 		t.Errorf("Metadata struct = %+v, want %+v", out.Metadata.Metadata, mrec.Metadata)
 	}
 }
+
+/*func TestGetMedia_HandleImage_VariantNotExists_CopiesAndUrls(t *testing.T) {
+	m := dummyImageMedia()
+	repo := &mockRepo{media: m, err: nil}
+	stg := &mockStorage{
+		exists:      false,
+		urlToReturn: "http://cdn.example.com/bar_200.png",
+	}
+	svc := NewMediaGetter(repo, func(bucket string) (Storage, error) {
+		return stg, nil
+	})
+
+	in := GetMediaInput{ID: m.ID, Width: 200}
+	out, err := svc.GetMedia(context.Background(), in)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	dir, file := path.Split(m.ObjectKey)
+	ext := path.Ext(file)
+	name := file[:len(file)-len(ext)]
+	wantKey := path.Join(dir, "variants", name+"_200"+ext)
+
+	if stg.lastExistsKey != wantKey {
+		t.Errorf("FileExists got %q, want %q", stg.lastExistsKey, wantKey)
+	}
+	if stg.copySrc != m.ObjectKey || stg.copyDst != wantKey {
+		t.Errorf("CopyFile called src=%q dst=%q, want src=%q dst=%q",
+			stg.copySrc, stg.copyDst, m.ObjectKey, wantKey)
+	}
+	if out.URL != stg.urlToReturn {
+		t.Errorf("URL = %q, want %q", out.URL, stg.urlToReturn)
+	}
+}
+
+func TestGetMedia_HandleDocument_URLGenError(t *testing.T) {
+	m := dummyDocMedia()
+	repo := &mockRepo{media: m, err: nil}
+	stg := &mockStorage{
+		urlErr: errors.New("token expired"),
+	}
+	svc := NewMediaGetter(repo, func(bucket string) (Storage, error) {
+		return stg, nil
+	})
+
+	_, err := svc.GetMedia(context.Background(), GetMediaInput{ID: m.ID})
+	want := `error generating presigned download URL for file "docs/readme.pdf": token expired`
+	if err == nil || err.Error() != want {
+		t.Fatalf("expected %q, got %v", want, err)
+	}
+}
+
+func TestGetMedia_HandleDocument_Success(t *testing.T) {
+	m := dummyDocMedia()
+	repo := &mockRepo{media: m, err: nil}
+	stg := &mockStorage{
+		urlToReturn: "http://cdn.example.com/readme.pdf",
+	}
+	svc := NewMediaGetter(repo, func(bucket string) (Storage, error) {
+		return stg, nil
+	})
+
+	out, err := svc.GetMedia(context.Background(), GetMediaInput{ID: m.ID})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if stg.lastURLKey != m.ObjectKey {
+		t.Errorf("GeneratePresignedDownloadURL key = %q, want %q", stg.lastURLKey, m.ObjectKey)
+	}
+	if out.URL != stg.urlToReturn {
+		t.Errorf("URL = %q, want %q", out.URL, stg.urlToReturn)
+	}
+}*/
