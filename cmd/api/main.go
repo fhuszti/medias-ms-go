@@ -51,6 +51,9 @@ func main() {
 	r.With(mediaHandler.WithDestBucket(cfg.Buckets)).
 		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
 
+	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, getStrgFromBucket)
+	r.Get("/medias/{id}", mediaHandler.GetMediaHandler(getMediaSvc))
+
 	listenRouter(r, cfg, database)
 }
 

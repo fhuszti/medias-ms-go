@@ -5,97 +5,104 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/model"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
-	"github.com/google/uuid"
 )
 
-type mockUploadLinkGenerator struct {
-	out mediaSvc.GenerateUploadLinkOutput
+type mockGetter struct {
+	out mediaSvc.GetMediaOutput
 	err error
-	in  mediaSvc.GenerateUploadLinkInput
+	in  mediaSvc.GetMediaInput
 }
 
-func (m *mockUploadLinkGenerator) GenerateUploadLink(ctx context.Context, in mediaSvc.GenerateUploadLinkInput) (mediaSvc.GenerateUploadLinkOutput, error) {
+func (m *mockGetter) GetMedia(ctx context.Context, in mediaSvc.GetMediaInput) (mediaSvc.GetMediaOutput, error) {
 	m.in = in
 	return m.out, m.err
 }
 
-func TestGenerateUploadLinkHandler(t *testing.T) {
+func TestGetMediaHandler(t *testing.T) {
+	happyOutput := mediaSvc.GetMediaOutput{
+		ValidUntil: time.Now(),
+		Optimised:  true,
+		URL:        "https://cdn.example.com/presigned",
+		Metadata:   mediaSvc.MetadataOutput{},
+		Variants:   model.VariantsOutput{},
+	}
+
 	tests := []struct {
 		name            string
 		body            string
-		svcOut          mediaSvc.GenerateUploadLinkOutput
+		svcOut          mediaSvc.GetMediaOutput
 		svcErr          error
 		wantStatus      int
 		wantContentType string
 
-		wantOutput       *mediaSvc.GenerateUploadLinkOutput
+		wantOutput       *mediaSvc.GetMediaOutput
 		wantErrorMap     map[string]string
 		wantBodyContains string
 	}{
 		{
 			name:            "happy path",
-			body:            `{"name":"my-file.png"}`,
-			svcOut:          mediaSvc.GenerateUploadLinkOutput{ID: db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), URL: "https://cdn.example.com/presigned"},
+			body:            `{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}`,
+			svcOut:          happyOutput,
 			svcErr:          nil,
 			wantStatus:      http.StatusCreated,
 			wantContentType: "application/json",
-			wantOutput:      &mediaSvc.GenerateUploadLinkOutput{},
+			wantOutput:      &mediaSvc.GetMediaOutput{},
 		},
 		{
 			name:             "invalid JSON",
-			body:             `{"name":`, // malformed
-			svcOut:           mediaSvc.GenerateUploadLinkOutput{},
+			body:             `{"id":`, // malformed
+			svcOut:           mediaSvc.GetMediaOutput{},
 			svcErr:           nil,
 			wantStatus:       http.StatusBadRequest,
 			wantContentType:  "application/json",
 			wantBodyContains: "Invalid request",
 		},
 		{
-			name:            "validation error: empty name",
-			body:            `{"name":""}`,
-			svcOut:          mediaSvc.GenerateUploadLinkOutput{},
+			name:            "validation error: empty id",
+			body:            `{"id":""}`,
+			svcOut:          mediaSvc.GetMediaOutput{},
 			svcErr:          nil,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
-			wantErrorMap:    map[string]string{"name": "required"},
+			wantErrorMap:    map[string]string{"id": "required"},
 		},
 		{
-			name:            "validation error: name too long",
-			body:            fmt.Sprintf(`{"name":"%s"}`, strings.Repeat("a", 81)),
-			svcOut:          mediaSvc.GenerateUploadLinkOutput{},
+			name:            "validation error: bad id",
+			body:            `{"id":"not-uuid"}`,
+			svcOut:          mediaSvc.GetMediaOutput{},
 			svcErr:          nil,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
-			wantErrorMap:    map[string]string{"name": "max"},
+			wantErrorMap:    map[string]string{"id": "uuid"},
 		},
 		{
 			name:             "service error",
-			body:             `{"name":"ok.png"}`,
-			svcOut:           mediaSvc.GenerateUploadLinkOutput{},
+			body:             `{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}`,
+			svcOut:           mediaSvc.GetMediaOutput{},
 			svcErr:           errors.New("boom"),
 			wantStatus:       http.StatusInternalServerError,
 			wantContentType:  "application/json",
-			wantBodyContains: "Could not generate upload link",
+			wantBodyContains: "Could not get media details",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mockUploadLinkGenerator{
+			mockSvc := &mockGetter{
 				out: tc.svcOut,
 				err: tc.svcErr,
 			}
-			handlerFn := GenerateUploadLinkHandler(mockSvc)
+			handlerFn := GetMediaHandler(mockSvc)
 
-			req := httptest.NewRequest(http.MethodPost, "/upload", strings.NewReader(tc.body))
+			req := httptest.NewRequest(http.MethodPost, "/get_media", strings.NewReader(tc.body))
 			// we don't need any special headers; JSON decoder uses Body only
 
 			rec := httptest.NewRecorder()
@@ -122,9 +129,6 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 					t.Fatalf("JSON decode = %v (body=%q)", err, string(data))
 				}
 				// then assert each field:
-				if got, want := tc.wantOutput.ID, tc.svcOut.ID; got != want {
-					t.Errorf("ID = %v; want %v", got, want)
-				}
 				if got, want := tc.wantOutput.URL, tc.svcOut.URL; got != want {
 					t.Errorf("URL = %q; want %q", got, want)
 				}

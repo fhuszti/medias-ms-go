@@ -6,13 +6,17 @@ import (
 	"net/http"
 )
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 func WriteError(w http.ResponseWriter, status int, msg string, err error) {
 	if err != nil {
 		log.Printf("❌  %s: %v", msg, err)
 	} else {
 		log.Printf("❌  %s", msg)
 	}
-	http.Error(w, msg, status)
+	RespondJSON(w, status, ErrorResponse{Error: msg})
 }
 
 func RespondJSON(w http.ResponseWriter, status int, v any) {
