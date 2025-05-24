@@ -21,6 +21,7 @@ type Media struct {
 	MimeType         *string     `json:"mime_type,omitempty"`
 	SizeBytes        *int64      `json:"size_bytes,omitempty"`
 	Status           MediaStatus `json:"status"`
+	Optimised        bool        `json:"optimised"`
 	FailureMessage   *string     `json:"failure_message,omitempty"`
 	Metadata         Metadata    `json:"metadata"`
 	CreatedAt        time.Time   `json:"created_at"`

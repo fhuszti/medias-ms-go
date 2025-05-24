@@ -44,6 +44,7 @@ type VariantOutput struct {
 
 type GetMediaOutput struct {
 	ValidUntil time.Time       `json:"valid_until"`
+	Optimised  bool            `json:"optimised"`
 	URL        string          `json:"url"`
 	Metadata   MetadataOutput  `json:"metadata"`
 	Variants   []VariantOutput `json:"variants"`
@@ -107,6 +108,7 @@ func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *m
 
 	return GetMediaOutput{
 		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
+		Optimised:  media.Optimised,
 		URL:        url,
 		Metadata:   mt,
 	}, nil
@@ -126,6 +128,7 @@ func (s *mediaGetterSrv) handleDocument(ctx context.Context, strg Storage, media
 
 	return GetMediaOutput{
 		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
+		Optimised:  media.Optimised,
 		URL:        url,
 		Metadata:   mt,
 	}, nil

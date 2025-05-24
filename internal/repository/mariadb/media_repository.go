@@ -25,13 +25,13 @@ func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error 
 
 	const query = `
       INSERT INTO medias 
-        (id, object_key, bucket, original_filename, mime_type, size_bytes, status, failure_message, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, object_key, bucket, original_filename, mime_type, size_bytes, status, optimised, failure_message, metadata)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	_, err := r.db.ExecContext(ctx, query,
 		media.ID, media.ObjectKey, media.Bucket,
 		media.OriginalFilename, media.MimeType,
-		media.SizeBytes, media.Status,
+		media.SizeBytes, media.Status, media.Optimised,
 		media.FailureMessage, media.Metadata,
 	)
 	if err != nil {
@@ -52,6 +52,7 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
         mime_type       = ?,
         size_bytes      = ?,
         status          = ?,
+        optimised       = ?,
         failure_message = ?,
         metadata        = ?
       WHERE id = ?
@@ -62,6 +63,7 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
 		media.MimeType,
 		media.SizeBytes,
 		media.Status,
+		media.Optimised,
 		media.FailureMessage,
 		media.Metadata,
 		media.ID, // WHERE clause
@@ -77,7 +79,7 @@ func (r *MediaRepository) GetByID(ctx context.Context, ID db.UUID) (*model.Media
 	log.Printf("fetching media #%s from the database...", ID)
 
 	const query = `
-      SELECT id, object_key, bucket, original_filename, mime_type, size_bytes, status, failure_message, metadata, created_at, updated_at
+      SELECT id, object_key, bucket, original_filename, mime_type, size_bytes, status, optimised, failure_message, metadata, created_at, updated_at
       FROM medias
       WHERE id = ?
     `
@@ -86,7 +88,7 @@ func (r *MediaRepository) GetByID(ctx context.Context, ID db.UUID) (*model.Media
 	if err := row.Scan(
 		&media.ID, &media.ObjectKey, &media.Bucket,
 		&media.OriginalFilename, &media.MimeType,
-		&media.SizeBytes, &media.Status,
+		&media.SizeBytes, &media.Status, media.Optimised,
 		&media.FailureMessage, &media.Metadata,
 		&media.CreatedAt, &media.UpdatedAt,
 	); err != nil {
