@@ -43,6 +43,7 @@ func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in Gene
 		OriginalFilename: in.Name,
 		Status:           model.MediaStatusPending,
 		Metadata:         model.Metadata{},
+		Variants:         model.Variants{},
 	}
 
 	if err := s.repo.Create(ctx, media); err != nil {

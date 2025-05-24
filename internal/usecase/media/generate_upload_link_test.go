@@ -54,6 +54,9 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	if !reflect.DeepEqual(m.Metadata, model.Metadata{}) {
 		t.Errorf("expected empty Metadata struct, got %+v", m.Metadata)
 	}
+	if !reflect.DeepEqual(m.Variants, model.Variants{}) {
+		t.Errorf("expected empty Variants slice, got %+v", m.Variants)
+	}
 
 	// verify strg call
 	if !strg.generateUploadLinkCalled {

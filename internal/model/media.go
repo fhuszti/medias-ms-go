@@ -24,6 +24,7 @@ type Media struct {
 	Optimised        bool        `json:"optimised"`
 	FailureMessage   *string     `json:"failure_message,omitempty"`
 	Metadata         Metadata    `json:"metadata"`
+	Variants         Variants    `json:"variants"`
 	CreatedAt        time.Time   `json:"created_at"`
 	UpdatedAt        time.Time   `json:"updated_at"`
 }

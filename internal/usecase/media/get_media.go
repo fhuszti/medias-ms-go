@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
-	"path"
-	"strings"
+	"log"
 	"time"
 )
 
@@ -25,8 +24,7 @@ func NewMediaGetter(repo Repository, getTargetStrg StorageGetter) Getter {
 }
 
 type GetMediaInput struct {
-	ID    db.UUID
-	Width int
+	ID db.UUID
 }
 
 type MetadataOutput struct {
@@ -35,19 +33,12 @@ type MetadataOutput struct {
 	MimeType  string `json:"mime_type"`
 }
 
-type VariantOutput struct {
-	URL       string `json:"url"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
-	SizeBytes int64  `json:"size_bytes"`
-}
-
 type GetMediaOutput struct {
-	ValidUntil time.Time       `json:"valid_until"`
-	Optimised  bool            `json:"optimised"`
-	URL        string          `json:"url"`
-	Metadata   MetadataOutput  `json:"metadata"`
-	Variants   []VariantOutput `json:"variants"`
+	ValidUntil time.Time            `json:"valid_until"`
+	Optimised  bool                 `json:"optimised"`
+	URL        string               `json:"url"`
+	Metadata   MetadataOutput       `json:"metadata"`
+	Variants   model.VariantsOutput `json:"variants"`
 }
 
 func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMediaOutput, error) {
@@ -66,7 +57,7 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMed
 
 	switch {
 	case IsImage(*media.MimeType):
-		return s.handleImage(ctx, strg, media, in.Width)
+		return s.handleImage(ctx, strg, media)
 	case isDocument(*media.MimeType):
 		return s.handleDocument(ctx, strg, media)
 	default:
@@ -74,30 +65,10 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMed
 	}
 }
 
-func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *model.Media, w int) (GetMediaOutput, error) {
-	variantKey := media.ObjectKey
-	if w > 0 {
-		// Add the required width as a suffix to the object key
-		dir, file := path.Split(media.ObjectKey)
-		ext := path.Ext(file)
-		name := strings.TrimSuffix(file, ext)
-		variantKey = path.Join(dir, "variants", fmt.Sprintf("%s_%d%s", name, w, ext))
-	}
-
-	exists, err := strg.FileExists(ctx, variantKey)
+func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *model.Media) (GetMediaOutput, error) {
+	url, err := strg.GeneratePresignedDownloadURL(ctx, media.ObjectKey, DownloadUrlTTL)
 	if err != nil {
-		return GetMediaOutput{}, fmt.Errorf("error checking if file %q already exists: %w", variantKey, err)
-	}
-
-	if !exists {
-		if err := strg.CopyFile(ctx, media.ObjectKey, variantKey); err != nil {
-			return GetMediaOutput{}, fmt.Errorf("error copying placeholder variant image: %w", err)
-		}
-	}
-
-	url, err := strg.GeneratePresignedDownloadURL(ctx, variantKey, DownloadUrlTTL)
-	if err != nil {
-		return GetMediaOutput{}, fmt.Errorf("error generating presigned download URL for file %q: %w", variantKey, err)
+		return GetMediaOutput{}, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
 	}
 
 	mt := MetadataOutput{
@@ -106,11 +77,27 @@ func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *m
 		MimeType:  *media.MimeType,
 	}
 
+	var variants model.VariantsOutput
+	for _, v := range media.Variants {
+		vUrl, vErr := strg.GeneratePresignedDownloadURL(ctx, v.ObjectKey, DownloadUrlTTL)
+		if vErr != nil {
+			log.Printf("error generating presigned download URL for variant %q: %+v", v.ObjectKey, vErr)
+			continue
+		}
+		variants = append(variants, model.VariantOutput{
+			URL:       vUrl,
+			Width:     v.Width,
+			SizeBytes: v.SizeBytes,
+			Height:    v.Height,
+		})
+	}
+
 	return GetMediaOutput{
 		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
 		Optimised:  media.Optimised,
 		URL:        url,
 		Metadata:   mt,
+		Variants:   variants,
 	}, nil
 }
 

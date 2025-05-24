@@ -1,2 +1,2 @@
 ALTER TABLE medias
-    DROP COLUMN optimised
+    DROP COLUMN optimised;

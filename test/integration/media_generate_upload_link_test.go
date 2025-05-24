@@ -81,10 +81,11 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 		originalFilename string
 		status           model.MediaStatus
 		metadata         model.Metadata
+		variants         model.Variants
 	)
 	row := testDB.DB.QueryRowContext(context.Background(),
-		"SELECT id, bucket, original_filename, status, metadata FROM medias WHERE object_key = ?", objectKey)
-	if err := row.Scan(&id, &bucket, &originalFilename, &status, &metadata); err != nil {
+		"SELECT id, bucket, original_filename, status, metadata, variants FROM medias WHERE object_key = ?", objectKey)
+	if err := row.Scan(&id, &bucket, &originalFilename, &status, &metadata, &variants); err != nil {
 		t.Fatalf("failed to scan media record: %v", err)
 	}
 
@@ -102,5 +103,8 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 	}
 	if !reflect.DeepEqual(metadata, model.Metadata{}) {
 		t.Errorf("expected empty Metadata struct, got %+v", metadata)
+	}
+	if !reflect.DeepEqual(variants, model.Variants{}) {
+		t.Errorf("expected empty Variants slice, got %+v", variants)
 	}
 }

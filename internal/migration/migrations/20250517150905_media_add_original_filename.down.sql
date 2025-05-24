@@ -1,2 +1,2 @@
 ALTER TABLE medias
-    DROP COLUMN original_filename
+    DROP COLUMN original_filename;

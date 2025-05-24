@@ -1,2 +1,2 @@
 ALTER TABLE medias
-    DROP COLUMN bucket
+    DROP COLUMN bucket;
