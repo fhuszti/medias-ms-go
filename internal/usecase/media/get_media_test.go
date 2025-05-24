@@ -43,47 +43,7 @@ func TestGetMedia_UnknownBucket(t *testing.T) {
 	}
 }
 
-func TestGetMedia_UnknownMimeType(t *testing.T) {
-	mt := "wrong/type"
-	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
-	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewMediaGetter(repo, (&mockStorageGetter{}).Get)
-
-	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
-	wantPrefix := "unknown mime type"
-	if err == nil || !strings.HasPrefix(err.Error(), wantPrefix) {
-		t.Fatalf("expected %q, got %v", wantPrefix, err)
-	}
-}
-
-func TestGetMedia_HandleImage_FileExistsError(t *testing.T) {
-	mt := "image/png"
-	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
-	repo := &mockRepo{mediaRecord: mrec}
-	strg := &mockStorage{fileExistsErr: errors.New("err on file exists")}
-	svc := NewMediaGetter(repo, (&mockStorageGetter{strg: strg}).Get)
-
-	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
-	if err == nil || !strings.HasSuffix(err.Error(), "err on file exists") {
-		t.Fatalf("expected file exists error, got %v", err)
-	}
-}
-
-func TestGetMedia_HandleImage_CopyError(t *testing.T) {
-	mt := "image/png"
-	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
-	repo := &mockRepo{mediaRecord: mrec}
-	strg := &mockStorage{copyErr: errors.New("disk full")}
-	svc := NewMediaGetter(repo, (&mockStorageGetter{strg: strg}).Get)
-
-	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
-	wantPrefix := "error copying placeholder"
-	if err == nil || !strings.HasPrefix(err.Error(), wantPrefix) {
-		t.Fatalf("expected error prefix %q, got %v", wantPrefix, err)
-	}
-}
-
-func TestGetMedia_HandleImage_URLGenError(t *testing.T) {
+func TestGetMedia_HandleFile_URLGenError(t *testing.T) {
 	mt := "image/png"
 	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
 	repo := &mockRepo{mediaRecord: mrec}
@@ -97,25 +57,43 @@ func TestGetMedia_HandleImage_URLGenError(t *testing.T) {
 	}
 }
 
-func TestGetMedia_HandleImage_VariantExists(t *testing.T) {
+func TestGetMedia_HandleFile_VariantSuccess(t *testing.T) {
 	mt := "image/png"
 	sb := int64(1234)
-	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt, ObjectKey: "foo.png", SizeBytes: &sb}
+	mrec := &model.Media{
+		Status:    model.MediaStatusCompleted,
+		MimeType:  &mt,
+		ObjectKey: "foo.png",
+		SizeBytes: &sb,
+		Metadata: model.Metadata{
+			Width:  1800,
+			Height: 1800,
+		},
+		Variants: model.Variants{
+			model.Variant{
+				ObjectKey: "variants/foo_200.png",
+				SizeBytes: 200,
+				Width:     200,
+				Height:    200,
+			},
+			model.Variant{
+				ObjectKey: "variants/foo_500.png",
+				SizeBytes: 500,
+				Width:     500,
+				Height:    500,
+			},
+		},
+	}
 	repo := &mockRepo{mediaRecord: mrec}
-	strg := &mockStorage{fileExists: true}
+	strg := &mockStorage{}
 	svc := NewMediaGetter(repo, (&mockStorageGetter{strg: strg}).Get)
 
-	in := GetMediaInput{Width: 200}
-	out, err := svc.GetMedia(context.Background(), in)
+	out, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	wantKey := "variants/foo_200.png"
-
-	if strg.copyCalled {
-		t.Error("storage copy was called when it should not")
-	}
+	wantKey := "variants/foo_500.png"
 	if strg.objectKey != wantKey {
 		t.Errorf("Variant key should be %q, got %q", wantKey, strg.objectKey)
 	}
@@ -135,78 +113,30 @@ func TestGetMedia_HandleImage_VariantExists(t *testing.T) {
 	if !reflect.DeepEqual(out.Metadata.Metadata, mrec.Metadata) {
 		t.Errorf("Metadata struct = %+v, want %+v", out.Metadata.Metadata, mrec.Metadata)
 	}
-}
 
-/*func TestGetMedia_HandleImage_VariantNotExists_CopiesAndUrls(t *testing.T) {
-	m := dummyImageMedia()
-	repo := &mockRepo{media: m, err: nil}
-	stg := &mockStorage{
-		exists:      false,
-		urlToReturn: "http://cdn.example.com/bar_200.png",
+	if out.Variants[0].URL != "https://example.com/upload" {
+		t.Errorf("Variants[0].URL = %q, want 'https://example.com/upload'", out.Variants[0].URL)
 	}
-	svc := NewMediaGetter(repo, func(bucket string) (Storage, error) {
-		return stg, nil
-	})
-
-	in := GetMediaInput{ID: m.ID, Width: 200}
-	out, err := svc.GetMedia(context.Background(), in)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if out.Variants[0].SizeBytes != mrec.Variants[0].SizeBytes {
+		t.Errorf("Variants[0].SizeBytes = %d, want %d", out.Variants[0].SizeBytes, mrec.Variants[0].SizeBytes)
+	}
+	if out.Variants[0].Width != mrec.Variants[0].Width {
+		t.Errorf("Variants[0].Width = %d, want %d", out.Variants[0].Width, mrec.Variants[0].Width)
+	}
+	if out.Variants[0].Height != mrec.Variants[0].Height {
+		t.Errorf("Variants[0].Height = %d, want %d", out.Variants[0].Height, mrec.Variants[0].Height)
 	}
 
-	dir, file := path.Split(m.ObjectKey)
-	ext := path.Ext(file)
-	name := file[:len(file)-len(ext)]
-	wantKey := path.Join(dir, "variants", name+"_200"+ext)
-
-	if stg.lastExistsKey != wantKey {
-		t.Errorf("FileExists got %q, want %q", stg.lastExistsKey, wantKey)
+	if out.Variants[1].URL != "https://example.com/upload" {
+		t.Errorf("Variants[1].URL = %q, want 'https://example.com/upload'", out.Variants[1].URL)
 	}
-	if stg.copySrc != m.ObjectKey || stg.copyDst != wantKey {
-		t.Errorf("CopyFile called src=%q dst=%q, want src=%q dst=%q",
-			stg.copySrc, stg.copyDst, m.ObjectKey, wantKey)
+	if out.Variants[1].SizeBytes != mrec.Variants[1].SizeBytes {
+		t.Errorf("Variants[1].SizeBytes = %d, want %d", out.Variants[1].SizeBytes, mrec.Variants[1].SizeBytes)
 	}
-	if out.URL != stg.urlToReturn {
-		t.Errorf("URL = %q, want %q", out.URL, stg.urlToReturn)
+	if out.Variants[1].Width != mrec.Variants[1].Width {
+		t.Errorf("Variants[1].Width = %d, want %d", out.Variants[1].Width, mrec.Variants[1].Width)
+	}
+	if out.Variants[1].Height != mrec.Variants[1].Height {
+		t.Errorf("Variants[1].Height = %d, want %d", out.Variants[1].Height, mrec.Variants[1].Height)
 	}
 }
-
-func TestGetMedia_HandleDocument_URLGenError(t *testing.T) {
-	m := dummyDocMedia()
-	repo := &mockRepo{media: m, err: nil}
-	stg := &mockStorage{
-		urlErr: errors.New("token expired"),
-	}
-	svc := NewMediaGetter(repo, func(bucket string) (Storage, error) {
-		return stg, nil
-	})
-
-	_, err := svc.GetMedia(context.Background(), GetMediaInput{ID: m.ID})
-	want := `error generating presigned download URL for file "docs/readme.pdf": token expired`
-	if err == nil || err.Error() != want {
-		t.Fatalf("expected %q, got %v", want, err)
-	}
-}
-
-func TestGetMedia_HandleDocument_Success(t *testing.T) {
-	m := dummyDocMedia()
-	repo := &mockRepo{media: m, err: nil}
-	stg := &mockStorage{
-		urlToReturn: "http://cdn.example.com/readme.pdf",
-	}
-	svc := NewMediaGetter(repo, func(bucket string) (Storage, error) {
-		return stg, nil
-	})
-
-	out, err := svc.GetMedia(context.Background(), GetMediaInput{ID: m.ID})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if stg.lastURLKey != m.ObjectKey {
-		t.Errorf("GeneratePresignedDownloadURL key = %q, want %q", stg.lastURLKey, m.ObjectKey)
-	}
-	if out.URL != stg.urlToReturn {
-		t.Errorf("URL = %q, want %q", out.URL, stg.urlToReturn)
-	}
-}*/

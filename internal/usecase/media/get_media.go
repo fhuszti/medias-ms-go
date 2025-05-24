@@ -55,17 +55,10 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMed
 		return GetMediaOutput{}, fmt.Errorf("unknown target bucket %q: %w", media.Bucket, err)
 	}
 
-	switch {
-	case IsImage(*media.MimeType):
-		return s.handleImage(ctx, strg, media)
-	case isDocument(*media.MimeType):
-		return s.handleDocument(ctx, strg, media)
-	default:
-		return GetMediaOutput{}, fmt.Errorf("unknown mime type for media %q: %s", media.ID, *media.MimeType)
-	}
+	return s.handleFile(ctx, strg, media)
 }
 
-func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *model.Media) (GetMediaOutput, error) {
+func (s *mediaGetterSrv) handleFile(ctx context.Context, strg Storage, media *model.Media) (GetMediaOutput, error) {
 	url, err := strg.GeneratePresignedDownloadURL(ctx, media.ObjectKey, DownloadUrlTTL)
 	if err != nil {
 		return GetMediaOutput{}, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
@@ -76,47 +69,30 @@ func (s *mediaGetterSrv) handleImage(ctx context.Context, strg Storage, media *m
 		SizeBytes: *media.SizeBytes,
 		MimeType:  *media.MimeType,
 	}
+	output := GetMediaOutput{
+		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
+		Optimised:  media.Optimised,
+		URL:        url,
+		Metadata:   mt,
+	}
 
-	var variants model.VariantsOutput
-	for _, v := range media.Variants {
-		vUrl, vErr := strg.GeneratePresignedDownloadURL(ctx, v.ObjectKey, DownloadUrlTTL)
-		if vErr != nil {
-			log.Printf("error generating presigned download URL for variant %q: %+v", v.ObjectKey, vErr)
-			continue
+	if IsImage(*media.MimeType) {
+		var variants model.VariantsOutput
+		for _, v := range media.Variants {
+			vUrl, vErr := strg.GeneratePresignedDownloadURL(ctx, v.ObjectKey, DownloadUrlTTL)
+			if vErr != nil {
+				log.Printf("error generating presigned download URL for variant %q: %+v", v.ObjectKey, vErr)
+				continue
+			}
+			variants = append(variants, model.VariantOutput{
+				URL:       vUrl,
+				Width:     v.Width,
+				SizeBytes: v.SizeBytes,
+				Height:    v.Height,
+			})
 		}
-		variants = append(variants, model.VariantOutput{
-			URL:       vUrl,
-			Width:     v.Width,
-			SizeBytes: v.SizeBytes,
-			Height:    v.Height,
-		})
+		output.Variants = variants
 	}
 
-	return GetMediaOutput{
-		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
-		Optimised:  media.Optimised,
-		URL:        url,
-		Metadata:   mt,
-		Variants:   variants,
-	}, nil
-}
-
-func (s *mediaGetterSrv) handleDocument(ctx context.Context, strg Storage, media *model.Media) (GetMediaOutput, error) {
-	url, err := strg.GeneratePresignedDownloadURL(ctx, media.ObjectKey, DownloadUrlTTL)
-	if err != nil {
-		return GetMediaOutput{}, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
-	}
-
-	mt := MetadataOutput{
-		Metadata:  media.Metadata,
-		SizeBytes: *media.SizeBytes,
-		MimeType:  *media.MimeType,
-	}
-
-	return GetMediaOutput{
-		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
-		Optimised:  media.Optimised,
-		URL:        url,
-		Metadata:   mt,
-	}, nil
+	return output, nil
 }
