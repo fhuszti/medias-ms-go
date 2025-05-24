@@ -5,6 +5,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,7 +20,8 @@ type Settings struct {
 	MinioSecretKey  string
 	MinioEndpoint   string
 	MinioUseSSL     bool
-	MinioBuckets    string
+	Buckets         []string
+	ImagesSizes     []int
 }
 
 func Load() (*Settings, error) {
@@ -64,8 +67,11 @@ func Load() (*Settings, error) {
 	if !viper.IsSet("MINIO_USE_SSL") {
 		return nil, fmt.Errorf("MINIO_USE_SSL is required")
 	}
-	if !viper.IsSet("MINIO_BUCKETS") {
-		return nil, fmt.Errorf("MINIO_BUCKETS is required")
+	if !viper.IsSet("BUCKETS") {
+		return nil, fmt.Errorf("BUCKETS is required")
+	}
+	if !viper.IsSet("IMAGES_SIZES") {
+		return nil, fmt.Errorf("IMAGES_SIZES is required")
 	}
 
 	return &Settings{
@@ -78,6 +84,36 @@ func Load() (*Settings, error) {
 		MinioSecretKey:  viper.GetString("MINIO_SECRET_KEY"),
 		MinioEndpoint:   viper.GetString("MINIO_ENDPOINT"),
 		MinioUseSSL:     viper.GetBool("MINIO_USE_SSL"),
-		MinioBuckets:    viper.GetString("MINIO_BUCKETS"),
+		Buckets:         getBuckets(),
+		ImagesSizes:     getImagesSizes(),
 	}, nil
+}
+
+func getBuckets() []string {
+	buckets := make([]string, 0)
+	for _, bucket := range strings.Split(viper.GetString("BUCKETS"), ",") {
+		bucket = strings.TrimSpace(bucket)
+		if bucket == "" {
+			continue
+		}
+		buckets = append(buckets, bucket)
+	}
+	return buckets
+}
+
+func getImagesSizes() []int {
+	sizes := make([]int, 0)
+	for _, size := range strings.Split(viper.GetString("IMAGES_SIZES"), ",") {
+		size = strings.TrimSpace(size)
+		if size == "" {
+			continue
+		}
+		sizeInt, err := strconv.Atoi(size)
+		if err != nil {
+			log.Printf("Warning: could not parse image size %q: %v", size, err)
+			continue
+		}
+		sizes = append(sizes, sizeInt)
+	}
+	return sizes
 }

@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -49,7 +48,7 @@ func main() {
 		return st, nil
 	}
 	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, storages["staging"], getStrgFromBucket)
-	r.With(mediaHandler.WithDestBucket(strings.Split(cfg.MinioBuckets, ","))).
+	r.With(mediaHandler.WithDestBucket(cfg.Buckets)).
 		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
 
 	listenRouter(r, cfg, database)
@@ -97,9 +96,8 @@ func initBucketStorages(cfg *config.Settings) map[string]mediaSvc.Storage {
 		log.Fatalf("Failed to initialize MinIO client: %v", err)
 	}
 
-	buckets := strings.Split(cfg.MinioBuckets, ",")
-	storages := make(map[string]mediaSvc.Storage, len(buckets))
-	for _, b := range buckets {
+	storages := make(map[string]mediaSvc.Storage, len(cfg.Buckets))
+	for _, b := range cfg.Buckets {
 		storages[b], err = strg.WithBucket(b)
 		if err != nil {
 			log.Fatalf("Failed to initialize bucket '%s': %v", b, err)

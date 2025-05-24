@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -33,7 +34,8 @@ func TestLoad_Success(t *testing.T) {
 		"MINIO_SECRET_KEY":          "secret",
 		"MINIO_ENDPOINT":            "localhost:9000",
 		"MINIO_USE_SSL":             "true",
-		"MINIO_BUCKETS":             "staging,images,docs",
+		"BUCKETS":                   "staging,images,docs",
+		"IMAGES_SIZES":              "100,500,1000",
 	}
 	for k, v := range reqs {
 		t.Setenv(k, v)
@@ -60,19 +62,24 @@ func TestLoad_Success(t *testing.T) {
 		t.Errorf("ServerPort: expected %d, got %d", 8080, cfg.ServerPort)
 	}
 	if cfg.MinioAccessKey != "access" {
-		t.Errorf("MariaDBDSN: expected %q, got %q", reqs["MARIADB_DSN"], cfg.MariaDBDSN)
+		t.Errorf("MinioAccessKey: expected %q, got %q", reqs["MINIO_ACCESS_KEY"], cfg.MinioAccessKey)
 	}
 	if cfg.MinioSecretKey != "secret" {
-		t.Errorf("MariaDBDSN: expected %q, got %q", reqs["MARIADB_DSN"], cfg.MariaDBDSN)
+		t.Errorf("MinioSecretKey: expected %q, got %q", reqs["MINIO_SECRET_KEY"], cfg.MinioSecretKey)
 	}
 	if cfg.MinioEndpoint != "localhost:9000" {
-		t.Errorf("MariaDBDSN: expected %q, got %q", reqs["MARIADB_DSN"], cfg.MariaDBDSN)
+		t.Errorf("MinioEndpoint: expected %q, got %q", reqs["MINIO_ENDPOINT"], cfg.MinioEndpoint)
 	}
 	if !cfg.MinioUseSSL {
-		t.Errorf("MariaDBDSN: expected %q, got %q", reqs["MARIADB_DSN"], cfg.MariaDBDSN)
+		t.Errorf("MinioUseSSL: expected %t, got %t", true, cfg.MinioUseSSL)
 	}
-	if cfg.MinioBuckets != "staging,images,docs" {
-		t.Errorf("MariaDBDSN: expected %q, got %q", reqs["MARIADB_DSN"], cfg.MariaDBDSN)
+	wantedBuckets := []string{"staging", "images", "docs"}
+	if !reflect.DeepEqual(cfg.Buckets, wantedBuckets) {
+		t.Errorf("Buckets: expected %v, got %v", wantedBuckets, cfg.Buckets)
+	}
+	wantedImagesSizes := []int{100, 500, 1000}
+	if !reflect.DeepEqual(cfg.ImagesSizes, wantedImagesSizes) {
+		t.Errorf("ImagesSizes: expected %v, got %v", wantedImagesSizes, cfg.ImagesSizes)
 	}
 }
 
@@ -90,7 +97,8 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 		{"MINIO_SECRET_KEY", "MINIO_SECRET_KEY is required"},
 		{"MINIO_ENDPOINT", "MINIO_ENDPOINT is required"},
 		{"MINIO_USE_SSL", "MINIO_USE_SSL is required"},
-		{"MINIO_BUCKETS", "MINIO_BUCKETS is required"},
+		{"BUCKETS", "BUCKETS is required"},
+		{"IMAGES_SIZES", "IMAGES_SIZES is required"},
 	}
 
 	for _, tc := range cases {
@@ -121,7 +129,8 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 				"MINIO_SECRET_KEY":          "secret",
 				"MINIO_ENDPOINT":            "localhost:9000",
 				"MINIO_USE_SSL":             "true",
-				"MINIO_BUCKETS":             "staging,images,docs",
+				"BUCKETS":                   "staging,images,docs",
+				"IMAGES_SIZES":              "100,500,1000",
 			}
 			for k, v := range reqs {
 				if k == tc.missingKey {
