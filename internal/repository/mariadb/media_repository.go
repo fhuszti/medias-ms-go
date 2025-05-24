@@ -26,7 +26,7 @@ func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error 
 	const query = `
       INSERT INTO medias 
         (id, object_key, bucket, original_filename, mime_type, size_bytes, status, optimised, failure_message, metadata, variants)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	_, err := r.db.ExecContext(ctx, query,
 		media.ID, media.ObjectKey, media.Bucket,

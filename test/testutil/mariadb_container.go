@@ -45,7 +45,7 @@ func StartMariaDBContainer() (*MariaDBContainerInfo, error) {
 	var dsn string
 	if err := pool.Retry(func() error {
 		port := resource.GetPort(internalPort)
-		dsn = fmt.Sprintf("%s:%s@(localhost:%s)/mysql?parseTime=true", rootUser, rootPassword, port)
+		dsn = fmt.Sprintf("%s:%s@(localhost:%s)/mysql?parseTime=true&multiStatements=true", rootUser, rootPassword, port)
 		db, err := sql.Open("mysql", dsn)
 		if err != nil {
 			return err

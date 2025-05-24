@@ -37,7 +37,6 @@ func MigrateUp(db *sql.DB) error {
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		// if it's a dirty error, roll back to the previous version and retry
 		var dirtyErr migrate.ErrDirty
-		log.Printf("hello: %v", errors.As(err, &dirtyErr))
 		if errors.As(err, &dirtyErr) {
 			prev, err := getPreviousVersionFromDirty(dirtyErr.Version)
 			if err != nil {
