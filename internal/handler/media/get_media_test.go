@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,70 +29,89 @@ func (m *mockGetter) GetMedia(ctx context.Context, in mediaSvc.GetMediaInput) (m
 }
 
 func TestGetMediaHandler(t *testing.T) {
-	happyOutput := mediaSvc.GetMediaOutput{
-		ValidUntil: time.Now(),
-		Optimised:  true,
-		URL:        "https://cdn.example.com/presigned",
-		Metadata:   mediaSvc.MetadataOutput{},
-		Variants:   model.VariantsOutput{},
+	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	nonEmptyVariants := model.VariantsOutput{
+		model.VariantOutput{Width: 100, Height: 50, SizeBytes: 1234, URL: "https://cdn.example.com/foo_100"},
 	}
 
 	tests := []struct {
-		name            string
-		body            string
-		svcOut          mediaSvc.GetMediaOutput
-		svcErr          error
-		wantStatus      int
-		wantContentType string
+		name             string
+		ctxID            *db.UUID
+		svcOut           mediaSvc.GetMediaOutput
+		svcErr           error
+		wantStatus       int
+		wantContentType  string
+		wantCacheControl string
 
 		wantOutput       *mediaSvc.GetMediaOutput
-		wantErrorMap     map[string]string
 		wantBodyContains string
 	}{
 		{
-			name:            "happy path",
-			body:            `{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}`,
-			svcOut:          happyOutput,
-			svcErr:          nil,
-			wantStatus:      http.StatusCreated,
-			wantContentType: "application/json",
-			wantOutput:      &mediaSvc.GetMediaOutput{},
-		},
-		{
-			name:             "invalid JSON",
-			body:             `{"id":`, // malformed
-			svcOut:           mediaSvc.GetMediaOutput{},
+			name:  "happy path uses cache",
+			ctxID: &validID,
+			svcOut: mediaSvc.GetMediaOutput{
+				ValidUntil: time.Now(),
+				Optimised:  true,
+				URL:        "https://cdn.example.com/foo",
+				Metadata:   mediaSvc.MetadataOutput{},
+				Variants:   nonEmptyVariants,
+			},
 			svcErr:           nil,
-			wantStatus:       http.StatusBadRequest,
+			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantBodyContains: "Invalid request",
+			wantCacheControl: "public, max-age=1200",
+			wantOutput:       &mediaSvc.GetMediaOutput{},
 		},
 		{
-			name:            "validation error: empty id",
-			body:            `{"id":""}`,
-			svcOut:          mediaSvc.GetMediaOutput{},
-			svcErr:          nil,
-			wantStatus:      http.StatusBadRequest,
-			wantContentType: "application/json",
-			wantErrorMap:    map[string]string{"id": "required"},
+			name:  "optimised true for image but no variants → no cache",
+			ctxID: &validID,
+			svcOut: mediaSvc.GetMediaOutput{
+				ValidUntil: time.Now(),
+				Optimised:  true,
+				URL:        "https://cdn.example.com/presigned",
+				Metadata:   mediaSvc.MetadataOutput{MimeType: "image/png"},
+				Variants:   model.VariantsOutput{}, // no variants
+			},
+			svcErr:           nil,
+			wantStatus:       http.StatusOK,
+			wantContentType:  "application/json",
+			wantCacheControl: "no-store, max-age=0, must-revalidate",
+			wantOutput:       &mediaSvc.GetMediaOutput{},
 		},
 		{
-			name:            "validation error: bad id",
-			body:            `{"id":"not-uuid"}`,
-			svcOut:          mediaSvc.GetMediaOutput{},
-			svcErr:          nil,
-			wantStatus:      http.StatusBadRequest,
-			wantContentType: "application/json",
-			wantErrorMap:    map[string]string{"id": "uuid"},
+			name:  "optimised false for image but has variants → no cache",
+			ctxID: &validID,
+			svcOut: mediaSvc.GetMediaOutput{
+				ValidUntil: time.Now(),
+				Optimised:  false,
+				URL:        "https://cdn.example.com/presigned",
+				Metadata:   mediaSvc.MetadataOutput{MimeType: "image/png"},
+				Variants:   nonEmptyVariants, // variants present
+			},
+			svcErr:           nil,
+			wantStatus:       http.StatusOK,
+			wantContentType:  "application/json",
+			wantCacheControl: "no-store, max-age=0, must-revalidate",
+			wantOutput:       &mediaSvc.GetMediaOutput{},
 		},
 		{
 			name:             "service error",
-			body:             `{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}`,
+			ctxID:            &validID,
 			svcOut:           mediaSvc.GetMediaOutput{},
 			svcErr:           errors.New("boom"),
 			wantStatus:       http.StatusInternalServerError,
 			wantContentType:  "application/json",
+			wantCacheControl: "no-store, max-age=0, must-revalidate",
 			wantBodyContains: "Could not get media details",
+		},
+		{
+			name:             "missing ID",
+			ctxID:            nil,
+			svcOut:           mediaSvc.GetMediaOutput{},
+			svcErr:           nil,
+			wantStatus:       http.StatusBadRequest,
+			wantContentType:  "application/json",
+			wantBodyContains: "ID is required",
 		},
 	}
 
@@ -102,9 +123,10 @@ func TestGetMediaHandler(t *testing.T) {
 			}
 			handlerFn := GetMediaHandler(mockSvc)
 
-			req := httptest.NewRequest(http.MethodPost, "/get_media", strings.NewReader(tc.body))
-			// we don't need any special headers; JSON decoder uses Body only
-
+			req := httptest.NewRequest(http.MethodPost, "/medias/"+validID.String(), nil)
+			if tc.ctxID != nil {
+				req = req.WithContext(context.WithValue(req.Context(), IDKey, *tc.ctxID))
+			}
 			rec := httptest.NewRecorder()
 
 			handlerFn(rec, req)
@@ -112,46 +134,35 @@ func TestGetMediaHandler(t *testing.T) {
 			if rec.Code != tc.wantStatus {
 				t.Fatalf("status = %d; want %d", rec.Code, tc.wantStatus)
 			}
-
-			gotCT := rec.Header().Get("Content-Type")
-			if gotCT != tc.wantContentType {
-				t.Errorf("Content-Type = %q; want %q", gotCT, tc.wantContentType)
+			if ct := rec.Header().Get("Content-Type"); ct != tc.wantContentType {
+				t.Errorf("Content-Type = %q; want %q", ct, tc.wantContentType)
 			}
-
-			data := rec.Body.Bytes()
+			if tc.wantCacheControl != "" {
+				if cc := rec.Header().Get("Cache-Control"); cc != tc.wantCacheControl {
+					t.Errorf("Cache-Control = %q; want %q", cc, tc.wantCacheControl)
+				}
+			}
 
 			switch {
 			case tc.wantOutput != nil:
 				// decode into your output struct
-				dec := json.NewDecoder(bytes.NewReader(data))
+				dec := json.NewDecoder(bytes.NewReader(rec.Body.Bytes()))
 				dec.DisallowUnknownFields()
 				if err := dec.Decode(tc.wantOutput); err != nil {
-					t.Fatalf("JSON decode = %v (body=%q)", err, string(data))
+					t.Fatalf("JSON decode = %v (body=%q)", err, rec.Body.String())
 				}
-				// then assert each field:
+				// verify service was called with the correct ID
+				if mockSvc.in.ID != *tc.ctxID {
+					t.Errorf("service got ID = %s; want %s", mockSvc.in.ID, *tc.ctxID)
+				}
+				// verify URL field
 				if got, want := tc.wantOutput.URL, tc.svcOut.URL; got != want {
 					t.Errorf("URL = %q; want %q", got, want)
 				}
-
-			case tc.wantErrorMap != nil:
-				// unmarshal into a map and compare
-				var errs map[string]string
-				if err := json.Unmarshal(data, &errs); err != nil {
-					t.Fatalf("error JSON: %v; body=%q", err, string(data))
-				}
-				for k, want := range tc.wantErrorMap {
-					if got, ok := errs[k]; !ok {
-						t.Errorf("missing key %q in error response: %v", k, errs)
-					} else if got != want {
-						t.Errorf("errs[%q] = %q; want %q", k, got, want)
-					}
-				}
-
 			case tc.wantBodyContains != "":
-				if !strings.Contains(string(data), tc.wantBodyContains) {
-					t.Errorf("body = %q; want to contain %q", string(data), tc.wantBodyContains)
+				if !strings.Contains(rec.Body.String(), tc.wantBodyContains) {
+					t.Errorf("body = %q; want to contain %q", rec.Body.String(), tc.wantBodyContains)
 				}
-
 			default:
 				t.Fatal("test case has no assertion target!")
 			}
