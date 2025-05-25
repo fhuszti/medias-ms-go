@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/db"
@@ -44,6 +45,9 @@ type GetMediaOutput struct {
 func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMediaOutput, error) {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return GetMediaOutput{}, ErrObjectNotFound
+		}
 		return GetMediaOutput{}, err
 	}
 	if media.Status != model.MediaStatusCompleted {

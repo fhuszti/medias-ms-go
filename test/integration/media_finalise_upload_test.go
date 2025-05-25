@@ -33,11 +33,7 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer func() {
-		if err := tb.Cleanup(); err != nil {
-			t.Fatalf("cleanup buckets: %v", err)
-		}
-	}()
+	defer tb.Cleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
 	stgStrg, err := tb.StrgClient.WithBucket("staging")
@@ -53,7 +49,28 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	objectKey := id.String()
 	destObjectKey := objectKey + ".md"
 	content := []byte("# Hello E2E Test" + strings.Repeat(".", 1024))
-	prepareDataForTest(id, objectKey, content, ctx, t, mediaRepo, stgStrg)
+
+	m := &model.Media{
+		ID:        id,
+		ObjectKey: objectKey,
+		Status:    model.MediaStatusPending,
+	}
+	if err := mediaRepo.Create(ctx, m); err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
+
+	// upload into "staging"
+	if err := stgStrg.SaveFile(
+		ctx,
+		objectKey,
+		bytes.NewReader(content),
+		int64(len(content)),
+		map[string]string{
+			"Content-Type": "text/markdown",
+		},
+	); err != nil {
+		t.Fatalf("upload to staging: %v", err)
+	}
 
 	out, err := svc.FinaliseUpload(ctx, mediaService.FinaliseUploadInput{
 		ID:         id,
@@ -128,29 +145,5 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	}
 	if !bytes.Equal(dataOut, content) {
 		t.Errorf("dest file content = %q; want %q", dataOut, content)
-	}
-}
-
-func prepareDataForTest(id db.UUID, objectKey string, content []byte, ctx context.Context, t *testing.T, mediaRepo *mariadb.MediaRepository, stgStrg mediaService.Storage) {
-	m := &model.Media{
-		ID:        id,
-		ObjectKey: objectKey,
-		Status:    model.MediaStatusPending,
-	}
-	if err := mediaRepo.Create(ctx, m); err != nil {
-		t.Fatalf("insert media: %v", err)
-	}
-
-	// upload into "staging"
-	if err := stgStrg.SaveFile(
-		ctx,
-		objectKey,
-		bytes.NewReader(content),
-		int64(len(content)),
-		map[string]string{
-			"Content-Type": "text/markdown",
-		},
-	); err != nil {
-		t.Fatalf("upload to staging: %v", err)
 	}
 }

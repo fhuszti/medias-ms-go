@@ -1,6 +1,7 @@
 package media
 
 import (
+	"errors"
 	"github.com/fhuszti/medias-ms-go/internal/handler"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"log"
@@ -18,8 +19,11 @@ func GetMediaHandler(svc media.Getter) http.HandlerFunc {
 		in := media.GetMediaInput{ID: id}
 		out, err := svc.GetMedia(r.Context(), in)
 		if err != nil {
+			if errors.Is(err, media.ErrObjectNotFound) {
+				handler.WriteError(w, http.StatusNotFound, "Media not found", nil)
+				return
+			}
 			handler.WriteError(w, http.StatusInternalServerError, "Could not get media details", err)
-			w.Header().Set("Cache-Control", "no-store, max-age=0, must-revalidate")
 			return
 		}
 

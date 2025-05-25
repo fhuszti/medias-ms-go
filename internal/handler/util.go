@@ -16,6 +16,7 @@ func WriteError(w http.ResponseWriter, status int, msg string, err error) {
 	} else {
 		log.Printf("❌  %s", msg)
 	}
+	w.Header().Set("Cache-Control", "no-store, max-age=0, must-revalidate")
 	RespondJSON(w, status, ErrorResponse{Error: msg})
 }
 
