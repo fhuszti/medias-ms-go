@@ -98,10 +98,134 @@ func TestGetMediaIntegration_SuccessDocument(t *testing.T) {
 	}
 }
 
+func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
+	ctx := context.Background()
+
+	testDB, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Fatalf("setup DB: %v", err)
+	}
+	defer testDB.Cleanup()
+	if err := migration.MigrateUp(testDB.DB); err != nil {
+		t.Fatalf("migrate DB: %v", err)
+	}
+
+	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+	defer tb.Cleanup()
+
+	mediaRepo := mariadb.NewMediaRepository(testDB.DB)
+	getStrg := func(bucket string) (mediaSvc.Storage, error) {
+		return tb.StrgClient.WithBucket(bucket)
+	}
+	svc := mediaSvc.NewMediaGetter(mediaRepo, getStrg)
+
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	objectKey := id.String() + ".png"
+	bucket := "images"
+
+	meta := model.Metadata{Width: 800, Height: 600}
+	sizeBytes := int64(2048) // ≥ 1KB
+	m := &model.Media{
+		ID:        id,
+		ObjectKey: objectKey,
+		Bucket:    bucket,
+		Status:    model.MediaStatusCompleted,
+		Metadata:  meta,
+		SizeBytes: &sizeBytes,
+		MimeType:  ptrString("image/png"),
+		Optimised: true,
+		Variants: []model.Variant{
+			{Width: 150, Height: 600 * 150 / 800, SizeBytes: 1500, ObjectKey: "variants/" + id.String() + "_150.png"},
+			{Width: 300, Height: 600 * 300 / 800, SizeBytes: 1800, ObjectKey: "variants/" + id.String() + "_300.png"},
+			{Width: 600, Height: 600 * 600 / 800, SizeBytes: 2000, ObjectKey: "variants/" + id.String() + "_600.png"},
+		},
+	}
+	if err := mediaRepo.Create(ctx, m); err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
+
+	destStrg, _ := getStrg(bucket)
+	origContent := bytes.Repeat([]byte{0xFF}, int(sizeBytes))
+	if err := destStrg.SaveFile(ctx, objectKey, bytes.NewReader(origContent), sizeBytes, map[string]string{
+		"Content-Type": "image/png",
+	}); err != nil {
+		t.Fatalf("upload original: %v", err)
+	}
+
+	// Upload variants
+	for _, v := range m.Variants {
+		content := bytes.Repeat([]byte{0xAA}, int(v.SizeBytes))
+		if err := destStrg.SaveFile(ctx, v.ObjectKey, bytes.NewReader(content), v.SizeBytes, map[string]string{
+			"Content-Type": "image/png",
+		}); err != nil {
+			t.Fatalf("upload variant %d: %v", v.Width, err)
+		}
+	}
+
+	out, err := svc.GetMedia(ctx, mediaSvc.GetMediaInput{ID: id})
+	if err != nil {
+		t.Fatalf("GetMedia returned error: %v", err)
+	}
+
+	// Assert original URL
+	if !strings.Contains(out.URL, objectKey) {
+		t.Errorf("original URL = %q; want contain %q", out.URL, objectKey)
+	}
+	// valid_until within 3h
+	if d := time.Until(out.ValidUntil); d <= 0 || d > 3*time.Hour {
+		t.Errorf("ValidUntil = %v; want within next 3h", out.ValidUntil)
+	}
+
+	// Assert Metadata
+	if out.Metadata.MimeType != "image/png" {
+		t.Errorf("MimeType = %q; want image/png", out.Metadata.MimeType)
+	}
+	if out.Metadata.SizeBytes != sizeBytes {
+		t.Errorf("SizeBytes = %d; want %d", out.Metadata.SizeBytes, sizeBytes)
+	}
+	if out.Metadata.Width != meta.Width || out.Metadata.Height != meta.Height {
+		t.Errorf("Width×Height = %dx%d; want %dx%d",
+			out.Metadata.Width, out.Metadata.Height, meta.Width, meta.Height)
+	}
+
+	// Assert Variants
+	if len(out.Variants) != len(m.Variants) {
+		t.Fatalf("got %d variants; want %d", len(out.Variants), len(m.Variants))
+	}
+	// map widths→Variant
+	byWidth := make(map[int]model.VariantOutput, len(out.Variants))
+	for _, vo := range out.Variants {
+		byWidth[vo.Width] = vo
+	}
+	for _, exp := range m.Variants {
+		vo, ok := byWidth[exp.Width]
+		if !ok {
+			t.Errorf("missing variant for width %d", exp.Width)
+			continue
+		}
+		// URL must contain the ObjectKey
+		if !strings.Contains(vo.URL, exp.ObjectKey) {
+			t.Errorf("variant URL = %q; want contain %q", vo.URL, exp.ObjectKey)
+		}
+		// metadata fields match
+		if vo.Height != exp.Height {
+			t.Errorf("variant %d height = %d; want %d", exp.Width, vo.Height, exp.Height)
+		}
+		if vo.SizeBytes != exp.SizeBytes {
+			t.Errorf("variant %d size_bytes = %d; want %d", exp.Width, vo.SizeBytes, exp.SizeBytes)
+		}
+	}
+}
+
 func TestGetMediaIntegration_NotFound(t *testing.T) {
 	testDB, _ := testutil.SetupTestDB()
 	defer testDB.Cleanup()
-	migration.MigrateUp(testDB.DB)
+	if err := migration.MigrateUp(testDB.DB); err != nil {
+		t.Fatalf("migrate DB: %v", err)
+	}
 
 	tb, _ := testutil.SetupTestBuckets(GlobalMinioClient)
 	defer tb.Cleanup()
