@@ -7,16 +7,15 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
-	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/google/uuid"
 	"io"
-	"reflect"
 	"strings"
 	"testing"
 )
 
-func TestFinaliseUploadIntegration(t *testing.T) {
+func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	ctx := context.Background()
 
 	testDB, err := testutil.SetupTestDB()
@@ -40,15 +39,24 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to initialise bucket 'staging': %v", err)
 	}
-	getDestStrg := func(bucket string) (mediaService.Storage, error) {
+	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
 		return tb.StrgClient.WithBucket(bucket)
 	}
-	svc := mediaService.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
 
+	// Prepare media record and staging file
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".md"
-	content := []byte("# Hello E2E Test" + strings.Repeat(".", 1024))
+	markdown := strings.Join([]string{
+		"# Hello E2E Test",
+		"## Second Header",
+		"## Third Header",
+		"This is some content with a [link1](https://example.com).",
+		"Another line with a [link2](https://golang.org).",
+		strings.Repeat(".", mediaSvc.MinFileSize),
+	}, "\n")
+	content := []byte(markdown)
 
 	m := &model.Media{
 		ID:        id,
@@ -72,7 +80,7 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 		t.Fatalf("upload to staging: %v", err)
 	}
 
-	out, err := svc.FinaliseUpload(ctx, mediaService.FinaliseUploadInput{
+	out, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
 		ID:         id,
 		DestBucket: "images",
 	})
@@ -96,8 +104,14 @@ func TestFinaliseUploadIntegration(t *testing.T) {
 	if out.MimeType == nil || *out.MimeType != "text/markdown" {
 		t.Errorf("returned MimeType = %q; want %q", *out.MimeType, "text/markdown")
 	}
-	if reflect.DeepEqual(out.Metadata, model.Metadata{}) {
-		t.Errorf("expected non-empty Metadata struct, got %+v", out.Metadata)
+	if out.Metadata.WordCount != 23 {
+		t.Errorf("WordCount = %d; want %d", out.Metadata.WordCount, 4)
+	}
+	if out.Metadata.HeadingCount != 3 {
+		t.Errorf("HeadingCount = %d; want %d", out.Metadata.HeadingCount, 1)
+	}
+	if out.Metadata.LinkCount != 2 {
+		t.Errorf("LinkCount = %d; want %d", out.Metadata.LinkCount, 0)
 	}
 
 	// Assert DB was updated
