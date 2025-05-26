@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-func TestGetMediaIntegration_SuccessDocument(t *testing.T) {
+func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 	ctx := context.Background()
 
 	testDB, err := testutil.SetupTestDB()
@@ -49,7 +49,7 @@ func TestGetMediaIntegration_SuccessDocument(t *testing.T) {
 	objectKey := id.String() + ".md"
 	const bucket = "docs"
 	strg, _ := getStrg(bucket)
-	content := testutil.GenerateMarkdown(t)
+	content := testutil.GenerateMarkdown()
 	meta := model.Metadata{WordCount: 23, HeadingCount: 3, LinkCount: 2}
 
 	m := &model.Media{
@@ -94,13 +94,95 @@ func TestGetMediaIntegration_SuccessDocument(t *testing.T) {
 		t.Errorf("SizeBytes = %d; want %d", out.Metadata.SizeBytes, len(content))
 	}
 	if out.Metadata.WordCount != 23 {
-		t.Errorf("WordCount = %d; want %d", out.Metadata.WordCount, 4)
+		t.Errorf("WordCount = %d; want %d", out.Metadata.WordCount, 23)
 	}
 	if out.Metadata.HeadingCount != 3 {
-		t.Errorf("HeadingCount = %d; want %d", out.Metadata.HeadingCount, 1)
+		t.Errorf("HeadingCount = %d; want %d", out.Metadata.HeadingCount, 3)
 	}
 	if out.Metadata.LinkCount != 2 {
-		t.Errorf("LinkCount = %d; want %d", out.Metadata.LinkCount, 0)
+		t.Errorf("LinkCount = %d; want %d", out.Metadata.LinkCount, 2)
+	}
+	// documents should have no variants
+	if len(out.Variants) != 0 {
+		t.Errorf("Variants length = %d; want 0 for documents", len(out.Variants))
+	}
+}
+
+func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
+	ctx := context.Background()
+
+	testDB, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Fatalf("setup DB: %v", err)
+	}
+	defer testDB.Cleanup()
+	database := testDB.DB
+	if err := migration.MigrateUp(database); err != nil {
+		t.Fatalf("could not run migrations: %v", err)
+	}
+
+	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+	defer tb.Cleanup()
+
+	mediaRepo := mariadb.NewMediaRepository(database)
+	getStrg := func(bucket string) (mediaSvc.Storage, error) {
+		return tb.StrgClient.WithBucket(bucket)
+	}
+	svc := mediaSvc.NewMediaGetter(mediaRepo, getStrg)
+
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	objectKey := id.String() + ".md"
+	const bucket = "docs"
+	strg, _ := getStrg(bucket)
+	content := testutil.LoadPDF(t)
+	meta := model.Metadata{PageCount: 4}
+
+	m := &model.Media{
+		ID:        id,
+		ObjectKey: objectKey,
+		Bucket:    bucket,
+		Status:    model.MediaStatusCompleted,
+		Metadata:  meta,
+		SizeBytes: ptrInt64(int64(len(content))),
+		MimeType:  ptrString("application/pdf"),
+	}
+	if err := mediaRepo.Create(ctx, m); err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
+
+	if err := strg.SaveFile(ctx, objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{
+		"Content-Type": "application/pdf",
+	}); err != nil {
+		t.Fatalf("upload to %q bucket: %v", bucket, err)
+	}
+
+	out, err := svc.GetMedia(ctx, mediaSvc.GetMediaInput{ID: id})
+	if err != nil {
+		t.Fatalf("GetMedia returned error: %v", err)
+	}
+
+	// Assert the output
+	if out.URL == "" {
+		t.Errorf("expected non-empty URL, got %q", out.URL)
+	}
+	if !strings.Contains(out.URL, objectKey) {
+		t.Errorf("URL = %q; want to contain %q", out.URL, objectKey)
+	}
+	// ValidUntil should be in the future but within the next 3h
+	if time.Until(out.ValidUntil) <= 0 || time.Until(out.ValidUntil) > 3*time.Hour {
+		t.Errorf("ValidUntil = %v; want within next 3h", out.ValidUntil)
+	}
+	if out.Metadata.MimeType != "application/pdf" {
+		t.Errorf("MimeType = %q; want %q", out.Metadata.MimeType, "application/pdf")
+	}
+	if out.Metadata.SizeBytes != int64(len(content)) {
+		t.Errorf("SizeBytes = %d; want %d", out.Metadata.SizeBytes, len(content))
+	}
+	if out.Metadata.PageCount != 4 {
+		t.Errorf("PageCount = %d; want %d", out.Metadata.PageCount, 4)
 	}
 	// documents should have no variants
 	if len(out.Variants) != 0 {

@@ -16,7 +16,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 )
@@ -54,7 +53,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".md"
-	content := testutil.GenerateMarkdown(t)
+	content := testutil.GenerateMarkdown()
 
 	m := &model.Media{
 		ID:        id,
@@ -103,13 +102,13 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 		t.Errorf("returned MimeType = %q; want %q", *out.MimeType, "text/markdown")
 	}
 	if out.Metadata.WordCount != 23 {
-		t.Errorf("WordCount = %d; want %d", out.Metadata.WordCount, 4)
+		t.Errorf("WordCount = %d; want %d", out.Metadata.WordCount, 23)
 	}
 	if out.Metadata.HeadingCount != 3 {
-		t.Errorf("HeadingCount = %d; want %d", out.Metadata.HeadingCount, 1)
+		t.Errorf("HeadingCount = %d; want %d", out.Metadata.HeadingCount, 3)
 	}
 	if out.Metadata.LinkCount != 2 {
-		t.Errorf("LinkCount = %d; want %d", out.Metadata.LinkCount, 0)
+		t.Errorf("LinkCount = %d; want %d", out.Metadata.LinkCount, 2)
 	}
 
 	// Assert DB was updated
@@ -340,11 +339,7 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	objectKey := id.String()
 	destObjectKey := objectKey + ".pdf"
 
-	// Load sample PDF (4 pages)
-	content, err := os.ReadFile("../resources/sample.pdf")
-	if err != nil {
-		t.Fatalf("could not read sample PDF: %v", err)
-	}
+	content := testutil.LoadPDF(t)
 
 	m := &model.Media{
 		ID:        id,

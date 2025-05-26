@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"os"
 	"strings"
 	"testing"
 )
@@ -30,7 +31,7 @@ func GeneratePNG(t *testing.T, width, height int) []byte {
 	return buf.Bytes()
 }
 
-func GenerateMarkdown(t *testing.T) []byte {
+func GenerateMarkdown() []byte {
 	markdown := strings.Join([]string{
 		"# Hello functional Test",
 		"## Second Header",
@@ -40,4 +41,13 @@ func GenerateMarkdown(t *testing.T) []byte {
 		strings.Repeat(".", mediaSvc.MinFileSize),
 	}, "\n")
 	return []byte(markdown)
+}
+
+// LoadPDF loads a sample PDF (4 pages)
+func LoadPDF(t *testing.T) []byte {
+	content, err := os.ReadFile("../resources/sample.pdf")
+	if err != nil {
+		t.Fatalf("could not read sample PDF: %v", err)
+	}
+	return content
 }
