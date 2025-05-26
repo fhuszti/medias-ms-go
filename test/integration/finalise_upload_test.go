@@ -187,7 +187,7 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 	defer tb.Cleanup()
 
-	// Initialize service
+	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
 	stgStrg, err := tb.StrgClient.WithBucket("staging")
 	if err != nil {
@@ -208,7 +208,7 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
-			img.Set(x, y, color.RGBA{255, 255, 255, 255})
+			img.Set(x, y, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 		}
 	}
 	buf := new(bytes.Buffer)
@@ -346,7 +346,7 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 	defer tb.Cleanup()
 
-	// Initialize service
+	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
 	stgStrg, err := tb.StrgClient.WithBucket("staging")
 	if err != nil {
@@ -486,7 +486,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 	defer tb.Cleanup()
 
-	// Initialize service
+	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
 	stgStrg, err := tb.StrgClient.WithBucket("staging")
 	if err != nil {
@@ -580,5 +580,108 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 	if !bytes.Equal(dataOut, content) {
 		t.Errorf("dest content changed after idempotent calls: got %d bytes; want %d bytes", len(dataOut), len(content))
+	}
+}
+
+func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup database
+	testDB, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Fatalf("setup DB: %v", err)
+	}
+	defer testDB.Cleanup()
+	dbConn := testDB.DB
+	if err := migration.MigrateUp(dbConn); err != nil {
+		t.Fatalf("could not run migrations: %v", err)
+	}
+
+	// Setup buckets
+	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+	defer tb.Cleanup()
+
+	// Initialise service
+	mediaRepo := mariadb.NewMediaRepository(dbConn)
+	stgStrg, err := tb.StrgClient.WithBucket("staging")
+	if err != nil {
+		t.Fatalf("failed to initialise bucket 'staging': %v", err)
+	}
+	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
+		return tb.StrgClient.WithBucket(bucket)
+	}
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+
+	// Prepare an undersized Markdown file
+	id := db.UUID(uuid.MustParse("eeeeeeee-ffff-0000-1111-222222222222"))
+	objectKey := id.String()
+	destObjectKey := objectKey + ".md"
+	// content length = MinFileSize - 1
+	content := bytes.Repeat([]byte("x"), mediaSvc.MinFileSize-1)
+
+	m := &model.Media{
+		ID:        id,
+		ObjectKey: objectKey,
+		Status:    model.MediaStatusPending,
+	}
+	if err := mediaRepo.Create(ctx, m); err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
+
+	// Upload to staging
+	if err := stgStrg.SaveFile(
+		ctx,
+		objectKey,
+		bytes.NewReader(content),
+		int64(len(content)),
+		map[string]string{"Content-Type": "text/markdown"},
+	); err != nil {
+		t.Fatalf("upload to staging: %v", err)
+	}
+
+	// Attempt finalisation: expect "too small" error
+	_, err = svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
+	if err == nil {
+		t.Fatalf("expected error for too small file, got nil")
+	}
+	if !strings.Contains(err.Error(), "too small") {
+		t.Errorf("error = %q; want substring 'too small'", err.Error())
+	}
+
+	// Staging file should be cleaned up
+	stillStaged, err := stgStrg.FileExists(ctx, objectKey)
+	if err != nil {
+		t.Fatalf("checking staging FileExists: %v", err)
+	}
+	if stillStaged {
+		t.Error("expected staging file to be removed after failure, but it still exists")
+	}
+
+	// DB record should be marked Failed with the appropriate message
+	fromDB, err := mediaRepo.GetByID(ctx, id)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if fromDB.Status != model.MediaStatusFailed {
+		t.Errorf("DB Status = %q; want %q", fromDB.Status, model.MediaStatusFailed)
+	}
+	if fromDB.FailureMessage == nil || !strings.Contains(*fromDB.FailureMessage, "too small") {
+		t.Errorf("FailureMessage = %v; want to contain 'too small'", fromDB.FailureMessage)
+	}
+
+	// No file should appear in the destination bucket
+	destStrg, err := getDestStrg("docs")
+	if err != nil {
+		t.Fatalf("init dest bucket: %v", err)
+	}
+	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	if err != nil {
+		t.Fatalf("checking dest FileExists: %v", err)
+	}
+	if exists {
+		t.Error("expected no file in dest bucket after failure, but found one")
 	}
 }
