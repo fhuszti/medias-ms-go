@@ -10,6 +10,9 @@ import (
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/google/uuid"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"strings"
 	"testing"
@@ -82,7 +85,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 
 	out, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
 		ID:         id,
-		DestBucket: "images",
+		DestBucket: "docs",
 	})
 	if err != nil {
 		t.Fatalf("FinaliseUpload returned error: %v", err)
@@ -92,8 +95,8 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	if out.ID != id {
 		t.Errorf("returned ID = %v; want %v", out.ID, id)
 	}
-	if out.Bucket != "images" {
-		t.Errorf("bucket should be 'images', got %q", out.Bucket)
+	if out.Bucket != "docs" {
+		t.Errorf("bucket should be 'docs', got %q", out.Bucket)
 	}
 	if out.Status != model.MediaStatusCompleted {
 		t.Errorf("returned Status = %q; want %q", out.Status, model.MediaStatusCompleted)
@@ -119,15 +122,15 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
-	if fromDB.Bucket != "images" {
-		t.Errorf("bucket should be 'images', got %q", fromDB.Bucket)
+	if fromDB.Bucket != "docs" {
+		t.Errorf("bucket should be 'docs', got %q", fromDB.Bucket)
 	}
 	if fromDB.Status != model.MediaStatusCompleted {
 		t.Errorf("DB Status = %q; want %q", fromDB.Status, model.MediaStatusCompleted)
 	}
 
-	// Assert file moved to "images" and absent from "staging"
-	destStrg, err := getDestStrg("images")
+	// Assert file moved to "docs" and absent from "staging"
+	destStrg, err := getDestStrg("docs")
 	if err != nil {
 		t.Fatalf("init dest bucket: %v", err)
 	}
@@ -159,5 +162,164 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	}
 	if !bytes.Equal(dataOut, content) {
 		t.Errorf("dest file content = %q; want %q", dataOut, content)
+	}
+}
+
+func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup database
+	testDB, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Fatalf("setup DB: %v", err)
+	}
+	defer testDB.Cleanup()
+	database := testDB.DB
+	if err := migration.MigrateUp(database); err != nil {
+		t.Fatalf("could not run migrations: %v", err)
+	}
+
+	// Setup buckets
+	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+	defer tb.Cleanup()
+
+	// Initialize service
+	mediaRepo := mariadb.NewMediaRepository(database)
+	stgStrg, err := tb.StrgClient.WithBucket("staging")
+	if err != nil {
+		t.Fatalf("failed to initialise bucket 'staging': %v", err)
+	}
+	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
+		return tb.StrgClient.WithBucket(bucket)
+	}
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+
+	// Prepare a media record and staging file (PNG)
+	id := db.UUID(uuid.MustParse("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"))
+	objectKey := id.String()
+	destObjectKey := objectKey + ".png"
+
+	// Generate a simple RGBA image and encode to PNG
+	width, height := 16, 32
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.Set(x, y, color.RGBA{255, 255, 255, 255})
+		}
+	}
+	buf := new(bytes.Buffer)
+	if err := png.Encode(buf, img); err != nil {
+		t.Fatalf("png encode failed: %v", err)
+	}
+	// Pad to ensure MinFileSize
+	if int64(buf.Len()) < mediaSvc.MinFileSize {
+		pad := make([]byte, mediaSvc.MinFileSize-int64(buf.Len()))
+		buf.Write(pad)
+	}
+	content := buf.Bytes()
+
+	m := &model.Media{
+		ID:        id,
+		ObjectKey: objectKey,
+		Status:    model.MediaStatusPending,
+	}
+	if err := mediaRepo.Create(ctx, m); err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
+
+	// Upload into staging
+	if err := stgStrg.SaveFile(
+		ctx,
+		objectKey,
+		bytes.NewReader(content),
+		int64(len(content)),
+		map[string]string{"Content-Type": "image/png"},
+	); err != nil {
+		t.Fatalf("upload to staging: %v", err)
+	}
+
+	// Execute finalisation
+	out, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
+		ID:         id,
+		DestBucket: "images",
+	})
+	if err != nil {
+		t.Fatalf("FinaliseUpload returned error: %v", err)
+	}
+
+	// Basic assertions
+	if out.ID != id {
+		t.Errorf("returned ID = %v; want %v", out.ID, id)
+	}
+	if out.Bucket != "images" {
+		t.Errorf("bucket should be 'images', got %q", out.Bucket)
+	}
+	if out.Status != model.MediaStatusCompleted {
+		t.Errorf("returned Status = %q; want %q", out.Status, model.MediaStatusCompleted)
+	}
+	if out.SizeBytes == nil || *out.SizeBytes != int64(len(content)) {
+		t.Errorf("returned SizeBytes = %v; want %v", out.SizeBytes, len(content))
+	}
+	if out.MimeType == nil || *out.MimeType != "image/png" {
+		t.Errorf("returned MimeType = %q; want %q", *out.MimeType, "image/png")
+	}
+
+	// Assert image metadata
+	if out.Metadata.Width != width {
+		t.Errorf("Metadata.Width = %d; want %d", out.Metadata.Width, width)
+	}
+	if out.Metadata.Height != height {
+		t.Errorf("Metadata.Height = %d; want %d", out.Metadata.Height, height)
+	}
+
+	// Assert DB updated
+	fromDB, err := mediaRepo.GetByID(ctx, id)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if fromDB.Metadata.Width != out.Metadata.Width {
+		t.Errorf("DB Metadata.Width = %d; want %d", fromDB.Metadata.Width, out.Metadata.Width)
+	}
+	if fromDB.Metadata.Height != out.Metadata.Height {
+		t.Errorf("DB Metadata.Height = %d; want %d", fromDB.Metadata.Height, out.Metadata.Height)
+	}
+
+	// Assert file moved to destination
+	destStrg, err := getDestStrg("images")
+	if err != nil {
+		t.Fatalf("init dest bucket: %v", err)
+	}
+	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	if err != nil {
+		t.Fatalf("checking dest FileExists: %v", err)
+	}
+	if !exists {
+		t.Error("expected file in dest bucket, but it does not exist")
+	}
+
+	// Staging should be cleaned up
+	stillThere, err := stgStrg.FileExists(ctx, objectKey)
+	if err != nil {
+		t.Fatalf("checking staging FileExists: %v", err)
+	}
+	if stillThere {
+		t.Error("expected staging file to be removed, but it still exists")
+	}
+
+	// Assert content round-trips
+	rc, err := destStrg.GetFile(ctx, destObjectKey)
+	if err != nil {
+		t.Fatalf("GetFile on dest: %v", err)
+	}
+	defer rc.Close()
+	dataOut, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("reading dest file: %v", err)
+	}
+	if !bytes.Equal(dataOut, content) {
+		t.Errorf("dest file content = %d bytes; want %d bytes", len(dataOut), len(content))
 	}
 }
