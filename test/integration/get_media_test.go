@@ -126,8 +126,35 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 	objectKey := id.String() + ".png"
 	bucket := "images"
 
-	meta := model.Metadata{Width: 800, Height: 600}
-	sizeBytes := int64(2048) // ≥ 1KB
+	// Upload original image
+	width, height := 800, 600
+	origContent := testutil.GeneratePNG(t, width, height)
+	meta := model.Metadata{Width: width, Height: height}
+	sizeBytes := int64(len(origContent))
+	destStrg, _ := getStrg(bucket)
+	if err := destStrg.SaveFile(ctx, objectKey, bytes.NewReader(origContent), sizeBytes, map[string]string{
+		"Content-Type": "image/png",
+	}); err != nil {
+		t.Fatalf("upload original: %v", err)
+	}
+
+	variants := []model.Variant{
+		{Width: 150, Height: height * 150 / width, ObjectKey: "variants/" + id.String() + "_150.png"},
+		{Width: 300, Height: height * 300 / width, ObjectKey: "variants/" + id.String() + "_300.png"},
+		{Width: 600, Height: height * 600 / width, ObjectKey: "variants/" + id.String() + "_600.png"},
+	}
+	// Upload variants
+	for i := range variants {
+		v := &variants[i]
+		content := testutil.GeneratePNG(t, v.Width, v.Height)
+		v.SizeBytes = int64(len(content))
+		if err := destStrg.SaveFile(ctx, v.ObjectKey, bytes.NewReader(content), v.SizeBytes, map[string]string{
+			"Content-Type": "image/png",
+		}); err != nil {
+			t.Fatalf("upload variant %d: %v", v.Width, err)
+		}
+	}
+
 	m := &model.Media{
 		ID:        id,
 		ObjectKey: objectKey,
@@ -137,32 +164,10 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 		SizeBytes: &sizeBytes,
 		MimeType:  ptrString("image/png"),
 		Optimised: true,
-		Variants: []model.Variant{
-			{Width: 150, Height: 600 * 150 / 800, SizeBytes: 1500, ObjectKey: "variants/" + id.String() + "_150.png"},
-			{Width: 300, Height: 600 * 300 / 800, SizeBytes: 1800, ObjectKey: "variants/" + id.String() + "_300.png"},
-			{Width: 600, Height: 600 * 600 / 800, SizeBytes: 2000, ObjectKey: "variants/" + id.String() + "_600.png"},
-		},
+		Variants:  variants,
 	}
 	if err := mediaRepo.Create(ctx, m); err != nil {
 		t.Fatalf("insert media: %v", err)
-	}
-
-	destStrg, _ := getStrg(bucket)
-	origContent := bytes.Repeat([]byte{0xFF}, int(sizeBytes))
-	if err := destStrg.SaveFile(ctx, objectKey, bytes.NewReader(origContent), sizeBytes, map[string]string{
-		"Content-Type": "image/png",
-	}); err != nil {
-		t.Fatalf("upload original: %v", err)
-	}
-
-	// Upload variants
-	for _, v := range m.Variants {
-		content := bytes.Repeat([]byte{0xAA}, int(v.SizeBytes))
-		if err := destStrg.SaveFile(ctx, v.ObjectKey, bytes.NewReader(content), v.SizeBytes, map[string]string{
-			"Content-Type": "image/png",
-		}); err != nil {
-			t.Fatalf("upload variant %d: %v", v.Width, err)
-		}
 	}
 
 	out, err := svc.GetMedia(ctx, mediaSvc.GetMediaInput{ID: id})

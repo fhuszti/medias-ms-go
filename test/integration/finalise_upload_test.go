@@ -13,9 +13,6 @@ import (
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"image"
-	"image/color"
-	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -208,24 +205,8 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	objectKey := id.String()
 	destObjectKey := objectKey + ".png"
 
-	// Generate a simple RGBA image and encode to PNG
 	width, height := 16, 32
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			img.Set(x, y, color.RGBA{R: 255, G: 255, B: 255, A: 255})
-		}
-	}
-	buf := new(bytes.Buffer)
-	if err := png.Encode(buf, img); err != nil {
-		t.Fatalf("png encode failed: %v", err)
-	}
-	// Pad to ensure MinFileSize
-	if int64(buf.Len()) < mediaSvc.MinFileSize {
-		pad := make([]byte, mediaSvc.MinFileSize-int64(buf.Len()))
-		buf.Write(pad)
-	}
-	content := buf.Bytes()
+	content := testutil.GeneratePNG(t, width, height)
 
 	m := &model.Media{
 		ID:        id,
