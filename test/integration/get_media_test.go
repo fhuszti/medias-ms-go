@@ -49,15 +49,16 @@ func TestGetMediaIntegration_SuccessDocument(t *testing.T) {
 	objectKey := id.String() + ".md"
 	const bucket = "docs"
 	strg, _ := getStrg(bucket)
-	content := []byte("# Integration Test Markdown\n" + strings.Repeat(".", 512))
+	content := testutil.GenerateMarkdown(t)
+	meta := model.Metadata{WordCount: 23, HeadingCount: 3, LinkCount: 2}
 
 	m := &model.Media{
 		ID:        id,
 		ObjectKey: objectKey,
 		Bucket:    bucket,
 		Status:    model.MediaStatusCompleted,
-		Metadata:  model.Metadata{},              // no width/height for docs
-		SizeBytes: ptrInt64(int64(len(content))), // must match content length
+		Metadata:  meta,
+		SizeBytes: ptrInt64(int64(len(content))),
 		MimeType:  ptrString("text/markdown"),
 	}
 	if err := mediaRepo.Create(ctx, m); err != nil {
@@ -91,6 +92,15 @@ func TestGetMediaIntegration_SuccessDocument(t *testing.T) {
 	}
 	if out.Metadata.SizeBytes != int64(len(content)) {
 		t.Errorf("SizeBytes = %d; want %d", out.Metadata.SizeBytes, len(content))
+	}
+	if out.Metadata.WordCount != 23 {
+		t.Errorf("WordCount = %d; want %d", out.Metadata.WordCount, 4)
+	}
+	if out.Metadata.HeadingCount != 3 {
+		t.Errorf("HeadingCount = %d; want %d", out.Metadata.HeadingCount, 1)
+	}
+	if out.Metadata.LinkCount != 2 {
+		t.Errorf("LinkCount = %d; want %d", out.Metadata.LinkCount, 0)
 	}
 	// documents should have no variants
 	if len(out.Variants) != 0 {

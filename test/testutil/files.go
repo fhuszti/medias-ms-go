@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"strings"
 	"testing"
 )
 
@@ -27,4 +28,16 @@ func GeneratePNG(t *testing.T, width, height int) []byte {
 		buf.Write(pad)
 	}
 	return buf.Bytes()
+}
+
+func GenerateMarkdown(t *testing.T) []byte {
+	markdown := strings.Join([]string{
+		"# Hello functional Test",
+		"## Second Header",
+		"## Third Header",
+		"This is some content with a [link1](https://example.com).",
+		"Another line with a [link2](https://golang.org).",
+		strings.Repeat(".", mediaSvc.MinFileSize),
+	}, "\n")
+	return []byte(markdown)
 }

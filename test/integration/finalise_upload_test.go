@@ -54,15 +54,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".md"
-	markdown := strings.Join([]string{
-		"# Hello E2E Test",
-		"## Second Header",
-		"## Third Header",
-		"This is some content with a [link1](https://example.com).",
-		"Another line with a [link2](https://golang.org).",
-		strings.Repeat(".", mediaSvc.MinFileSize),
-	}, "\n")
-	content := []byte(markdown)
+	content := testutil.GenerateMarkdown(t)
 
 	m := &model.Media{
 		ID:        id,
