@@ -464,3 +464,121 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 		t.Errorf("dest file content = %d bytes; want %d bytes", len(dataOut), len(content))
 	}
 }
+
+func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup database
+	testDB, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Fatalf("setup DB: %v", err)
+	}
+	defer testDB.Cleanup()
+	database := testDB.DB
+	if err := migration.MigrateUp(database); err != nil {
+		t.Fatalf("could not run migrations: %v", err)
+	}
+
+	// Setup buckets
+	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+	defer tb.Cleanup()
+
+	// Initialize service
+	mediaRepo := mariadb.NewMediaRepository(database)
+	stgStrg, err := tb.StrgClient.WithBucket("staging")
+	if err != nil {
+		t.Fatalf("failed to initialise bucket 'staging': %v", err)
+	}
+	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
+		return tb.StrgClient.WithBucket(bucket)
+	}
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+
+	// Prepare a Markdown payload in staging
+	id := db.UUID(uuid.MustParse("dddddddd-eeee-ffff-0000-111111111111"))
+	objectKey := id.String()
+	destObjectKey := objectKey + ".md"
+	markdown := strings.Join([]string{
+		"# Idempotency Test",
+		"Simple text for idempotency check.",
+		strings.Repeat(".", mediaSvc.MinFileSize),
+	}, "\n")
+	content := []byte(markdown)
+
+	m := &model.Media{
+		ID:        id,
+		ObjectKey: objectKey,
+		Status:    model.MediaStatusPending,
+	}
+	if err := mediaRepo.Create(ctx, m); err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
+	// Upload to staging
+	if err := stgStrg.SaveFile(ctx, objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{"Content-Type": "text/markdown"}); err != nil {
+		t.Fatalf("upload to staging: %v", err)
+	}
+
+	// First call: expect success
+	out1, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
+	if err != nil {
+		t.Fatalf("first FinaliseUpload error: %v", err)
+	}
+	if out1.Status != model.MediaStatusCompleted {
+		t.Errorf("first call Status = %q; want %q", out1.Status, model.MediaStatusCompleted)
+	}
+
+	// Second call: should be no-op, return existing
+	out2, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
+	if err != nil {
+		t.Fatalf("second FinaliseUpload error: %v", err)
+	}
+	if out2.Status != model.MediaStatusCompleted {
+		t.Errorf("second call Status = %q; want %q", out2.Status, model.MediaStatusCompleted)
+	}
+	// Should not change object key or bucket
+	if out2.Bucket != out1.Bucket {
+		t.Errorf("second call Bucket = %q; want %q", out2.Bucket, out1.Bucket)
+	}
+	if out2.ObjectKey != out1.ObjectKey {
+		t.Errorf("second call ObjectKey = %q; want %q", out2.ObjectKey, out1.ObjectKey)
+	}
+
+	// Destination file exists
+	destStrg, err := getDestStrg("docs")
+	if err != nil {
+		t.Fatalf("init dest bucket: %v", err)
+	}
+	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	if err != nil {
+		t.Fatalf("checking dest FileExists: %v", err)
+	}
+	if !exists {
+		t.Error("expected file in dest bucket after idempotent calls, but it does not exist")
+	}
+
+	// Staging remains empty
+	stillThere, err := stgStrg.FileExists(ctx, objectKey)
+	if err != nil {
+		t.Fatalf("checking staging FileExists: %v", err)
+	}
+	if stillThere {
+		t.Error("expected staging file to be removed after idempotency, but it still exists")
+	}
+
+	// Round-trip content still same
+	rc, err := destStrg.GetFile(ctx, destObjectKey)
+	if err != nil {
+		t.Fatalf("GetFile on dest: %v", err)
+	}
+	defer rc.Close()
+	dataOut, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("reading dest file: %v", err)
+	}
+	if !bytes.Equal(dataOut, content) {
+		t.Errorf("dest content changed after idempotent calls: got %d bytes; want %d bytes", len(dataOut), len(content))
+	}
+}
