@@ -714,7 +714,3 @@ func TestFinaliseUploadIntegration_ErrorInvalidBucket(t *testing.T) {
 		t.Errorf("error = %q; want %q", resp.Error, wantMsg)
 	}
 }
-
-type errorResponse struct {
-	Error string `json:"error"`
-}

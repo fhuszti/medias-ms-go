@@ -220,7 +220,7 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 	}
 }
 
-func TestGetMediaIntegration_NotFound(t *testing.T) {
+func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 	testDB, _ := testutil.SetupTestDB()
 	defer testDB.Cleanup()
 	if err := migration.MigrateUp(testDB.DB); err != nil {
@@ -238,15 +238,14 @@ func TestGetMediaIntegration_NotFound(t *testing.T) {
 
 	r := chi.NewRouter()
 	r.With(mediaHandler.WithID()).Get("/medias/{id}", mediaHandler.GetMediaHandler(svc))
-	ts := httptest.NewServer(r)
-	defer ts.Close()
 
-	// call with a UUID that does not exist in DB
+	// Make request for a non-existent UUID
 	id := uuid.NewString()
-	res, err := http.Get(ts.URL + "/medias/" + id)
-	if err != nil {
-		t.Fatalf("GET request error: %v", err)
-	}
+	req := httptest.NewRequest(http.MethodGet, "/medias/"+id, nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	res := rec.Result()
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusNotFound {
@@ -255,43 +254,45 @@ func TestGetMediaIntegration_NotFound(t *testing.T) {
 	if ct := res.Header.Get("Cache-Control"); ct != "no-store, max-age=0, must-revalidate" {
 		t.Errorf("Cache-Control = %q; want no-store...", ct)
 	}
-	var errResp map[string]string
-	json.NewDecoder(res.Body).Decode(&errResp)
-	if !strings.Contains(errResp["error"], "Media not found") {
-		t.Errorf("error = %q; want contain %q", errResp["error"], "Media not found")
+
+	var resp errorResponse
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode JSON: %v", err)
+	}
+	if !strings.Contains(resp.Error, "Media not found") {
+		t.Errorf("error = %q; want contain %q", resp.Error, "Media not found")
 	}
 }
 
-func TestGetMediaIntegration_InvalidID(t *testing.T) {
+func TestGetMediaIntegration_ErrorInvalidID(t *testing.T) {
 	// no DB or bucket setup needed, middleware will reject
 	repo := mariadb.NewMediaRepository(nil)
 	svc := mediaSvc.NewMediaGetter(repo, nil)
 
 	r := chi.NewRouter()
 	r.With(mediaHandler.WithID()).Get("/medias/{id}", mediaHandler.GetMediaHandler(svc))
-	ts := httptest.NewServer(r)
-	defer ts.Close()
 
-	res, err := http.Get(ts.URL + "/medias/not-a-uuid")
-	if err != nil {
-		t.Fatalf("GET request error: %v", err)
-	}
+	// Invalid UUID
+	req := httptest.NewRequest(http.MethodGet, "/medias/not-a-uuid", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	res := rec.Result()
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusBadRequest {
 		t.Errorf("status = %d; want %d", res.StatusCode, http.StatusBadRequest)
 	}
-	var errResp map[string]string
-	json.NewDecoder(res.Body).Decode(&errResp)
+
+	var resp errorResponse
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode JSON: %v", err)
+	}
 	want := `ID "not-a-uuid" is not a valid UUID`
-	if errResp["error"] != want {
-		t.Errorf("error = %q; want %q", errResp["error"], want)
+	if resp.Error != want {
+		t.Errorf("error = %q; want %q", resp.Error, want)
 	}
 	if cc := res.Header.Get("Cache-Control"); cc != "no-store, max-age=0, must-revalidate" {
 		t.Errorf("Cache-Control = %q; want no-store...", cc)
 	}
 }
-
-// helpers to get pointers
-func ptrString(s string) *string { return &s }
-func ptrInt64(i int64) *int64    { return &i }

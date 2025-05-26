@@ -76,3 +76,11 @@ func setupMinIO() (cleanup func(), err error) {
 
 	return mi.Cleanup, nil
 }
+
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+// helpers to get pointers
+func ptrString(s string) *string { return &s }
+func ptrInt64(i int64) *int64    { return &i }
