@@ -14,6 +14,7 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"os"
 	"strings"
 	"testing"
 )
@@ -289,6 +290,146 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 
 	// Assert file moved to destination
 	destStrg, err := getDestStrg("images")
+	if err != nil {
+		t.Fatalf("init dest bucket: %v", err)
+	}
+	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	if err != nil {
+		t.Fatalf("checking dest FileExists: %v", err)
+	}
+	if !exists {
+		t.Error("expected file in dest bucket, but it does not exist")
+	}
+
+	// Staging should be cleaned up
+	stillThere, err := stgStrg.FileExists(ctx, objectKey)
+	if err != nil {
+		t.Fatalf("checking staging FileExists: %v", err)
+	}
+	if stillThere {
+		t.Error("expected staging file to be removed, but it still exists")
+	}
+
+	// Assert content round-trips
+	rc, err := destStrg.GetFile(ctx, destObjectKey)
+	if err != nil {
+		t.Fatalf("GetFile on dest: %v", err)
+	}
+	defer rc.Close()
+	dataOut, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("reading dest file: %v", err)
+	}
+	if !bytes.Equal(dataOut, content) {
+		t.Errorf("dest file content = %d bytes; want %d bytes", len(dataOut), len(content))
+	}
+}
+
+func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup database
+	testDB, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Fatalf("setup DB: %v", err)
+	}
+	defer testDB.Cleanup()
+	database := testDB.DB
+	if err := migration.MigrateUp(database); err != nil {
+		t.Fatalf("could not run migrations: %v", err)
+	}
+
+	// Setup buckets
+	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+	defer tb.Cleanup()
+
+	// Initialize service
+	mediaRepo := mariadb.NewMediaRepository(database)
+	stgStrg, err := tb.StrgClient.WithBucket("staging")
+	if err != nil {
+		t.Fatalf("failed to initialise bucket 'staging': %v", err)
+	}
+	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
+		return tb.StrgClient.WithBucket(bucket)
+	}
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+
+	// Prepare media record and a staging file (PDF)
+	id := db.UUID(uuid.MustParse("cccccccc-dddd-eeee-ffff-000000000000"))
+	objectKey := id.String()
+	destObjectKey := objectKey + ".pdf"
+
+	// Load sample PDF (4 pages)
+	content, err := os.ReadFile("../resources/sample.pdf")
+	if err != nil {
+		t.Fatalf("could not read sample PDF: %v", err)
+	}
+
+	m := &model.Media{
+		ID:        id,
+		ObjectKey: objectKey,
+		Status:    model.MediaStatusPending,
+	}
+	if err := mediaRepo.Create(ctx, m); err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
+
+	// Upload into staging
+	if err := stgStrg.SaveFile(
+		ctx,
+		objectKey,
+		bytes.NewReader(content),
+		int64(len(content)),
+		map[string]string{"Content-Type": "application/pdf"},
+	); err != nil {
+		t.Fatalf("upload to staging: %v", err)
+	}
+
+	// Execute finalisation
+	out, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
+		ID:         id,
+		DestBucket: "docs",
+	})
+	if err != nil {
+		t.Fatalf("FinaliseUpload returned error: %v", err)
+	}
+
+	// Basic assertions
+	if out.ID != id {
+		t.Errorf("returned ID = %v; want %v", out.ID, id)
+	}
+	if out.Bucket != "docs" {
+		t.Errorf("bucket should be 'docs', got %q", out.Bucket)
+	}
+	if out.Status != model.MediaStatusCompleted {
+		t.Errorf("returned Status = %q; want %q", out.Status, model.MediaStatusCompleted)
+	}
+	if out.SizeBytes == nil || *out.SizeBytes != int64(len(content)) {
+		t.Errorf("returned SizeBytes = %v; want %v", out.SizeBytes, len(content))
+	}
+	if out.MimeType == nil || *out.MimeType != "application/pdf" {
+		t.Errorf("returned MimeType = %q; want %q", *out.MimeType, "application/pdf")
+	}
+
+	// Assert PDF metadata
+	if out.Metadata.PageCount != 4 {
+		t.Errorf("PageCount = %d; want %d", out.Metadata.PageCount, 4)
+	}
+
+	// Assert DB updated
+	fromDB, err := mediaRepo.GetByID(ctx, id)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if fromDB.Metadata.PageCount != out.Metadata.PageCount {
+		t.Errorf("DB PageCount = %d; want %d", fromDB.Metadata.PageCount, out.Metadata.PageCount)
+	}
+
+	// Assert file moved to destination
+	destStrg, err := getDestStrg("docs")
 	if err != nil {
 		t.Fatalf("init dest bucket: %v", err)
 	}
