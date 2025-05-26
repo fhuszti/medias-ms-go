@@ -3,17 +3,22 @@ package integration
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"github.com/fhuszti/medias-ms-go/internal/db"
+	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -684,4 +689,32 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	if exists {
 		t.Error("expected no file in dest bucket after failure, but found one")
 	}
+}
+
+func TestFinaliseUploadIntegration_ErrorInvalidBucket(t *testing.T) {
+	r := chi.NewRouter()
+	allowed := []string{"images", "docs"}
+	r.With(mediaHandler.WithDestBucket(allowed)).
+		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(nil))
+
+	req := httptest.NewRequest("POST", "/medias/finalise_upload/not-a-bucket", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
+	}
+
+	var resp errorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("could not decode JSON: %v", err)
+	}
+	wantMsg := `destination bucket "not-a-bucket" does not exist`
+	if resp.Error != wantMsg {
+		t.Errorf("error = %q; want %q", resp.Error, wantMsg)
+	}
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
 }
