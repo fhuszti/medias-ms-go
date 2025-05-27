@@ -474,12 +474,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	id := db.UUID(uuid.MustParse("dddddddd-eeee-ffff-0000-111111111111"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".md"
-	markdown := strings.Join([]string{
-		"# Idempotency Test",
-		"Simple text for idempotency check.",
-		strings.Repeat(".", mediaSvc.MinFileSize),
-	}, "\n")
-	content := []byte(markdown)
+	content := testutil.GenerateMarkdown()
 
 	m := &model.Media{
 		ID:        id,

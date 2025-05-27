@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-func TestGenerateUploadLinkIntegration(t *testing.T) {
+func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 	testDB, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("setup DB: %v", err)
@@ -30,11 +30,7 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer func() {
-		if err := tb.Cleanup(); err != nil {
-			t.Fatalf("cleanup buckets: %v", err)
-		}
-	}()
+	defer tb.Cleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
 	strg, err := tb.StrgClient.WithBucket("staging")
@@ -95,8 +91,8 @@ func TestGenerateUploadLinkIntegration(t *testing.T) {
 	if bucket != "staging" {
 		t.Errorf("bucket should be 'staging', got %q", bucket)
 	}
-	if originalFilename != "file_example.png" {
-		t.Errorf("expected originalFilename to be 'file_example.pdf', got %q", originalFilename)
+	if originalFilename != in.Name {
+		t.Errorf("expected originalFilename to be %q', got %q", originalFilename, in.Name)
 	}
 	if status != model.MediaStatusPending {
 		t.Errorf("expected status %q, got %q", model.MediaStatusPending, status)
