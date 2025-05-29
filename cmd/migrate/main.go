@@ -34,7 +34,7 @@ func main() {
 
 func initDb(cfg *config.Settings) (*db.Database, error) {
 	dbCfg := db.MariaDbConfig{
-		Dsn:             cfg.MariaDBDSN + "&multiStatements=true",
+		DSN:             cfg.MariaDBDSN + "&multiStatements=true",
 		MaxOpenConns:    cfg.MaxOpenConns,
 		MaxIdleConns:    cfg.MaxIdleConns,
 		ConnMaxLifetime: cfg.ConnMaxLifetime,

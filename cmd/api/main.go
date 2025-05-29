@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/handler"
 	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"log"
@@ -36,6 +37,14 @@ func main() {
 
 	storages := initBucketStorages(cfg)
 	mediaRepo := mariadb.NewMediaRepository(database.DB)
+	var ca mediaSvc.Cache
+	if cfg.RedisAddr != "" {
+		ca = cache.NewCache(cfg.RedisAddr, cfg.RedisPassword)
+		log.Println("✅  Redis cache enabled")
+	} else {
+		ca = cache.NewNoop()
+		log.Println("⚠️  Redis not configured — caching is disabled")
+	}
 
 	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, storages["staging"], db.NewUUID)
 	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
@@ -51,7 +60,7 @@ func main() {
 	r.With(mediaHandler.WithDestBucket(cfg.Buckets)).
 		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
 
-	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, getStrgFromBucket)
+	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrgFromBucket)
 	r.With(mediaHandler.WithID()).
 		Get("/medias/{id}", mediaHandler.GetMediaHandler(getMediaSvc))
 
@@ -62,7 +71,7 @@ func initDb(cfg *config.Settings) *db.Database {
 	log.Println("initialising database...")
 
 	dbCfg := db.MariaDbConfig{
-		Dsn:             cfg.MariaDBDSN,
+		DSN:             cfg.MariaDBDSN,
 		MaxOpenConns:    cfg.MaxOpenConns,
 		MaxIdleConns:    cfg.MaxIdleConns,
 		ConnMaxLifetime: cfg.ConnMaxLifetime,
@@ -104,7 +113,7 @@ func initBucketStorages(cfg *config.Settings) map[string]mediaSvc.Storage {
 	for _, b := range cfg.Buckets {
 		storages[b], err = strg.WithBucket(b)
 		if err != nil {
-			log.Fatalf("Failed to initialize bucket '%s': %v", b, err)
+			log.Fatalf("Failed to initialize bucket %q: %v", b, err)
 		}
 	}
 
@@ -131,7 +140,7 @@ func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("🛑 shutdown signal received, exiting…")
+	log.Println("🛑 Shutdown signal received, exiting…")
 
 	// graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -139,7 +148,7 @@ func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatalf("Server shutdown failed: %v", err)
 	}
-	log.Println("✅ server gracefully stopped")
+	log.Println("✅  Server gracefully stopped")
 
 	if err := database.Close(); err != nil {
 		log.Printf("DB close error: %v", err)

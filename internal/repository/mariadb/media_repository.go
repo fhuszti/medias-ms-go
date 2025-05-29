@@ -21,7 +21,7 @@ func NewMediaRepository(db *sql.DB) *MediaRepository {
 }
 
 func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error {
-	log.Printf("creating database record for media '%s', at status '%s'...", media.ObjectKey, media.Status)
+	log.Printf("creating database record for media #%s, at status %q...", media.ID, media.Status)
 
 	const query = `
       INSERT INTO medias 
@@ -42,7 +42,7 @@ func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error 
 }
 
 func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error {
-	log.Printf("updating database record for media #%s, with status '%s'...", media.ID, media.Status)
+	log.Printf("updating database record for media #%s, with status %q...", media.ID, media.Status)
 
 	const query = `
       UPDATE medias

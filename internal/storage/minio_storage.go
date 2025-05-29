@@ -60,7 +60,7 @@ func (c *Strg) WithBucket(bucket string) (media.Storage, error) {
 		return nil, mapMinioErr(err)
 	}
 	if !ok {
-		log.Printf("bucket '%s' does not exist, creating it...", bucket)
+		log.Printf("bucket %q does not exist, creating it...", bucket)
 		if err := c.Client.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{}); err != nil {
 			return nil, mapMinioErr(err)
 		}
@@ -69,7 +69,7 @@ func (c *Strg) WithBucket(bucket string) (media.Storage, error) {
 }
 
 func (s *MinioStorage) GeneratePresignedDownloadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
-	log.Printf("generating a presigned download link for file '%s' in bucket '%s'...", fileKey, s.bucketName)
+	log.Printf("generating a presigned download link for file %q in bucket %q...", fileKey, s.bucketName)
 
 	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucketName, fileKey, expiry, url.Values{})
 	if err != nil {
@@ -80,7 +80,7 @@ func (s *MinioStorage) GeneratePresignedDownloadURL(ctx context.Context, fileKey
 }
 
 func (s *MinioStorage) GeneratePresignedUploadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
-	log.Printf("generating a presigned upload link for file '%s' in bucket '%s'...", fileKey, s.bucketName)
+	log.Printf("generating a presigned upload link for file %q in bucket %q...", fileKey, s.bucketName)
 
 	presignedURL, err := s.client.PresignedPutObject(ctx, s.bucketName, fileKey, expiry)
 	if err != nil {
@@ -91,7 +91,7 @@ func (s *MinioStorage) GeneratePresignedUploadURL(ctx context.Context, fileKey s
 }
 
 func (s *MinioStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
-	log.Printf("checking if file '%s' exists in bucket '%s'...", fileKey, s.bucketName)
+	log.Printf("checking if file %q exists in bucket %q...", fileKey, s.bucketName)
 
 	_, err := s.StatFile(ctx, fileKey)
 	if errors.Is(err, media.ErrObjectNotFound) {
@@ -104,7 +104,7 @@ func (s *MinioStorage) FileExists(ctx context.Context, fileKey string) (bool, er
 }
 
 func (s *MinioStorage) StatFile(ctx context.Context, fileKey string) (media.FileInfo, error) {
-	log.Printf("getting stats on file '%s' in bucket '%s'...", fileKey, s.bucketName)
+	log.Printf("getting stats on file %q in bucket %q...", fileKey, s.bucketName)
 
 	info, err := s.client.StatObject(ctx, s.bucketName, fileKey, minio.StatObjectOptions{})
 	if err != nil {
@@ -117,14 +117,14 @@ func (s *MinioStorage) StatFile(ctx context.Context, fileKey string) (media.File
 }
 
 func (s *MinioStorage) RemoveFile(ctx context.Context, fileKey string) error {
-	log.Printf("removing file '%s' from bucket '%s'...", fileKey, s.bucketName)
+	log.Printf("removing file %q from bucket %q...", fileKey, s.bucketName)
 
 	err := s.client.RemoveObject(ctx, s.bucketName, fileKey, minio.RemoveObjectOptions{})
 	return mapMinioErr(err)
 }
 
 func (s *MinioStorage) GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error) {
-	log.Printf("getting file '%s' from bucket '%s'...", fileKey, s.bucketName)
+	log.Printf("getting file %q from bucket %q...", fileKey, s.bucketName)
 
 	obj, err := s.client.GetObject(ctx, s.bucketName, fileKey, minio.GetObjectOptions{})
 	if err != nil {
@@ -134,7 +134,7 @@ func (s *MinioStorage) GetFile(ctx context.Context, fileKey string) (io.ReadClos
 }
 
 func (s *MinioStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
-	log.Printf("saving file '%s' into bucket '%s'...", fileKey, s.bucketName)
+	log.Printf("saving file %q into bucket %q...", fileKey, s.bucketName)
 
 	putOpts := minio.PutObjectOptions{}
 	if ct := opts["Content-Type"]; ct != "" {
@@ -149,7 +149,7 @@ func (s *MinioStorage) SaveFile(ctx context.Context, fileKey string, reader io.R
 }
 
 func (s *MinioStorage) CopyFile(ctx context.Context, srcKey, destKey string) error {
-	log.Printf("copying file '%s' to '%s' inside bucket '%s'...", srcKey, destKey, s.bucketName)
+	log.Printf("copying file %q to %q inside bucket %q...", srcKey, destKey, s.bucketName)
 
 	destOpts := minio.CopyDestOptions{
 		Bucket: s.bucketName,

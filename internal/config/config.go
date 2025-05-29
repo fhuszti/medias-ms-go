@@ -22,6 +22,8 @@ type Settings struct {
 	MinioUseSSL     bool
 	Buckets         []string
 	ImagesSizes     []int
+	RedisAddr       string
+	RedisPassword   string
 }
 
 func Load() (*Settings, error) {
@@ -86,6 +88,8 @@ func Load() (*Settings, error) {
 		MinioUseSSL:     viper.GetBool("MINIO_USE_SSL"),
 		Buckets:         getBuckets(),
 		ImagesSizes:     getImagesSizes(),
+		RedisAddr:       viper.GetString("REDIS_ADDR"),
+		RedisPassword:   viper.GetString("REDIS_PASSWORD"),
 	}, nil
 }
 

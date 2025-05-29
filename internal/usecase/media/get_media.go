@@ -12,16 +12,17 @@ import (
 )
 
 type Getter interface {
-	GetMedia(ctx context.Context, in GetMediaInput) (GetMediaOutput, error)
+	GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error)
 }
 
 type mediaGetterSrv struct {
 	repo          Repository
+	cache         Cache
 	getTargetStrg StorageGetter
 }
 
-func NewMediaGetter(repo Repository, getTargetStrg StorageGetter) Getter {
-	return &mediaGetterSrv{repo, getTargetStrg}
+func NewMediaGetter(repo Repository, cache Cache, getTargetStrg StorageGetter) Getter {
+	return &mediaGetterSrv{repo, cache, getTargetStrg}
 }
 
 type GetMediaInput struct {
@@ -42,30 +43,36 @@ type GetMediaOutput struct {
 	Variants   model.VariantsOutput `json:"variants"`
 }
 
-func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (GetMediaOutput, error) {
+func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error) {
+	// Try Redis first
+	cachedOut, err := s.cache.GetMediaDetails(ctx, in.ID)
+	if err == nil && cachedOut != nil {
+		return cachedOut, nil
+	}
+
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return GetMediaOutput{}, ErrObjectNotFound
+			return nil, ErrObjectNotFound
 		}
-		return GetMediaOutput{}, err
+		return nil, err
 	}
 	if media.Status != model.MediaStatusCompleted {
-		return GetMediaOutput{}, errors.New("media status should be 'completed' to be returned")
+		return nil, errors.New("media status should be 'completed' to be returned")
 	}
 
 	strg, err := s.getTargetStrg(media.Bucket)
 	if err != nil {
-		return GetMediaOutput{}, fmt.Errorf("unknown target bucket %q: %w", media.Bucket, err)
+		return nil, fmt.Errorf("unknown target bucket %q: %w", media.Bucket, err)
 	}
 
 	return s.handleFile(ctx, strg, media)
 }
 
-func (s *mediaGetterSrv) handleFile(ctx context.Context, strg Storage, media *model.Media) (GetMediaOutput, error) {
+func (s *mediaGetterSrv) handleFile(ctx context.Context, strg Storage, media *model.Media) (*GetMediaOutput, error) {
 	url, err := strg.GeneratePresignedDownloadURL(ctx, media.ObjectKey, DownloadUrlTTL)
 	if err != nil {
-		return GetMediaOutput{}, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
+		return nil, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
 	}
 
 	mt := MetadataOutput{
@@ -98,5 +105,8 @@ func (s *mediaGetterSrv) handleFile(ctx context.Context, strg Storage, media *mo
 		output.Variants = variants
 	}
 
-	return output, nil
+	// Store in cache for next time
+	_ = s.cache.SetMediaDetails(ctx, media.ID, &output)
+
+	return &output, nil
 }

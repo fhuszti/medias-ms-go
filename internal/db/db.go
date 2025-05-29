@@ -37,7 +37,7 @@ func New(dsn string, maxOpen, maxIdle int, connMaxLifetime time.Duration) (*Data
 
 func NewFromConfig(cfg MariaDbConfig) (*Database, error) {
 	return New(
-		cfg.Dsn,
+		cfg.DSN,
 		cfg.MaxOpenConns,
 		cfg.MaxIdleConns,
 		cfg.ConnMaxLifetime,
