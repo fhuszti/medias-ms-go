@@ -15,3 +15,17 @@ Performant microservice to manage files uploads via a neat API
 - run the server with either:
   - ``air`` (dev mode, with hot reload) 
   - or with ``go run ./cmd/api/``
+
+## Redis (optional)
+
+Redis is used to enable:
+- Background image optimization (resize, compress)
+- Optional caching for faster media retrieval
+
+If Redis is not configured:
+- Media uploads will still work fully
+- Optimisation will be skipped
+- Cache layers will be bypassed (data always comes from DB)
+
+To enable Redis:
+- Set `REDIS_ADDR` in your environment
