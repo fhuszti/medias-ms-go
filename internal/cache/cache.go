@@ -56,13 +56,19 @@ func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.Get
 		return fmt.Errorf("marshal failed: %w", err)
 	}
 
-	return c.client.Set(ctx, getCacheKey(id.String()), data, time.Until(mOut.ValidUntil)).Err()
+	if err := c.client.Set(ctx, getCacheKey(id.String()), data, time.Until(mOut.ValidUntil)).Err(); err != nil {
+		return fmt.Errorf("redis set failed: %w", err)
+	}
+	return nil
 }
 
 func (c *Cache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
 	log.Printf("deleting entry in cache for media #%s...", id)
-	
-	return c.client.Del(ctx, getCacheKey(id.String())).Err()
+
+	if err := c.client.Del(ctx, getCacheKey(id.String())).Err(); err != nil {
+		return fmt.Errorf("redis del failed: %w", err)
+	}
+	return nil
 }
 
 func getCacheKey(id string) string {
