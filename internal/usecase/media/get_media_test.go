@@ -160,6 +160,10 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 		t.Errorf("GeneratePresignedDownloadURL got ttl %v, want %v", strg.ttl, DownloadUrlTTL)
 	}
 
+	if !cache.setMediaCalled {
+		t.Errorf("cache SetMedia should be called")
+	}
+
 	if out.URL != "https://example.com/upload" {
 		t.Errorf("URL = %q, want 'https://example.com/upload'", out.URL)
 	}
