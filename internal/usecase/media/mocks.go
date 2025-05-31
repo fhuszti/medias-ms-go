@@ -126,3 +126,34 @@ func (m *mockStorageGetter) Get(bucket string) (Storage, error) {
 	}
 	return m.strg, nil
 }
+
+type mockCache struct {
+	out *GetMediaOutput
+
+	getMediaErr error
+	setMediaErr error
+	delMediaErr error
+
+	getMediaCalled bool
+	setMediaCalled bool
+	delMediaCalled bool
+}
+
+func (c *mockCache) GetMediaDetails(ctx context.Context, id db.UUID) (*GetMediaOutput, error) {
+	c.getMediaCalled = true
+	if c.getMediaErr != nil {
+		return nil, c.getMediaErr
+	}
+	return c.out, nil
+}
+
+func (c *mockCache) SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput) error {
+	c.setMediaCalled = true
+	c.out = value
+	return c.setMediaErr
+}
+
+func (c *mockCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
+	c.delMediaCalled = true
+	return c.delMediaErr
+}

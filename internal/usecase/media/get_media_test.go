@@ -11,7 +11,8 @@ import (
 
 func TestGetMedia_RepoError(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
-	svc := NewMediaGetter(repo, (&mockStorageGetter{}).Get)
+	cache := &mockCache{}
+	svc := NewMediaGetter(repo, cache, (&mockStorageGetter{}).Get)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	if err == nil {
@@ -22,7 +23,8 @@ func TestGetMedia_RepoError(t *testing.T) {
 func TestGetMedia_WrongStatus(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending}
 	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewMediaGetter(repo, (&mockStorageGetter{}).Get)
+	cache := &mockCache{}
+	svc := NewMediaGetter(repo, cache, (&mockStorageGetter{}).Get)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	want := "media status should be 'completed' to be returned"
@@ -34,7 +36,8 @@ func TestGetMedia_WrongStatus(t *testing.T) {
 func TestGetMedia_UnknownBucket(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusCompleted, Bucket: "wrong"}
 	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewMediaGetter(repo, (&mockStorageGetter{err: errors.New("no such bucket")}).Get)
+	cache := &mockCache{}
+	svc := NewMediaGetter(repo, cache, (&mockStorageGetter{err: errors.New("no such bucket")}).Get)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	wantPrefix := "unknown target bucket"
@@ -47,8 +50,9 @@ func TestGetMedia_HandleFile_URLGenError(t *testing.T) {
 	mt := "image/png"
 	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
 	repo := &mockRepo{mediaRecord: mrec}
+	cache := &mockCache{}
 	strg := &mockStorage{generateDownloadLinkError: errors.New("link generation failed")}
-	svc := NewMediaGetter(repo, (&mockStorageGetter{strg: strg}).Get)
+	svc := NewMediaGetter(repo, cache, (&mockStorageGetter{strg: strg}).Get)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	wantPrefix := "error generating presigned download URL"
@@ -85,8 +89,9 @@ func TestGetMedia_HandleFile_VariantSuccess(t *testing.T) {
 		},
 	}
 	repo := &mockRepo{mediaRecord: mrec}
+	cache := &mockCache{}
 	strg := &mockStorage{}
-	svc := NewMediaGetter(repo, (&mockStorageGetter{strg: strg}).Get)
+	svc := NewMediaGetter(repo, cache, (&mockStorageGetter{strg: strg}).Get)
 
 	out, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	if err != nil {
