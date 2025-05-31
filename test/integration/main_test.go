@@ -5,12 +5,18 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"os"
+	"runtime"
 	"testing"
 )
 
 var GlobalMinioClient *storage.Strg
 
 func TestMain(m *testing.M) {
+	if runtime.GOOS == "windows" {
+		// Docker Desktop on Windows typically listens to the named pipe:
+		os.Setenv("DOCKER_HOST", "npipe:////./pipe/docker_engine")
+	}
+
 	code := func() int {
 		dbCleanup, err := setupMariaDB()
 		if err != nil {

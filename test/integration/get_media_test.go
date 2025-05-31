@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
@@ -40,10 +41,11 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 	defer tb.Cleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
+	ca := cache.NewNoop()
 	getStrg := func(bucket string) (mediaSvc.Storage, error) {
 		return tb.StrgClient.WithBucket(bucket)
 	}
-	svc := mediaSvc.NewMediaGetter(mediaRepo, getStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
@@ -128,10 +130,11 @@ func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 	defer tb.Cleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
+	ca := cache.NewNoop()
 	getStrg := func(bucket string) (mediaSvc.Storage, error) {
 		return tb.StrgClient.WithBucket(bucket)
 	}
-	svc := mediaSvc.NewMediaGetter(mediaRepo, getStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
@@ -209,10 +212,11 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 	defer tb.Cleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(testDB.DB)
+	ca := cache.NewNoop()
 	getStrg := func(bucket string) (mediaSvc.Storage, error) {
 		return tb.StrgClient.WithBucket(bucket)
 	}
-	svc := mediaSvc.NewMediaGetter(mediaRepo, getStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
@@ -328,10 +332,11 @@ func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 	defer tb.Cleanup()
 
 	repo := mariadb.NewMediaRepository(testDB.DB)
+	ca := cache.NewNoop()
 	getStrg := func(b string) (mediaSvc.Storage, error) {
 		return tb.StrgClient.WithBucket(b)
 	}
-	svc := mediaSvc.NewMediaGetter(repo, getStrg)
+	svc := mediaSvc.NewMediaGetter(repo, ca, getStrg)
 
 	r := chi.NewRouter()
 	r.With(mediaHandler.WithID()).Get("/medias/{id}", mediaHandler.GetMediaHandler(svc))
@@ -364,7 +369,7 @@ func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 func TestGetMediaIntegration_ErrorInvalidID(t *testing.T) {
 	// no DB or bucket setup needed, middleware will reject
 	repo := mariadb.NewMediaRepository(nil)
-	svc := mediaSvc.NewMediaGetter(repo, nil)
+	svc := mediaSvc.NewMediaGetter(repo, nil, nil)
 
 	r := chi.NewRouter()
 	r.With(mediaHandler.WithID()).Get("/medias/{id}", mediaHandler.GetMediaHandler(svc))

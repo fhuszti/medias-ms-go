@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -61,7 +62,8 @@ func TestUploadImageE2E(t *testing.T) {
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, storages["staging"], db.NewUUID)
 	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, storages["staging"], getDest)
-	getterSvc := mediaSvc.NewMediaGetter(repo, getDest)
+	ca := cache.NewNoop()
+	getterSvc := mediaSvc.NewMediaGetter(repo, ca, getDest)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
@@ -237,7 +239,8 @@ func TestUploadMarkdownE2E(t *testing.T) {
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, storages["staging"], db.NewUUID)
 	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, storages["staging"], getDest)
-	getterSvc := mediaSvc.NewMediaGetter(repo, getDest)
+	ca := cache.NewNoop()
+	getterSvc := mediaSvc.NewMediaGetter(repo, ca, getDest)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
@@ -419,7 +422,8 @@ func TestUploadPDFE2E(t *testing.T) {
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, storages["staging"], db.NewUUID)
 	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, storages["staging"], getDest)
-	getterSvc := mediaSvc.NewMediaGetter(repo, getDest)
+	ca := cache.NewNoop()
+	getterSvc := mediaSvc.NewMediaGetter(repo, ca, getDest)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
