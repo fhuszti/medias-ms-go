@@ -44,7 +44,7 @@ type GetMediaOutput struct {
 }
 
 func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error) {
-	// Try Redis first
+	// Try the cache first
 	cachedOut, err := s.cache.GetMediaDetails(ctx, in.ID)
 	if err == nil && cachedOut != nil {
 		return cachedOut, nil
@@ -66,10 +66,6 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMe
 		return nil, fmt.Errorf("unknown target bucket %q: %w", media.Bucket, err)
 	}
 
-	return s.handleFile(ctx, strg, media)
-}
-
-func (s *mediaGetterSrv) handleFile(ctx context.Context, strg Storage, media *model.Media) (*GetMediaOutput, error) {
 	url, err := strg.GeneratePresignedDownloadURL(ctx, media.ObjectKey, DownloadUrlTTL)
 	if err != nil {
 		return nil, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)

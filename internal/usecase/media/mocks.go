@@ -16,11 +16,13 @@ type mockRepo struct {
 	createErr error
 	updateErr error
 
-	created *model.Media
-	updated *model.Media
+	getCalled bool
+	created   *model.Media
+	updated   *model.Media
 }
 
 func (m *mockRepo) GetByID(ctx context.Context, id db.UUID) (*model.Media, error) {
+	m.getCalled = true
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
