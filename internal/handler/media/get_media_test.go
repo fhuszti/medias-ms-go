@@ -23,9 +23,9 @@ type mockGetter struct {
 	in  mediaSvc.GetMediaInput
 }
 
-func (m *mockGetter) GetMedia(ctx context.Context, in mediaSvc.GetMediaInput) (mediaSvc.GetMediaOutput, error) {
+func (m *mockGetter) GetMedia(ctx context.Context, in mediaSvc.GetMediaInput) (*mediaSvc.GetMediaOutput, error) {
 	m.in = in
-	return m.out, m.err
+	return &m.out, m.err
 }
 
 func TestGetMediaHandler(t *testing.T) {
