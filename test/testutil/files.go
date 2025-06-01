@@ -45,7 +45,7 @@ func GenerateMarkdown() []byte {
 
 // LoadPDF loads a sample PDF (4 pages)
 func LoadPDF(t *testing.T) []byte {
-	content, err := os.ReadFile("../resources/sample.pdf")
+	content, err := os.ReadFile("../testdata/sample.pdf")
 	if err != nil {
 		t.Fatalf("could not read sample PDF: %v", err)
 	}
