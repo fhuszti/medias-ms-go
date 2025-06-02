@@ -36,3 +36,8 @@ type Cache interface {
 	GetMediaDetails(ctx context.Context, id db.UUID) (*GetMediaOutput, error)
 	SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput) error
 }
+
+type Optimiser interface {
+	Compress(mimeType string, r io.Reader) ([]byte, error)
+	Resize(mimeType string, r io.Reader, width, height int) ([]byte, error)
+}
