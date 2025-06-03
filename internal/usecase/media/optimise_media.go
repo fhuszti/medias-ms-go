@@ -1,13 +1,14 @@
 package media
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"golang.org/x/net/context"
+	"io"
+	"log"
 	"path/filepath"
 	"strings"
 )
@@ -47,19 +48,26 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 		return err
 	}
 
-	file, err := strg.GetFile(ctx, media.ObjectKey)
+	originalReader, err := strg.GetFile(ctx, media.ObjectKey)
 	if err != nil {
 		return err
 	}
+	defer func(originalReader io.ReadCloser) {
+		_ = originalReader.Close()
+	}(originalReader)
 
-	compressedFile, mimeType, err := m.opt.Compress(*media.MimeType, file)
+	// Actually do the compression here
+	compressedReader, newMimeType, err := m.opt.Compress(*media.MimeType, originalReader)
 	if err != nil {
 		return err
 	}
+	defer func(compressedReader io.ReadCloser) {
+		_ = compressedReader.Close()
+	}(compressedReader)
 
 	newObjectKey := media.ObjectKey
-	if mimeType != *media.MimeType {
-		ext, err := MimeTypeToExtension(mimeType)
+	if newMimeType != *media.MimeType {
+		ext, err := MimeTypeToExtension(newMimeType)
 		if err != nil {
 			return err
 		}
@@ -67,23 +75,46 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 		newObjectKey = strings.TrimSuffix(media.ObjectKey, filepath.Ext(media.ObjectKey)) + ext
 	}
 
-	newSize := int64(len(compressedFile))
-
+	// Save compressed file to tmp file (failsafe in case it breaks in the middle)
+	tempKey := newObjectKey + ".tmp"
 	if err := strg.SaveFile(
 		ctx,
-		newObjectKey,
-		bytes.NewReader(compressedFile),
-		newSize,
+		tempKey,
+		compressedReader,
+		-1, // streaming mode
 		map[string]string{
-			"Content-Type": mimeType,
+			"Content-Type": newMimeType,
 		},
 	); err != nil {
-		return err
+		return fmt.Errorf("failed to save temp file %q inside bucket %q: %w", tempKey, media.Bucket, err)
 	}
+
+	// Copy the finished tmp file to its final object key
+	if err := strg.CopyFile(ctx, tempKey, newObjectKey); err != nil {
+		return fmt.Errorf("failed to copy %q→%q inside bucket %q: %w", tempKey, newObjectKey, media.Bucket, err)
+	}
+
+	// Remove the tmp file
+	if err := strg.RemoveFile(ctx, tempKey); err != nil {
+		log.Printf("warning: failed to remove temp file %q from bucket %q: %v", tempKey, media.Bucket, err)
+	}
+
+	// If the file extension has changed, remove the original
+	if newObjectKey != media.ObjectKey {
+		if err := strg.RemoveFile(ctx, media.ObjectKey); err != nil {
+			log.Printf("warning: failed to remove old file %q from bucket %q: %v", media.ObjectKey, media.Bucket, err)
+		}
+	}
+
+	info, err := strg.StatFile(ctx, newObjectKey)
+	if err != nil {
+		return fmt.Errorf("failed reading info about file %q inside bucket %q: %w", newObjectKey, media.Bucket, err)
+	}
+	newSize := info.SizeBytes
 
 	media.Optimised = true
 	media.SizeBytes = &newSize
-	media.MimeType = &mimeType
+	media.MimeType = &newMimeType
 	media.ObjectKey = newObjectKey
 
 	if err := m.repo.Update(ctx, media); err != nil {

@@ -1,7 +1,6 @@
 package optimiser
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	_ "golang.org/x/image/webp"
@@ -33,76 +32,100 @@ func NewFileOptimiser(webpEnc WebPEncoder, pdfOpt PDFOptimizer) *FileOptimiser {
 //   - Images (JPEG, PNG, WebP): always convert to lossy WebP @ quality=80.
 //   - PDFs (application/pdf): run pdfcpu.Optimize to strip unused objects.
 //   - Everything else (e.g. markdown): read as-is and return raw bytes.
-func (fo *FileOptimiser) Compress(mimeType string, r io.Reader) ([]byte, string, error) {
-	switch mimeType {
-	case "image/jpeg", "image/png", "image/webp":
-		img, _, err := fo.webpEnc.Decode(r)
-		if err != nil {
-			return nil, "", fmt.Errorf("optimiser: failed to decode image: %w", err)
-		}
+func (fo *FileOptimiser) Compress(mimeType string, r io.Reader) (io.ReadCloser, string, error) {
+	log.Printf("compressing  file of type %q...", mimeType)
 
-		buf := &bytes.Buffer{}
-		if err := fo.webpEnc.Encode(img, 80, buf); err != nil {
-			return nil, "", fmt.Errorf("optimiser: failed to encode WebP: %w", err)
-		}
-		return buf.Bytes(), "image/webp", nil
+	pr, pw := io.Pipe()
 
-	case "application/pdf":
-		// Create a temp file to write the incoming PDF
-		inFile, err := os.CreateTemp("", "pdf_in_*.pdf")
-		if err != nil {
-			return nil, "", fmt.Errorf("optimiser: could not create temp input PDF: %w", err)
-		}
-		defer func(name string) {
-			err := os.Remove(name)
+	go func() {
+		defer func(pw *io.PipeWriter) {
+			_ = pw.Close()
+		}(pw)
+
+		switch mimeType {
+		case "image/jpeg", "image/png", "image/webp":
+			img, _, err := fo.webpEnc.Decode(r)
 			if err != nil {
-				log.Printf("failed to remove in temp file %q: %v", name, err)
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to decode image: %w", err))
+				return
 			}
-		}(inFile.Name())
+			// Re-encode as WebP@80 directly into pw
+			if err := fo.webpEnc.Encode(img, 80, pw); err != nil {
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to encode WebP: %w", err))
+				return
+			}
 
-		// Copy the entire reader into the temp file
-		if _, err := io.Copy(inFile, r); err != nil {
+		case "application/pdf":
+			// Write incoming PDF to a temp file
+			inFile, err := os.CreateTemp("", "pdf_in_*.pdf")
+			if err != nil {
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: could not create temp input PDF: %w", err))
+				return
+			}
+			inName := inFile.Name()
+			if _, err := io.Copy(inFile, r); err != nil {
+				_ = inFile.Close()
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to write temp input PDF: %w", err))
+				return
+			}
 			_ = inFile.Close()
-			return nil, "", fmt.Errorf("optimiser: failed to write temp input PDF: %w", err)
-		}
-		_ = inFile.Close()
+			defer func(name string) {
+				_ = os.Remove(name)
+			}(inName)
 
-		// Create a temp file for the optimised PDF output
-		outFile, err := os.CreateTemp("", "pdf_out_*.pdf")
-		if err != nil {
-			return nil, "", fmt.Errorf("optimiser: could not create temp output PDF: %w", err)
-		}
-		_ = outFile.Close()
-		defer func(name string) {
-			err := os.Remove(name)
+			// Create a temp output path
+			outFile, err := os.CreateTemp("", "pdf_out_*.pdf")
 			if err != nil {
-				log.Printf("failed to remove out temp file %q: %v", name, err)
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: could not create temp output PDF: %w", err))
+				return
 			}
-		}(outFile.Name())
+			outName := outFile.Name()
+			_ = outFile.Close()
+			defer func(name string) {
+				_ = os.Remove(name)
+			}(outName)
 
-		// Losslessly optimise
-		if err := fo.pdfOpt.OptimizeFile(inFile.Name(), outFile.Name()); err != nil {
-			return nil, "", fmt.Errorf("optimiser: pdfcpu optimization failed: %w", err)
-		}
+			// Optimize on disk
+			if err := fo.pdfOpt.OptimizeFile(inName, outName); err != nil {
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: pdf optimisation failed: %w", err))
+				return
+			}
 
-		// Read back the optimised PDF bytes
-		data, err := os.ReadFile(outFile.Name())
-		if err != nil {
-			return nil, "", fmt.Errorf("optimiser: failed to read optimized PDF: %w", err)
-		}
-		return data, "application/pdf", nil
+			// Stream optimised PDF back into pw
+			optimised, err := os.Open(outName)
+			if err != nil {
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to open optimised PDF: %w", err))
+				return
+			}
+			defer func(optimised *os.File) {
+				_ = optimised.Close()
+			}(optimised)
 
-	default:
-		// For Markdown or any other MIME type, just read & return as-is
-		data, err := io.ReadAll(r)
-		if err != nil {
-			return nil, "", fmt.Errorf("optimiser: failed to read data: %w", err)
+			if _, err := io.Copy(pw, optimised); err != nil {
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to stream optimised PDF: %w", err))
+				return
+			}
+
+		default:
+			// All other types: pipe raw bytes directly
+			if _, err := io.Copy(pw, r); err != nil {
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to stream raw data: %w", err))
+				return
+			}
 		}
-		return data, mimeType, nil
+	}()
+
+	newMimeType := mimeType
+	if media.IsImage(mimeType) {
+		newMimeType = "image/webp"
 	}
+
+	return pr, newMimeType, nil
 }
 
 func (fo *FileOptimiser) Resize(mimeType string, r io.Reader, width, height int) ([]byte, error) {
+	log.Printf("resizing image of type %q...", mimeType)
+
 	//TODO implement me
 	panic("implement me")
 }
