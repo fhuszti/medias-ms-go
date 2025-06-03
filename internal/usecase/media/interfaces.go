@@ -38,6 +38,6 @@ type Cache interface {
 }
 
 type FileOptimiser interface {
-	Compress(mimeType string, r io.Reader) ([]byte, error)
+	Compress(mimeType string, r io.Reader) ([]byte, string, error)
 	Resize(mimeType string, r io.Reader, width, height int) ([]byte, error)
 }
