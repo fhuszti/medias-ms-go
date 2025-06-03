@@ -1,4 +1,4 @@
-package handler
+package api
 
 type Config struct {
 	JWTSecret string

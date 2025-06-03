@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/cache"
-	"github.com/fhuszti/medias-ms-go/internal/handler"
-	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"log"
 	"net/http"
 	"os"
@@ -15,12 +12,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
+	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
+	"github.com/fhuszti/medias-ms-go/internal/storage"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -47,7 +45,7 @@ func main() {
 	}
 
 	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, storages["staging"], db.NewUUID)
-	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
+	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
 	var getStrgFromBucket mediaSvc.StorageGetter = func(bucket string) (mediaSvc.Storage, error) {
 		st, ok := storages[bucket]
@@ -57,12 +55,12 @@ func main() {
 		return st, nil
 	}
 	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, storages["staging"], getStrgFromBucket)
-	r.With(mediaHandler.WithDestBucket(cfg.Buckets)).
-		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(uploadFinaliserSvc))
+	r.With(api.WithDestBucket(cfg.Buckets)).
+		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(uploadFinaliserSvc))
 
 	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrgFromBucket)
-	r.With(mediaHandler.WithID()).
-		Get("/medias/{id}", mediaHandler.GetMediaHandler(getMediaSvc))
+	r.With(api.WithID()).
+		Get("/medias/{id}", api.GetMediaHandler(getMediaSvc))
 
 	listenRouter(r, cfg, database)
 }
@@ -92,8 +90,8 @@ func initRouter() *chi.Mux {
 
 	r.Use(middleware.Logger)
 
-	r.NotFound(handler.NotFoundHandler())
-	r.MethodNotAllowed(handler.MethodNotAllowedHandler())
+	r.NotFound(api.NotFoundHandler())
+	r.MethodNotAllowed(api.MethodNotAllowedHandler())
 
 	return r
 }

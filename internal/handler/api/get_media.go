@@ -1,8 +1,7 @@
-package media
+package api
 
 import (
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/handler"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"log"
 	"net/http"
@@ -12,7 +11,7 @@ func GetMediaHandler(svc media.Getter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := IDFromContext(r.Context())
 		if !ok {
-			handler.WriteError(w, http.StatusBadRequest, "ID is required", nil)
+			WriteError(w, http.StatusBadRequest, "ID is required", nil)
 			return
 		}
 
@@ -20,10 +19,10 @@ func GetMediaHandler(svc media.Getter) http.HandlerFunc {
 		out, err := svc.GetMedia(r.Context(), in)
 		if err != nil {
 			if errors.Is(err, media.ErrObjectNotFound) {
-				handler.WriteError(w, http.StatusNotFound, "Media not found", nil)
+				WriteError(w, http.StatusNotFound, "Media not found", nil)
 				return
 			}
-			handler.WriteError(w, http.StatusInternalServerError, "Could not get media details", err)
+			WriteError(w, http.StatusInternalServerError, "Could not get media details", err)
 			return
 		}
 
@@ -40,7 +39,7 @@ func GetMediaHandler(svc media.Getter) http.HandlerFunc {
 			w.Header().Set("Cache-Control", "no-store, max-age=0, must-revalidate")
 		}
 
-		handler.RespondJSON(w, http.StatusOK, out)
+		RespondJSON(w, http.StatusOK, out)
 		log.Printf("✅  Successfully returned details for media #%s", in.ID)
 	}
 }

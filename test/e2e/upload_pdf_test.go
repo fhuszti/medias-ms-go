@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
+	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
@@ -67,11 +67,11 @@ func TestUploadImageE2E(t *testing.T) {
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
-	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkSvc))
-	r.With(mediaHandler.WithDestBucket([]string{"staging", "images"})).
-		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(finaliserSvc))
-	r.With(mediaHandler.WithID()).
-		Get("/medias/{id}", mediaHandler.GetMediaHandler(getterSvc))
+	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
+	r.With(api.WithDestBucket([]string{"staging", "images"})).
+		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(finaliserSvc))
+	r.With(api.WithID()).
+		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
@@ -244,11 +244,11 @@ func TestUploadMarkdownE2E(t *testing.T) {
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
-	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkSvc))
-	r.With(mediaHandler.WithDestBucket([]string{"staging", "docs"})).
-		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(finaliserSvc))
-	r.With(mediaHandler.WithID()).
-		Get("/medias/{id}", mediaHandler.GetMediaHandler(getterSvc))
+	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
+	r.With(api.WithDestBucket([]string{"staging", "docs"})).
+		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(finaliserSvc))
+	r.With(api.WithID()).
+		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()
@@ -427,11 +427,11 @@ func TestUploadPDFE2E(t *testing.T) {
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
-	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(uploadLinkSvc))
-	r.With(mediaHandler.WithDestBucket([]string{"staging", "docs"})).
-		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(finaliserSvc))
-	r.With(mediaHandler.WithID()).
-		Get("/medias/{id}", mediaHandler.GetMediaHandler(getterSvc))
+	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
+	r.With(api.WithDestBucket([]string{"staging", "docs"})).
+		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(finaliserSvc))
+	r.With(api.WithID()).
+		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
 
 	ts := httptest.NewServer(r)
 	defer ts.Close()

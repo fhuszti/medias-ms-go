@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
+	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
@@ -113,7 +113,7 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 
 func TestGenerateUploadLinkIntegration_ErrorValidation(t *testing.T) {
 	r := chi.NewRouter()
-	r.Post("/medias/generate_upload_link", mediaHandler.GenerateUploadLinkHandler(nil))
+	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(nil))
 
 	// Missing `name` entirely
 	req := httptest.NewRequest(http.MethodPost, "/medias/generate_upload_link", strings.NewReader(`{}`))

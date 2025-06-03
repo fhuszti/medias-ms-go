@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	mediaHandler "github.com/fhuszti/medias-ms-go/internal/handler/media"
+	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
@@ -657,8 +657,8 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 func TestFinaliseUploadIntegration_ErrorInvalidBucket(t *testing.T) {
 	r := chi.NewRouter()
 	allowed := []string{"images", "docs"}
-	r.With(mediaHandler.WithDestBucket(allowed)).
-		Post("/medias/finalise_upload/{destBucket}", mediaHandler.FinaliseUploadHandler(nil))
+	r.With(api.WithDestBucket(allowed)).
+		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(nil))
 
 	req := httptest.NewRequest("POST", "/medias/finalise_upload/not-a-bucket", nil)
 	rec := httptest.NewRecorder()
