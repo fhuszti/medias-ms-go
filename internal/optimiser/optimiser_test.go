@@ -69,7 +69,7 @@ func TestCompress_ImagePath_Success(t *testing.T) {
 	const expected = "HELLOIMG"
 	wEnc := &fakeWebPEncoder{returnBytes: []byte(expected)}
 	pOpt := &fakePDFOptimizer{}
-	opt := NewOptimiser(wEnc, pOpt)
+	opt := NewFileOptimiser(wEnc, pOpt)
 
 	out, err := opt.Compress("image/png", strings.NewReader("ignored"))
 	if err != nil {
@@ -83,7 +83,7 @@ func TestCompress_ImagePath_Success(t *testing.T) {
 func TestCompress_ImagePath_DecodeError(t *testing.T) {
 	wEnc := &fakeWebPEncoder{returnDecodeErr: errors.New("decode failed")}
 	pOpt := &fakePDFOptimizer{}
-	opt := NewOptimiser(wEnc, pOpt)
+	opt := NewFileOptimiser(wEnc, pOpt)
 
 	_, err := opt.Compress("image/jpeg", strings.NewReader("irrelevant"))
 	if err == nil {
@@ -97,7 +97,7 @@ func TestCompress_ImagePath_DecodeError(t *testing.T) {
 func TestCompress_ImagePath_EncodeError(t *testing.T) {
 	wEnc := &fakeWebPEncoder{returnEncodeErr: errors.New("encode failed")}
 	pOpt := &fakePDFOptimizer{}
-	opt := NewOptimiser(wEnc, pOpt)
+	opt := NewFileOptimiser(wEnc, pOpt)
 
 	_, err := opt.Compress("image/webp", strings.NewReader("irrelevant"))
 	if err == nil {
@@ -128,7 +128,7 @@ func TestCompress_PDFPath_Success(t *testing.T) {
 
 	wEnc := &fakeWebPEncoder{}
 	pOpt := &fakePDFOptimizer{}
-	opt := NewOptimiser(wEnc, pOpt)
+	opt := NewFileOptimiser(wEnc, pOpt)
 
 	f, err := os.Open(tmpIn.Name())
 	if err != nil {
@@ -154,7 +154,7 @@ func TestCompress_PDFPath_Failure(t *testing.T) {
 	fakeErr := errors.New("pdf failed")
 	wEnc := &fakeWebPEncoder{}
 	pOpt := &fakePDFOptimizer{returnErr: fakeErr}
-	opt := NewOptimiser(wEnc, pOpt)
+	opt := NewFileOptimiser(wEnc, pOpt)
 
 	tmpIn, err := os.CreateTemp("", "unit_pdf_in_*.pdf")
 	if err != nil {
@@ -195,7 +195,7 @@ func TestCompress_PDFPath_Failure(t *testing.T) {
 func TestCompress_OtherPath_Success(t *testing.T) {
 	wEnc := &fakeWebPEncoder{}
 	pOpt := &fakePDFOptimizer{}
-	opt := NewOptimiser(wEnc, pOpt)
+	opt := NewFileOptimiser(wEnc, pOpt)
 
 	data := []byte("plain text here")
 	out, err := opt.Compress("text/plain", bytes.NewReader(data))
@@ -210,7 +210,7 @@ func TestCompress_OtherPath_Success(t *testing.T) {
 func TestCompress_OtherPath_ReadError(t *testing.T) {
 	wEnc := &fakeWebPEncoder{}
 	pOpt := &fakePDFOptimizer{}
-	opt := NewOptimiser(wEnc, pOpt)
+	opt := NewFileOptimiser(wEnc, pOpt)
 
 	errReader := &errorReader{returnErr: errors.New("read failed")}
 	_, err := opt.Compress("text/plain", errReader)

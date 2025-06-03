@@ -7,27 +7,27 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-const TypeCompressMedia = "media:compress"
+const TypeOptimiseMedia = "media:optimise"
 
-type CompressMediaPayload struct {
+type OptimiseMediaPayload struct {
 	MediaID string `json:"media_id"`
 }
 
-// NewCompressMediaTask creates an Asynq task for compressing a media by ID.
-func NewCompressMediaTask(mediaID string) (*asynq.Task, error) {
-	p := CompressMediaPayload{MediaID: mediaID}
+// NewOptimiseMediaTask creates an Asynq task for optimising a media by ID.
+func NewOptimiseMediaTask(mediaID string) (*asynq.Task, error) {
+	p := OptimiseMediaPayload{MediaID: mediaID}
 	data, err := json.Marshal(p)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal compress-media payload: %w", err)
+		return nil, fmt.Errorf("could not marshal optimise-media payload: %w", err)
 	}
-	return asynq.NewTask(TypeCompressMedia, data), nil
+	return asynq.NewTask(TypeOptimiseMedia, data), nil
 }
 
-// ParseCompressMediaPayload parses the task payload to CompressMediaPayload.
-func ParseCompressMediaPayload(t *asynq.Task) (CompressMediaPayload, error) {
-	var p CompressMediaPayload
+// ParseOptimiseMediaPayload parses the task payload to OptimiseMediaPayload.
+func ParseOptimiseMediaPayload(t *asynq.Task) (OptimiseMediaPayload, error) {
+	var p OptimiseMediaPayload
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
-		return CompressMediaPayload{}, fmt.Errorf("could not unmarshal payload: %w", err)
+		return OptimiseMediaPayload{}, fmt.Errorf("could not unmarshal payload: %w", err)
 	}
 	return p, nil
 }
