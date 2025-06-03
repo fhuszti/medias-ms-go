@@ -2,178 +2,222 @@ package optimiser
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
-	"image/jpeg"
-	"image/png"
+	"image/draw"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/chai2010/webp"
 	_ "golang.org/x/image/webp"
 )
 
-// helper: generate a 2x2 red PNG, return its bytes.Reader and error
-func generatePNG() (io.Reader, error) {
-	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
-	// fill with red
-	for x := 0; x < 2; x++ {
-		for y := 0; y < 2; y++ {
-			img.Set(x, y, color.RGBA{R: 255, A: 255})
+type fakeWebPEncoder struct {
+	returnDecodeErr error
+	returnEncodeErr error
+	returnBytes     []byte
+}
+
+func (f *fakeWebPEncoder) Decode(r io.Reader) (image.Image, string, error) {
+	if f.returnDecodeErr != nil {
+		return nil, "", f.returnDecodeErr
+	}
+	// Just return a 1x1 image
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{R: 255, A: 255}}, image.Point{}, draw.Src)
+	return img, "png", nil
+}
+
+func (f *fakeWebPEncoder) Encode(img image.Image, quality int, w io.Writer) error {
+	if f.returnEncodeErr != nil {
+		return f.returnEncodeErr
+	}
+	if f.returnBytes != nil {
+		_, _ = w.Write(f.returnBytes)
+	}
+	return nil
+}
+
+type fakePDFOptimizer struct {
+	returnErr error
+}
+
+func (f *fakePDFOptimizer) OptimizeFile(inPath, outPath string) error {
+	if f.returnErr != nil {
+		return f.returnErr
+	}
+	// Simply read inPath and write to outPath
+	data, err := os.ReadFile(inPath)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(outPath, data, 0644)
+}
+
+// errorReader always returns an error on Read.
+type errorReader struct {
+	returnErr error
+}
+
+func (e *errorReader) Read(p []byte) (int, error) {
+	return 0, e.returnErr
+}
+
+func TestCompress_ImagePath_Success(t *testing.T) {
+	const expected = "HELLOIMG"
+	wEnc := &fakeWebPEncoder{returnBytes: []byte(expected)}
+	pOpt := &fakePDFOptimizer{}
+	opt := NewOptimiser(wEnc, pOpt)
+
+	out, err := opt.Compress("image/png", strings.NewReader("ignored"))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if string(out) != expected {
+		t.Errorf("expected %q, got %q", expected, string(out))
+	}
+}
+
+func TestCompress_ImagePath_DecodeError(t *testing.T) {
+	wEnc := &fakeWebPEncoder{returnDecodeErr: errors.New("decode failed")}
+	pOpt := &fakePDFOptimizer{}
+	opt := NewOptimiser(wEnc, pOpt)
+
+	_, err := opt.Compress("image/jpeg", strings.NewReader("irrelevant"))
+	if err == nil {
+		t.Fatal("expected decode error, got nil")
+	}
+	if !strings.Contains(err.Error(), "decode failed") {
+		t.Errorf("expected decode error message, got %q", err.Error())
+	}
+}
+
+func TestCompress_ImagePath_EncodeError(t *testing.T) {
+	wEnc := &fakeWebPEncoder{returnEncodeErr: errors.New("encode failed")}
+	pOpt := &fakePDFOptimizer{}
+	opt := NewOptimiser(wEnc, pOpt)
+
+	_, err := opt.Compress("image/webp", strings.NewReader("irrelevant"))
+	if err == nil {
+		t.Fatal("expected encode error, got nil")
+	}
+	if !strings.Contains(err.Error(), "encode failed") {
+		t.Errorf("expected encode error message, got %q", err.Error())
+	}
+}
+
+func TestCompress_PDFPath_Success(t *testing.T) {
+	tmpIn, err := os.CreateTemp("", "unit_pdf_in_*.pdf")
+	if err != nil {
+		t.Fatalf("could not create temp input PDF: %v", err)
+	}
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Logf("failed to remove temp file %q: %v", name, err)
 		}
+	}(tmpIn.Name())
+	const pdfContent = "%PDF-UNIT-TEST"
+	if _, err := tmpIn.WriteString(pdfContent); err != nil {
+		_ = tmpIn.Close()
+		t.Fatalf("could not write to temp PDF: %v", err)
 	}
-	buf := &bytes.Buffer{}
-	if err := png.Encode(buf, img); err != nil {
-		return nil, err
-	}
-	return bytes.NewReader(buf.Bytes()), nil
-}
+	_ = tmpIn.Close()
 
-// helper: generate a 2x2 red JPEG, return its bytes.Reader and error
-func generateJPEG() (io.Reader, error) {
-	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
-	for x := 0; x < 2; x++ {
-		for y := 0; y < 2; y++ {
-			img.Set(x, y, color.RGBA{G: 255, A: 255})
-		}
-	}
-	buf := &bytes.Buffer{}
-	if err := jpeg.Encode(buf, img, &jpeg.Options{Quality: 90}); err != nil {
-		return nil, err
-	}
-	return bytes.NewReader(buf.Bytes()), nil
-}
+	wEnc := &fakeWebPEncoder{}
+	pOpt := &fakePDFOptimizer{}
+	opt := NewOptimiser(wEnc, pOpt)
 
-// helper: generate a 2x2 blue WebP, return its bytes.Reader and error
-func generateWebP() (io.Reader, error) {
-	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
-	for x := 0; x < 2; x++ {
-		for y := 0; y < 2; y++ {
-			img.Set(x, y, color.RGBA{B: 255, A: 255})
-		}
-	}
-	buf := &bytes.Buffer{}
-	// encode as lossy WebP (though colour is solid, doesn't matter)
-	if err := webp.Encode(buf, img, &webp.Options{Quality: 80}); err != nil {
-		return nil, err
-	}
-	return bytes.NewReader(buf.Bytes()), nil
-}
-
-func TestCompressPNG(t *testing.T) {
-	r, err := generatePNG()
+	f, err := os.Open(tmpIn.Name())
 	if err != nil {
-		t.Fatalf("failed to generate PNG: %v", err)
-	}
-
-	out, err := Compress("image/png", r)
-	if err != nil {
-		t.Fatalf("Compress(image/png) returned error: %v", err)
-	}
-	if len(out) == 0 {
-		t.Fatal("Compress(image/png) returned empty output")
-	}
-	// ensure output decodes as WebP
-	img, format, err := image.Decode(bytes.NewReader(out))
-	if err != nil {
-		t.Fatalf("Decoding output as WebP failed: %v", err)
-	}
-	if format != "webp" {
-		t.Errorf("expected format 'webp', got '%s'", format)
-	}
-	// basic check: decoded image has expected dimensions 2x2
-	if img.Bounds().Dx() != 2 || img.Bounds().Dy() != 2 {
-		t.Errorf("decoded WebP has wrong dimensions: got %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
-	}
-}
-
-func TestCompressJPEG(t *testing.T) {
-	r, err := generateJPEG()
-	if err != nil {
-		t.Fatalf("failed to generate JPEG: %v", err)
-	}
-
-	out, err := Compress("image/jpeg", r)
-	if err != nil {
-		t.Fatalf("Compress(image/jpeg) returned error: %v", err)
-	}
-	if len(out) == 0 {
-		t.Fatal("Compress(image/jpeg) returned empty output")
-	}
-	// ensure output decodes as WebP
-	img, format, err := image.Decode(bytes.NewReader(out))
-	if err != nil {
-		t.Fatalf("Decoding output as WebP failed: %v", err)
-	}
-	if format != "webp" {
-		t.Errorf("expected format 'webp', got '%s'", format)
-	}
-	if img.Bounds().Dx() != 2 || img.Bounds().Dy() != 2 {
-		t.Errorf("decoded WebP has wrong dimensions: got %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
-	}
-}
-
-func TestCompressWebP(t *testing.T) {
-	r, err := generateWebP()
-	if err != nil {
-		t.Fatalf("failed to generate WebP: %v", err)
-	}
-
-	out, err := Compress("image/webp", r)
-	if err != nil {
-		t.Fatalf("Compress(image/webp) returned error: %v", err)
-	}
-	if len(out) == 0 {
-		t.Fatal("Compress(image/webp) returned empty output")
-	}
-	// ensure output decodes as WebP
-	img, format, err := image.Decode(bytes.NewReader(out))
-	if err != nil {
-		t.Fatalf("Decoding output as WebP failed: %v", err)
-	}
-	if format != "webp" {
-		t.Errorf("expected format 'webp', got '%s'", format)
-	}
-	if img.Bounds().Dx() != 2 || img.Bounds().Dy() != 2 {
-		t.Errorf("decoded WebP has wrong dimensions: got %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
-	}
-}
-
-func TestCompressPDF(t *testing.T) {
-	f, err := os.Open("testdata/sample.pdf")
-	if err != nil {
-		t.Fatalf("could not open sample.pdf: %v", err)
+		t.Fatalf("could not open temp input PDF: %v", err)
 	}
 	defer func(f *os.File) {
 		err := f.Close()
 		if err != nil {
-			t.Errorf("failed to close file: %v", err)
+			t.Logf("failed to close temp file: %v", err)
 		}
 	}(f)
 
-	out, err := Compress("application/pdf", f)
+	out, err := opt.Compress("application/pdf", f)
 	if err != nil {
-		t.Fatalf("Compress(application/pdf) returned error: %v", err)
+		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(out) == 0 {
-		t.Fatal("Compress(application/pdf) returned empty output")
-	}
-	if !bytes.HasPrefix(out, []byte("%PDF")) {
-		t.Errorf("expected output to start with '%%PDF', got %.4s", out[:4])
+	if !strings.HasPrefix(string(out), pdfContent) {
+		t.Errorf("expected output to start with %q, got %q", pdfContent, string(out)[:len(pdfContent)])
 	}
 }
 
-func TestCompressOther(t *testing.T) {
-	original := "some plain text not to be changed"
-	r := strings.NewReader(original)
-	out, err := Compress("text/plain", r)
+func TestCompress_PDFPath_Failure(t *testing.T) {
+	fakeErr := errors.New("pdf failed")
+	wEnc := &fakeWebPEncoder{}
+	pOpt := &fakePDFOptimizer{returnErr: fakeErr}
+	opt := NewOptimiser(wEnc, pOpt)
+
+	tmpIn, err := os.CreateTemp("", "unit_pdf_in_*.pdf")
 	if err != nil {
-		t.Fatalf("Compress(text/plain) returned error: %v", err)
+		t.Fatalf("could not create temp input PDF: %v", err)
 	}
-	result := string(out)
-	if result != original {
-		t.Errorf("expected output '%s', got '%s'", original, result)
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			t.Logf("failed to remove temp file %q: %v", name, err)
+		}
+	}(tmpIn.Name())
+	if _, err := tmpIn.WriteString("%PDF-UNIT-FAIL"); err != nil {
+		_ = tmpIn.Close()
+		t.Fatalf("could not write to temp PDF: %v", err)
+	}
+	_ = tmpIn.Close()
+
+	f, err := os.Open(tmpIn.Name())
+	if err != nil {
+		t.Fatalf("could not open temp input PDF: %v", err)
+	}
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			t.Logf("failed to close temp file: %v", err)
+		}
+	}(f)
+
+	_, err = opt.Compress("application/pdf", f)
+	if err == nil {
+		t.Fatal("expected PDF optimize error, got nil")
+	}
+	if !strings.Contains(err.Error(), "pdf failed") {
+		t.Errorf("expected error to contain %q, got %q", fakeErr.Error(), err.Error())
+	}
+}
+
+func TestCompress_OtherPath_Success(t *testing.T) {
+	wEnc := &fakeWebPEncoder{}
+	pOpt := &fakePDFOptimizer{}
+	opt := NewOptimiser(wEnc, pOpt)
+
+	data := []byte("plain text here")
+	out, err := opt.Compress("text/plain", bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !bytes.Equal(out, data) {
+		t.Errorf("expected output %q, got %q", data, out)
+	}
+}
+
+func TestCompress_OtherPath_ReadError(t *testing.T) {
+	wEnc := &fakeWebPEncoder{}
+	pOpt := &fakePDFOptimizer{}
+	opt := NewOptimiser(wEnc, pOpt)
+
+	errReader := &errorReader{returnErr: errors.New("read failed")}
+	_, err := opt.Compress("text/plain", errReader)
+	if err == nil {
+		t.Fatal("expected read error, got nil")
+	}
+	if !strings.Contains(err.Error(), "read failed") {
+		t.Errorf("expected read error message, got %q", err.Error())
 	}
 }
