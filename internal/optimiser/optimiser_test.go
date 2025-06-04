@@ -71,12 +71,48 @@ func TestCompress_ImagePath_Success(t *testing.T) {
 	pOpt := &fakePDFOptimizer{}
 	opt := NewFileOptimiser(wEnc, pOpt)
 
-	out, err := opt.Compress("image/png", strings.NewReader("ignored"))
+	outRC, mimeType, err := opt.Compress("image/png", strings.NewReader("ignored"))
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	defer outRC.Close()
+
+	out, err := io.ReadAll(outRC)
+	if err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
 	if string(out) != expected {
 		t.Errorf("expected %q, got %q", expected, string(out))
+	}
+	if mimeType != "image/webp" {
+		t.Errorf("expected mime type %q, got %q", "image/webp", mimeType)
+	}
+}
+
+func TestCompress_ImageMimeType_Conversion(t *testing.T) {
+	testCases := []struct {
+		inMimeType  string
+		outMimeType string
+	}{
+		{"image/png", "image/webp"},
+		{"image/jpeg", "image/webp"},
+		{"image/webp", "image/webp"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.inMimeType, func(t *testing.T) {
+			wEnc := &fakeWebPEncoder{returnBytes: []byte("test")}
+			pOpt := &fakePDFOptimizer{}
+			opt := NewFileOptimiser(wEnc, pOpt)
+
+			_, mimeType, err := opt.Compress(tc.inMimeType, strings.NewReader("test"))
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if mimeType != tc.outMimeType {
+				t.Errorf("expected mime type %q, got %q", tc.outMimeType, mimeType)
+			}
+		})
 	}
 }
 
@@ -85,12 +121,21 @@ func TestCompress_ImagePath_DecodeError(t *testing.T) {
 	pOpt := &fakePDFOptimizer{}
 	opt := NewFileOptimiser(wEnc, pOpt)
 
-	_, err := opt.Compress("image/jpeg", strings.NewReader("irrelevant"))
-	if err == nil {
-		t.Fatal("expected decode error, got nil")
+	reader, newMime, err := opt.Compress("image/jpeg", strings.NewReader("irrelevant"))
+	if err != nil {
+		t.Fatalf("expected no immediate error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "decode failed") {
-		t.Errorf("expected decode error message, got %q", err.Error())
+	defer reader.Close()
+
+	_, readErr := io.ReadAll(reader)
+	if readErr == nil {
+		t.Fatal("expected decode error on read, got nil")
+	}
+	if !strings.Contains(readErr.Error(), "decode failed") {
+		t.Errorf("expected read error to contain 'decode failed', got %q", readErr.Error())
+	}
+	if newMime != "image/webp" {
+		t.Errorf("expected newMimeType 'image/webp' even on decode error, got %q", newMime)
 	}
 }
 
@@ -99,12 +144,21 @@ func TestCompress_ImagePath_EncodeError(t *testing.T) {
 	pOpt := &fakePDFOptimizer{}
 	opt := NewFileOptimiser(wEnc, pOpt)
 
-	_, err := opt.Compress("image/webp", strings.NewReader("irrelevant"))
-	if err == nil {
-		t.Fatal("expected encode error, got nil")
+	reader, newMime, err := opt.Compress("image/webp", strings.NewReader("irrelevant"))
+	if err != nil {
+		t.Fatalf("expected no immediate error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "encode failed") {
-		t.Errorf("expected encode error message, got %q", err.Error())
+	defer reader.Close()
+
+	_, readErr := io.ReadAll(reader)
+	if readErr == nil {
+		t.Fatal("expected encode error on read, got nil")
+	}
+	if !strings.Contains(readErr.Error(), "encode failed") {
+		t.Errorf("expected read error to contain 'encode failed', got %q", readErr.Error())
+	}
+	if newMime != "image/webp" {
+		t.Errorf("expected newMimeType 'image/webp' even on encode error, got %q", newMime)
 	}
 }
 
@@ -141,12 +195,21 @@ func TestCompress_PDFPath_Success(t *testing.T) {
 		}
 	}(f)
 
-	out, err := opt.Compress("application/pdf", f)
+	outRC, mimeType, err := opt.Compress("application/pdf", f)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	defer outRC.Close()
+
+	out, err := io.ReadAll(outRC)
+	if err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
 	if !strings.HasPrefix(string(out), pdfContent) {
 		t.Errorf("expected output to start with %q, got %q", pdfContent, string(out)[:len(pdfContent)])
+	}
+	if mimeType != "application/pdf" {
+		t.Errorf("expected mime type %q, got %q", "application/pdf", mimeType)
 	}
 }
 
@@ -161,11 +224,9 @@ func TestCompress_PDFPath_Failure(t *testing.T) {
 		t.Fatalf("could not create temp input PDF: %v", err)
 	}
 	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			t.Logf("failed to remove temp file %q: %v", name, err)
-		}
+		_ = os.Remove(name)
 	}(tmpIn.Name())
+
 	if _, err := tmpIn.WriteString("%PDF-UNIT-FAIL"); err != nil {
 		_ = tmpIn.Close()
 		t.Fatalf("could not write to temp PDF: %v", err)
@@ -176,19 +237,23 @@ func TestCompress_PDFPath_Failure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not open temp input PDF: %v", err)
 	}
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			t.Logf("failed to close temp file: %v", err)
-		}
-	}(f)
+	defer f.Close()
 
-	_, err = opt.Compress("application/pdf", f)
-	if err == nil {
-		t.Fatal("expected PDF optimize error, got nil")
+	reader, newMime, err := opt.Compress("application/pdf", f)
+	if err != nil {
+		t.Fatalf("expected no immediate error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "pdf failed") {
-		t.Errorf("expected error to contain %q, got %q", fakeErr.Error(), err.Error())
+	defer reader.Close()
+
+	_, readErr := io.ReadAll(reader)
+	if readErr == nil {
+		t.Fatal("expected PDF optimize error on read, got nil")
+	}
+	if !strings.Contains(readErr.Error(), "pdf failed") {
+		t.Errorf("expected read error to contain 'pdf failed', got %q", readErr.Error())
+	}
+	if newMime != "application/pdf" {
+		t.Errorf("expected newMimeType 'application/pdf' even on failure, got %q", newMime)
 	}
 }
 
@@ -198,12 +263,46 @@ func TestCompress_OtherPath_Success(t *testing.T) {
 	opt := NewFileOptimiser(wEnc, pOpt)
 
 	data := []byte("plain text here")
-	out, err := opt.Compress("text/plain", bytes.NewReader(data))
+	outRC, mimeType, err := opt.Compress("text/plain", bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	defer outRC.Close()
+
+	out, err := io.ReadAll(outRC)
+	if err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
 	if !bytes.Equal(out, data) {
 		t.Errorf("expected output %q, got %q", data, out)
+	}
+	if mimeType != "text/plain" {
+		t.Errorf("expected mime type %q, got %q", "text/plain", mimeType)
+	}
+}
+
+func TestCompress_PreserveMimeTypes(t *testing.T) {
+	testCases := []struct {
+		mimeType string
+	}{
+		{"application/pdf"},
+		{"text/markdown"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.mimeType, func(t *testing.T) {
+			wEnc := &fakeWebPEncoder{}
+			pOpt := &fakePDFOptimizer{}
+			opt := NewFileOptimiser(wEnc, pOpt)
+
+			_, mimeType, err := opt.Compress(tc.mimeType, strings.NewReader("test"))
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if mimeType != tc.mimeType {
+				t.Errorf("expected mime type to be preserved as %q, got %q", tc.mimeType, mimeType)
+			}
+		})
 	}
 }
 
@@ -213,11 +312,20 @@ func TestCompress_OtherPath_ReadError(t *testing.T) {
 	opt := NewFileOptimiser(wEnc, pOpt)
 
 	errReader := &errorReader{returnErr: errors.New("read failed")}
-	_, err := opt.Compress("text/plain", errReader)
-	if err == nil {
-		t.Fatal("expected read error, got nil")
+	reader, newMime, err := opt.Compress("text/plain", errReader)
+	if err != nil {
+		t.Fatalf("expected no immediate error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "read failed") {
-		t.Errorf("expected read error message, got %q", err.Error())
+	defer reader.Close()
+
+	_, readErr := io.ReadAll(reader)
+	if readErr == nil {
+		t.Fatal("expected read error on read, got nil")
+	}
+	if !strings.Contains(readErr.Error(), "read failed") {
+		t.Errorf("expected read error message, got %q", readErr.Error())
+	}
+	if newMime != "text/plain" {
+		t.Errorf("expected newMimeType 'text/plain', got %q", newMime)
 	}
 }
