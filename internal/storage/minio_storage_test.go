@@ -504,12 +504,12 @@ func TestGetFile_Success(t *testing.T) {
 		},
 	}
 	s := makeStorage(mock, "b", false)
-	rc, err := s.GetFile(ctx, "key")
+	rsc, err := s.GetFile(ctx, "key")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if rc != dummy {
-		t.Errorf("reader = %v; want %v", rc, dummy)
+	if rsc != dummy {
+		t.Errorf("reader = %v; want %v", rsc, dummy)
 	}
 }
 

@@ -145,12 +145,12 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	}
 
 	// Assert content round-trips
-	rc, err := destStrg.GetFile(ctx, destObjectKey)
+	rsc, err := destStrg.GetFile(ctx, destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}
-	defer rc.Close()
-	dataOut, err := io.ReadAll(rc)
+	defer rsc.Close()
+	dataOut, err := io.ReadAll(rsc)
 	if err != nil {
 		t.Fatalf("reading dest file: %v", err)
 	}
@@ -288,12 +288,12 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 
 	// Assert content round-trips
-	rc, err := destStrg.GetFile(ctx, destObjectKey)
+	rsc, err := destStrg.GetFile(ctx, destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}
-	defer rc.Close()
-	dataOut, err := io.ReadAll(rc)
+	defer rsc.Close()
+	dataOut, err := io.ReadAll(rsc)
 	if err != nil {
 		t.Fatalf("reading dest file: %v", err)
 	}
@@ -424,12 +424,12 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 
 	// Assert content round-trips
-	rc, err := destStrg.GetFile(ctx, destObjectKey)
+	rsc, err := destStrg.GetFile(ctx, destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}
-	defer rc.Close()
-	dataOut, err := io.ReadAll(rc)
+	defer rsc.Close()
+	dataOut, err := io.ReadAll(rsc)
 	if err != nil {
 		t.Fatalf("reading dest file: %v", err)
 	}
@@ -537,12 +537,12 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 
 	// Round-trip content still same
-	rc, err := destStrg.GetFile(ctx, destObjectKey)
+	rsc, err := destStrg.GetFile(ctx, destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}
-	defer rc.Close()
-	dataOut, err := io.ReadAll(rc)
+	defer rsc.Close()
+	dataOut, err := io.ReadAll(rsc)
 	if err != nil {
 		t.Fatalf("reading dest file: %v", err)
 	}

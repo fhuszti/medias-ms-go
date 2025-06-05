@@ -37,8 +37,12 @@ func (m *mockRepo) Create(ctx context.Context, media *model.Media) error {
 	return m.createErr
 }
 
+type nopRSC struct{ io.ReadSeeker }
+
+func (nopRSC) Close() error { return nil }
+
 type mockStorage struct {
-	reader     io.Reader
+	reader     io.ReadSeeker
 	statInfo   FileInfo
 	objectKey  string
 	ttl        time.Duration
@@ -98,15 +102,15 @@ func (m *mockStorage) RemoveFile(ctx context.Context, fileKey string) error {
 	m.removeCalled = true
 	return nil
 }
-func (m *mockStorage) GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error) {
+func (m *mockStorage) GetFile(ctx context.Context, fileKey string) (io.ReadSeekCloser, error) {
 	m.getCalled = true
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
 	if m.reader != nil {
-		return io.NopCloser(m.reader), nil
+		return nopRSC{m.reader}, nil
 	}
-	return io.NopCloser(bytes.NewReader([]byte("dummy"))), nil
+	return nopRSC{bytes.NewReader([]byte("dummy"))}, nil
 }
 func (m *mockStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
 	m.saveCalled = true

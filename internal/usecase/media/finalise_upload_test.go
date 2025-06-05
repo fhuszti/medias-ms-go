@@ -202,7 +202,7 @@ func TestFinaliseUpload_Success(t *testing.T) {
 	}
 }
 
-func getPNGReader(t *testing.T) io.Reader {
+func getPNGReader(t *testing.T) io.ReadSeeker {
 	// build a 1x1 PNG in memory
 	buf := &bytes.Buffer{}
 	img := image.NewRGBA(image.Rect(0, 0, 1, 1))

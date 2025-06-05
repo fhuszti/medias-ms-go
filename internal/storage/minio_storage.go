@@ -109,7 +109,7 @@ func (s *MinioStorage) RemoveFile(ctx context.Context, fileKey string) error {
 	return mapMinioErr(err)
 }
 
-func (s *MinioStorage) GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error) {
+func (s *MinioStorage) GetFile(ctx context.Context, fileKey string) (io.ReadSeekCloser, error) {
 	log.Printf("getting file %q from bucket %q...", fileKey, s.bucketName)
 
 	obj, err := s.client.GetObject(ctx, s.bucketName, fileKey, minio.GetObjectOptions{})

@@ -56,7 +56,7 @@ func (fo *FileOptimiser) Compress(mimeType string, r io.Reader) (io.ReadCloser, 
 			}
 
 		case "application/pdf":
-			// Write incoming PDF to a temp file
+			// Write the incoming PDF to a temp file
 			inFile, err := os.CreateTemp("", "pdf_in_*.pdf")
 			if err != nil {
 				_ = pw.CloseWithError(fmt.Errorf("optimiser: could not create temp input PDF: %w", err))

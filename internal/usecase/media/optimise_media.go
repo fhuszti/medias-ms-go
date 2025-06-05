@@ -52,7 +52,7 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 	if err != nil {
 		return err
 	}
-	defer func(originalReader io.ReadCloser) {
+	defer func(originalReader io.ReadSeekCloser) {
 		_ = originalReader.Close()
 	}(originalReader)
 
@@ -75,7 +75,7 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 		newObjectKey = strings.TrimSuffix(media.ObjectKey, filepath.Ext(media.ObjectKey)) + ext
 	}
 
-	// Save compressed file to tmp file (failsafe in case it breaks in the middle)
+	// Save the compressed file to tmp file (failsafe in case it breaks in the middle)
 	tempKey := newObjectKey + ".tmp"
 	if err := strg.SaveFile(
 		ctx,

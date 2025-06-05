@@ -122,7 +122,16 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 	if err != nil {
 		return err
 	}
-	defer func(file io.ReadCloser) {
+
+	// Read metadata then reset reader position for saving.
+	metadata, err := fillMetadata(contentType, file)
+	if err != nil {
+		return fmt.Errorf("failed to fill metadata: %w", err)
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("failed to reset reader: %w", err)
+	}
+	defer func(file io.ReadSeekCloser) {
 		if err := file.Close(); err != nil {
 			log.Printf("failed to close reader")
 		}
@@ -133,11 +142,6 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 		return err
 	}
 	newObjectKey := fmt.Sprintf("%s%s", media.ObjectKey, ext)
-
-	metadata, err := fillMetadata(contentType, file)
-	if err != nil {
-		return fmt.Errorf("failed to fill metadata: %w", err)
-	}
 
 	if err := destStrg.SaveFile(
 		ctx,

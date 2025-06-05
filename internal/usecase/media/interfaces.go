@@ -25,7 +25,7 @@ type Storage interface {
 	FileExists(ctx context.Context, fileKey string) (bool, error)
 	StatFile(ctx context.Context, fileKey string) (FileInfo, error)
 	RemoveFile(ctx context.Context, fileKey string) error
-	GetFile(ctx context.Context, fileKey string) (io.ReadCloser, error)
+	GetFile(ctx context.Context, fileKey string) (io.ReadSeekCloser, error)
 	SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error
 	CopyFile(ctx context.Context, srcKey, destKey string) error
 }
