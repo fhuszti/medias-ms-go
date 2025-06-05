@@ -75,7 +75,9 @@ func TestCompress_ImagePath_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer outRC.Close()
+	defer func(outRC io.ReadCloser) {
+		_ = outRC.Close()
+	}(outRC)
 
 	out, err := io.ReadAll(outRC)
 	if err != nil {
@@ -125,7 +127,9 @@ func TestCompress_ImagePath_DecodeError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no immediate error, got %v", err)
 	}
-	defer reader.Close()
+	defer func(reader io.ReadCloser) {
+		_ = reader.Close()
+	}(reader)
 
 	_, readErr := io.ReadAll(reader)
 	if readErr == nil {
@@ -148,7 +152,9 @@ func TestCompress_ImagePath_EncodeError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no immediate error, got %v", err)
 	}
-	defer reader.Close()
+	defer func(reader io.ReadCloser) {
+		_ = reader.Close()
+	}(reader)
 
 	_, readErr := io.ReadAll(reader)
 	if readErr == nil {
@@ -199,7 +205,9 @@ func TestCompress_PDFPath_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer outRC.Close()
+	defer func(outRC io.ReadCloser) {
+		_ = outRC.Close()
+	}(outRC)
 
 	out, err := io.ReadAll(outRC)
 	if err != nil {
@@ -237,13 +245,17 @@ func TestCompress_PDFPath_Failure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not open temp input PDF: %v", err)
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
 	reader, newMime, err := opt.Compress("application/pdf", f)
 	if err != nil {
 		t.Fatalf("expected no immediate error, got %v", err)
 	}
-	defer reader.Close()
+	defer func(reader io.ReadCloser) {
+		_ = reader.Close()
+	}(reader)
 
 	_, readErr := io.ReadAll(reader)
 	if readErr == nil {
@@ -267,7 +279,9 @@ func TestCompress_OtherPath_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	defer outRC.Close()
+	defer func(outRC io.ReadCloser) {
+		_ = outRC.Close()
+	}(outRC)
 
 	out, err := io.ReadAll(outRC)
 	if err != nil {
@@ -316,7 +330,9 @@ func TestCompress_OtherPath_ReadError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no immediate error, got %v", err)
 	}
-	defer reader.Close()
+	defer func(reader io.ReadCloser) {
+		_ = reader.Close()
+	}(reader)
 
 	_, readErr := io.ReadAll(reader)
 	if readErr == nil {
