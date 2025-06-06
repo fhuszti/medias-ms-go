@@ -29,7 +29,8 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 ## Notes
 
 - Missing buckets from the list given in the ``BUCKETS`` env variable will be created automatically on application startup
-- The ``staging`` bucket is mandatory and will be created even when missing from the env variable. It is used to host files waiting for validation
+- The ``staging`` bucket is mandatory and will be created even when missing from the env variable. It is used to temporarily host files waiting for validation
+- You have access to a UI for browsing MinIO buckets and objects at [localhost:9001](http://localhost:9001), using the login info from ``MINIO_USER`` / ``MINIO_PASS`` in the env variables
 
 ## Tests
 
