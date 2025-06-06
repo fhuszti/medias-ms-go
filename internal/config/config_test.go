@@ -34,7 +34,7 @@ func TestLoad_Success(t *testing.T) {
 		"MINIO_SECRET_KEY":          "secret",
 		"MINIO_ENDPOINT":            "localhost:9000",
 		"MINIO_USE_SSL":             "true",
-		"BUCKETS":                   "staging,images,docs",
+		"BUCKETS":                   "images,docs,images",
 		"IMAGES_SIZES":              "100,500,1000",
 	}
 	for k, v := range reqs {
@@ -73,7 +73,7 @@ func TestLoad_Success(t *testing.T) {
 	if !cfg.MinioUseSSL {
 		t.Errorf("MinioUseSSL: expected %t, got %t", true, cfg.MinioUseSSL)
 	}
-	wantedBuckets := []string{"staging", "images", "docs"}
+	wantedBuckets := []string{"images", "docs", "staging"}
 	if !reflect.DeepEqual(cfg.Buckets, wantedBuckets) {
 		t.Errorf("Buckets: expected %v, got %v", wantedBuckets, cfg.Buckets)
 	}
@@ -129,7 +129,7 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 				"MINIO_SECRET_KEY":          "secret",
 				"MINIO_ENDPOINT":            "localhost:9000",
 				"MINIO_USE_SSL":             "true",
-				"BUCKETS":                   "staging,images,docs",
+				"BUCKETS":                   "images,docs",
 				"IMAGES_SIZES":              "100,500,1000",
 			}
 			for k, v := range reqs {
