@@ -102,7 +102,7 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMe
 	}
 
 	// Store in cache for next time
-	_ = s.cache.SetMediaDetails(ctx, media.ID, &output)
+	s.cache.SetMediaDetails(ctx, media.ID, &output)
 
 	return &output, nil
 }

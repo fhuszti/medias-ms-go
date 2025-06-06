@@ -11,7 +11,9 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 ## Requirements
 - Go CLI
 - Docker
-- if on Windows, [GCC/MinGW](https://jmeubank.github.io/tdm-gcc/download/)
+
+
+- *if on Windows,* [GCC/MinGW](https://jmeubank.github.io/tdm-gcc/download/)
 
 
 - *(optional)* a Redis server, used for cache and file optimisations
@@ -19,21 +21,15 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 
 ## Local setup
 
-- copy ``.env.dist`` to a new ``.env``
+- copy ``.env.dist`` to a new ``.env``, update any value you feel like changing
 - run ``docker-compose up -d``
-
-
-- go to http://localhost:9001/
-- login using ``MINIO_USER`` and ``MINIO_PASS``
-- create a ``staging`` bucket
-- go to ``Access Keys`` in the lateral menu, click ``Create access key``. It will generate both access and secret keys, update ``MINIO_ACCESS_KEY`` and ``MINIO_SECRET_KEY`` in your ``.env``
-- buckets that do not yet exist will be created automatically on server startup from the comma-separated list given in the ``.env`` in ``BUCKETS``
-
-
 - run migrations with ``go run ./cmd/migrate/``
-- run the server with either:
-  - ``air`` (dev mode, with hot reload) 
-  - or with ``go run ./cmd/api/``
+- run the server with ``go run ./cmd/api/``
+
+## Notes
+
+- Missing buckets from the list given in the ``BUCKETS`` env variable will be created automatically on application startup
+- The ``staging`` bucket is mandatory and will be created even when missing from the env variable. It is used to host files waiting for validation
 
 ## Tests
 
@@ -53,4 +49,4 @@ If Redis is not configured:
 - Cache layers will be bypassed (data always comes from DB)
 
 **To enable Redis:**
-- Set `REDIS_ADDR` in your environment
+- Set `REDIS_ADDR` in your environment (typically something like ``localhost:6379``)

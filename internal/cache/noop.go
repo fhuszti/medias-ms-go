@@ -16,6 +16,4 @@ func (n *NoopCache) GetMediaDetails(ctx context.Context, id db.UUID) (*media.Get
 	return nil, nil // always cache miss
 }
 
-func (n *NoopCache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.GetMediaOutput) error {
-	return nil // pretend we stored it
-}
+func (n *NoopCache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.GetMediaOutput) {}

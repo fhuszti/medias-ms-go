@@ -48,18 +48,17 @@ func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) (*media.GetMedi
 	return &mOut, nil
 }
 
-func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.GetMediaOutput) error {
+func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.GetMediaOutput) {
 	log.Printf("creating entry in cache for media #%s, valid until %s...", id, mOut.ValidUntil.Format(time.RFC1123))
 
 	data, err := json.Marshal(mOut)
 	if err != nil {
-		return fmt.Errorf("marshal failed: %w", err)
+		log.Printf("WARNING: redis set marshal failed: %v", err)
 	}
 
 	if err := c.client.Set(ctx, getCacheKey(id.String()), data, time.Until(mOut.ValidUntil)).Err(); err != nil {
-		return fmt.Errorf("redis set failed: %w", err)
+		log.Printf("WARNING: redis set failed: %v", err)
 	}
-	return nil
 }
 
 func (c *Cache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {

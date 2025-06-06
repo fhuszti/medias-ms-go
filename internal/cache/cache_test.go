@@ -56,9 +56,7 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	}
 
 	// 2) Set + Get
-	if err := c.SetMediaDetails(ctx, id, out); err != nil {
-		t.Fatalf("SetMediaDetails: %v", err)
-	}
+	c.SetMediaDetails(ctx, id, out)
 	// check TTL in Redis ≈ 2m
 	if ttl := mr.TTL(getCacheKey(id.String())); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
 		t.Errorf("redis TTL = %v; want ~2m", ttl)
@@ -119,31 +117,6 @@ func TestGetMediaDetails_RedisError(t *testing.T) {
 	}
 	if err == nil || !strings.Contains(err.Error(), "redis get failed") {
 		t.Errorf("Expected redis get failed error, got %v", err)
-	}
-}
-
-func TestSetMediaDetails_RedisError(t *testing.T) {
-	c, mr := makeTestCache(t)
-	ctx := context.Background()
-	id := db.NewUUID()
-	out := &media.GetMediaOutput{
-		ValidUntil: time.Now().Add(1 * time.Minute),
-		Optimised:  false,
-		URL:        "https://example.com/download/" + id.String(),
-		Metadata: media.MetadataOutput{
-			Metadata:  model.Metadata{PageCount: 1},
-			SizeBytes: 100,
-			MimeType:  "application/pdf",
-		},
-		Variants: nil,
-	}
-
-	// Simulate Redis unreachable before Set
-	mr.Close()
-
-	err := c.SetMediaDetails(ctx, id, out)
-	if err == nil || !strings.Contains(err.Error(), "redis set failed") {
-		t.Errorf("Expected redis set failed error, got %v", err)
 	}
 }
 
