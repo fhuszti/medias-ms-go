@@ -1,11 +1,9 @@
 package media
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
-	"io"
 	"strings"
 	"testing"
 
@@ -13,23 +11,6 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/google/uuid"
 )
-
-type fakeFileOptimiser struct {
-	out     []byte
-	mimeOut string
-	err     error
-}
-
-func (f *fakeFileOptimiser) Compress(mimeType string, r io.Reader) (io.ReadCloser, string, error) {
-	if f.err != nil {
-		return nil, "", f.err
-	}
-	return io.NopCloser(bytes.NewReader(f.out)), f.mimeOut, nil
-}
-
-func (f *fakeFileOptimiser) Resize(mimeType string, r io.Reader, width, height int) ([]byte, error) {
-	return nil, nil
-}
 
 func newCompletedMedia() *model.Media {
 	mt := "image/png"
@@ -46,7 +27,7 @@ func newCompletedMedia() *model.Media {
 
 func TestOptimiseMedia_GetByIDNotFound(t *testing.T) {
 	repo := &mockRepo{getErr: sql.ErrNoRows}
-	svc := NewMediaOptimiser(repo, &fakeFileOptimiser{}, (&mockStorageGetter{strg: &mockStorage{}}).Get)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, (&mockStorageGetter{strg: &mockStorage{}}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: db.NewUUID()})
 	if !errors.Is(err, ErrObjectNotFound) {
@@ -56,7 +37,7 @@ func TestOptimiseMedia_GetByIDNotFound(t *testing.T) {
 
 func TestOptimiseMedia_GetByIDError(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
-	svc := NewMediaOptimiser(repo, &fakeFileOptimiser{}, (&mockStorageGetter{strg: &mockStorage{}}).Get)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, (&mockStorageGetter{strg: &mockStorage{}}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: db.NewUUID()})
 	if err == nil || err.Error() != "db fail" {
@@ -68,7 +49,7 @@ func TestOptimiseMedia_WrongStatus(t *testing.T) {
 	m := newCompletedMedia()
 	m.Status = model.MediaStatusPending
 	repo := &mockRepo{mediaRecord: m}
-	svc := NewMediaOptimiser(repo, &fakeFileOptimiser{}, (&mockStorageGetter{strg: &mockStorage{}}).Get)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, (&mockStorageGetter{strg: &mockStorage{}}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || !strings.Contains(err.Error(), "completed") {
@@ -79,7 +60,7 @@ func TestOptimiseMedia_WrongStatus(t *testing.T) {
 func TestOptimiseMedia_GetTargetError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
-	svc := NewMediaOptimiser(repo, &fakeFileOptimiser{}, (&mockStorageGetter{err: errors.New("no bucket")}).Get)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, (&mockStorageGetter{err: errors.New("no bucket")}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || err.Error() != "no bucket" {
@@ -91,7 +72,7 @@ func TestOptimiseMedia_GetFileError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{getErr: errors.New("get fail")}
-	svc := NewMediaOptimiser(repo, &fakeFileOptimiser{}, (&mockStorageGetter{strg: strg}).Get)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || err.Error() != "get fail" {
@@ -103,7 +84,7 @@ func TestOptimiseMedia_CompressError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
-	fo := &fakeFileOptimiser{err: errors.New("compress fail")}
+	fo := &mockFileOptimiser{compressErr: errors.New("compress fail")}
 	svc := NewMediaOptimiser(repo, fo, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
@@ -116,7 +97,7 @@ func TestOptimiseMedia_ExtensionError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
-	fo := &fakeFileOptimiser{mimeOut: "application/unknown"}
+	fo := &mockFileOptimiser{mimeOut: "application/unknown"}
 	svc := NewMediaOptimiser(repo, fo, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
@@ -129,7 +110,7 @@ func TestOptimiseMedia_SaveFileError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{saveErr: errors.New("save fail")}
-	fo := &fakeFileOptimiser{mimeOut: *m.MimeType}
+	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
@@ -142,7 +123,7 @@ func TestOptimiseMedia_CopyFileError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{copyErr: errors.New("copy fail")}
-	fo := &fakeFileOptimiser{mimeOut: *m.MimeType}
+	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
@@ -155,7 +136,7 @@ func TestOptimiseMedia_StatError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{statErr: errors.New("stat fail")}
-	fo := &fakeFileOptimiser{mimeOut: *m.MimeType}
+	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
@@ -169,7 +150,7 @@ func TestOptimiseMedia_UpdateError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m, updateErr: errors.New("update fail")}
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 200}
-	fo := &fakeFileOptimiser{mimeOut: *m.MimeType}
+	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
@@ -183,7 +164,7 @@ func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 456}
-	fo := &fakeFileOptimiser{mimeOut: *m.MimeType, out: []byte("comp")}
+	fo := &mockFileOptimiser{mimeOut: *m.MimeType, out: []byte("comp")}
 	svc := NewMediaOptimiser(repo, fo, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
@@ -210,7 +191,7 @@ func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 789}
-	fo := &fakeFileOptimiser{mimeOut: "image/webp", out: []byte("webp")}
+	fo := &mockFileOptimiser{mimeOut: "image/webp", out: []byte("webp")}
 	svc := NewMediaOptimiser(repo, fo, (&mockStorageGetter{strg: strg}).Get)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
