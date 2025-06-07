@@ -97,7 +97,7 @@ func TestGenerateUploadLink_StorageError(t *testing.T) {
 	mockID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mockRepo{}
-	strg := &mockStorage{generateUploadLinkError: errors.New("strg failure")}
+	strg := &mockStorage{generateUploadLinkErr: errors.New("strg failure")}
 	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
 
 	out, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo"})

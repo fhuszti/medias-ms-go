@@ -50,7 +50,7 @@ func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in Gene
 		return GenerateUploadLinkOutput{}, err
 	}
 
-	url, err := s.strg.GeneratePresignedUploadURL(ctx, objectKey, 5*time.Minute)
+	url, err := s.strg.GeneratePresignedUploadURL(ctx, "staging", objectKey, 5*time.Minute)
 	if err != nil {
 		return GenerateUploadLinkOutput{}, err
 	}

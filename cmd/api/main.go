@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -33,7 +32,9 @@ func main() {
 
 	r := initRouter()
 
-	storages := initBucketStorages(cfg)
+	strg := initStorage(cfg)
+	initBuckets(strg, cfg.Buckets)
+
 	mediaRepo := mariadb.NewMediaRepository(database.DB)
 	var ca mediaSvc.Cache
 	if cfg.RedisAddr != "" {
@@ -44,21 +45,14 @@ func main() {
 		log.Println("⚠️  Redis not configured — caching is disabled")
 	}
 
-	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, storages["staging"], db.NewUUID)
+	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, strg, db.NewUUID)
 	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
-	var getStrgFromBucket mediaSvc.StorageGetter = func(bucket string) (mediaSvc.Storage, error) {
-		st, ok := storages[bucket]
-		if !ok {
-			return nil, fmt.Errorf("bucket %q is not configured", bucket)
-		}
-		return st, nil
-	}
-	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, storages["staging"], getStrgFromBucket)
+	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, strg)
 	r.With(api.WithDestBucket(cfg.Buckets)).
 		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(uploadFinaliserSvc))
 
-	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrgFromBucket)
+	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, ca, strg)
 	r.With(api.WithID()).
 		Get("/medias/{id}", api.GetMediaHandler(getMediaSvc))
 
@@ -96,7 +90,7 @@ func initRouter() *chi.Mux {
 	return r
 }
 
-func initBucketStorages(cfg *config.Settings) map[string]mediaSvc.Storage {
+func initStorage(cfg *config.Settings) mediaSvc.Storage {
 	strg, err := storage.NewMinioClient(
 		cfg.MinioEndpoint,
 		cfg.MinioAccessKey,
@@ -107,20 +101,15 @@ func initBucketStorages(cfg *config.Settings) map[string]mediaSvc.Storage {
 		log.Fatalf("Failed to initialize MinIO client: %v", err)
 	}
 
-	storages := make(map[string]mediaSvc.Storage, len(cfg.Buckets))
-	for _, b := range cfg.Buckets {
-		storages[b], err = strg.WithBucket(b)
-		if err != nil {
+	return strg
+}
+
+func initBuckets(strg mediaSvc.Storage, buckets []string) {
+	for _, b := range buckets {
+		if err := strg.InitBucket(b); err != nil {
 			log.Fatalf("Failed to initialize bucket %q: %v", b, err)
 		}
 	}
-
-	_, ok := storages["staging"]
-	if !ok {
-		log.Fatal("You need a bucket named 'staging'")
-	}
-
-	return storages
 }
 
 func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {

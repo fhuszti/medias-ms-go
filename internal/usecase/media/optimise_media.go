@@ -18,13 +18,13 @@ type Optimiser interface {
 }
 
 type mediaOptimiserSrv struct {
-	repo          Repository
-	opt           FileOptimiser
-	getTargetStrg StorageGetter
+	repo Repository
+	opt  FileOptimiser
+	strg Storage
 }
 
-func NewMediaOptimiser(repo Repository, opt FileOptimiser, getTargetStrg StorageGetter) Optimiser {
-	return &mediaOptimiserSrv{repo, opt, getTargetStrg}
+func NewMediaOptimiser(repo Repository, opt FileOptimiser, strg Storage) Optimiser {
+	return &mediaOptimiserSrv{repo, opt, strg}
 }
 
 type OptimiseMediaInput struct {
@@ -43,12 +43,7 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 		return errors.New("media status should be 'completed' to be optimised")
 	}
 
-	strg, err := m.getTargetStrg(media.Bucket)
-	if err != nil {
-		return err
-	}
-
-	originalReader, err := strg.GetFile(ctx, media.ObjectKey)
+	originalReader, err := m.strg.GetFile(ctx, media.Bucket, media.ObjectKey)
 	if err != nil {
 		return err
 	}
@@ -77,8 +72,9 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 
 	// Save the compressed file to tmp file (failsafe in case it breaks in the middle)
 	tempKey := newObjectKey + ".tmp"
-	if err := strg.SaveFile(
+	if err := m.strg.SaveFile(
 		ctx,
+		media.Bucket,
 		tempKey,
 		compressedReader,
 		-1, // streaming mode
@@ -90,23 +86,23 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 	}
 
 	// Copy the finished tmp file to its final object key
-	if err := strg.CopyFile(ctx, tempKey, newObjectKey); err != nil {
+	if err := m.strg.CopyFile(ctx, media.Bucket, tempKey, newObjectKey); err != nil {
 		return fmt.Errorf("failed to copy %q→%q inside bucket %q: %w", tempKey, newObjectKey, media.Bucket, err)
 	}
 
 	// Remove the tmp file
-	if err := strg.RemoveFile(ctx, tempKey); err != nil {
+	if err := m.strg.RemoveFile(ctx, media.Bucket, tempKey); err != nil {
 		log.Printf("warning: failed to remove temp file %q from bucket %q: %v", tempKey, media.Bucket, err)
 	}
 
 	// If the file extension has changed, remove the original
 	if newObjectKey != media.ObjectKey {
-		if err := strg.RemoveFile(ctx, media.ObjectKey); err != nil {
+		if err := m.strg.RemoveFile(ctx, media.Bucket, media.ObjectKey); err != nil {
 			log.Printf("warning: failed to remove old file %q from bucket %q: %v", media.ObjectKey, media.Bucket, err)
 		}
 	}
 
-	info, err := strg.StatFile(ctx, newObjectKey)
+	info, err := m.strg.StatFile(ctx, media.Bucket, newObjectKey)
 	if err != nil {
 		return fmt.Errorf("failed reading info about file %q inside bucket %q: %w", newObjectKey, media.Bucket, err)
 	}

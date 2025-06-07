@@ -24,13 +24,12 @@ type UploadFinaliser interface {
 }
 
 type uploadFinaliserSrv struct {
-	repo        Repository
-	stagingStrg Storage
-	getDestStrg StorageGetter
+	repo Repository
+	strg Storage
 }
 
-func NewUploadFinaliser(repo Repository, stagingStrg Storage, getDestStrg StorageGetter) UploadFinaliser {
-	return &uploadFinaliserSrv{repo: repo, stagingStrg: stagingStrg, getDestStrg: getDestStrg}
+func NewUploadFinaliser(repo Repository, strg Storage) UploadFinaliser {
+	return &uploadFinaliserSrv{repo, strg}
 }
 
 type FinaliseUploadInput struct {
@@ -63,7 +62,7 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 		}
 	}()
 
-	info, err := s.stagingStrg.StatFile(ctx, media.ObjectKey)
+	info, err := s.strg.StatFile(ctx, "staging", media.ObjectKey)
 	if err != nil {
 		if errors.Is(err, ErrObjectNotFound) {
 			finalErr = fmt.Errorf("staging file %q not found", media.ObjectKey)
@@ -96,7 +95,7 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 }
 
 func (s *uploadFinaliserSrv) cleanupFile(objectKey string) error {
-	if err := s.stagingStrg.RemoveFile(context.Background(), objectKey); err != nil {
+	if err := s.strg.RemoveFile(context.Background(), "staging", objectKey); err != nil {
 		return err
 	}
 	return nil
@@ -113,12 +112,7 @@ func (s *uploadFinaliserSrv) markAsFailed(ctx context.Context, media *model.Medi
 }
 
 func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, size int64, contentType string, destBucket string) error {
-	destStrg, err := s.getDestStrg(destBucket)
-	if err != nil {
-		return fmt.Errorf("unknown destination bucket %q: %w", destBucket, err)
-	}
-
-	file, err := s.stagingStrg.GetFile(ctx, media.ObjectKey)
+	file, err := s.strg.GetFile(ctx, "staging", media.ObjectKey)
 	if err != nil {
 		return err
 	}
@@ -143,8 +137,9 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 	}
 	newObjectKey := fmt.Sprintf("%s%s", media.ObjectKey, ext)
 
-	if err := destStrg.SaveFile(
+	if err := s.strg.SaveFile(
 		ctx,
+		destBucket,
 		newObjectKey,
 		file,
 		size,
@@ -155,7 +150,7 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 		return err
 	}
 
-	if err := s.stagingStrg.RemoveFile(ctx, media.ObjectKey); err != nil {
+	if err := s.strg.RemoveFile(ctx, "staging", media.ObjectKey); err != nil {
 		log.Printf("failed to clean up file %q in staging: %v", media.ObjectKey, err)
 	}
 

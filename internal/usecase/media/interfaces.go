@@ -20,14 +20,15 @@ type Repository interface {
 }
 
 type Storage interface {
-	GeneratePresignedDownloadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error)
-	GeneratePresignedUploadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error)
-	FileExists(ctx context.Context, fileKey string) (bool, error)
-	StatFile(ctx context.Context, fileKey string) (FileInfo, error)
-	RemoveFile(ctx context.Context, fileKey string) error
-	GetFile(ctx context.Context, fileKey string) (io.ReadSeekCloser, error)
-	SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error
-	CopyFile(ctx context.Context, srcKey, destKey string) error
+	InitBucket(bucket string) error
+	GeneratePresignedDownloadURL(ctx context.Context, bucket, fileKey string, expiry time.Duration) (string, error)
+	GeneratePresignedUploadURL(ctx context.Context, bucket, fileKey string, expiry time.Duration) (string, error)
+	FileExists(ctx context.Context, bucket, fileKey string) (bool, error)
+	StatFile(ctx context.Context, bucket, fileKey string) (FileInfo, error)
+	RemoveFile(ctx context.Context, bucket, fileKey string) error
+	GetFile(ctx context.Context, bucket, fileKey string) (io.ReadSeekCloser, error)
+	SaveFile(ctx context.Context, bucket, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error
+	CopyFile(ctx context.Context, bucket, srcKey, destKey string) error
 }
 
 type StorageGetter func(bucket string) (Storage, error)

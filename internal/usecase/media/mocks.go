@@ -48,14 +48,16 @@ type mockStorage struct {
 	ttl        time.Duration
 	fileExists bool
 
-	generateDownloadLinkError error
-	generateUploadLinkError   error
-	statErr                   error
-	getErr                    error
-	saveErr                   error
-	copyErr                   error
-	fileExistsErr             error
+	initBucketErr           error
+	generateDownloadLinkErr error
+	generateUploadLinkErr   error
+	statErr                 error
+	getErr                  error
+	saveErr                 error
+	copyErr                 error
+	fileExistsErr           error
 
+	initBucketCalled           bool
 	generateDownloadLinkCalled bool
 	generateUploadLinkCalled   bool
 	statCalled                 bool
@@ -66,43 +68,40 @@ type mockStorage struct {
 	fileExistsCalled           bool
 }
 
-func (m *mockStorage) FileExists(ctx context.Context, fileKey string) (bool, error) {
-	m.fileExistsCalled = true
-	if m.fileExistsErr != nil {
-		return false, m.fileExistsErr
-	}
-	return m.fileExists, nil
+func (m *mockStorage) InitBucket(bucket string) error {
+	m.initBucketCalled = true
+	return m.initBucketErr
 }
-func (m *mockStorage) GeneratePresignedDownloadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
+func (m *mockStorage) GeneratePresignedDownloadURL(ctx context.Context, bucket, fileKey string, expiry time.Duration) (string, error) {
 	m.generateDownloadLinkCalled = true
 	m.objectKey = fileKey
 	m.ttl = expiry
-	if m.generateDownloadLinkError != nil {
-		return "", m.generateDownloadLinkError
+	if m.generateDownloadLinkErr != nil {
+		return "", m.generateDownloadLinkErr
 	}
 	return "https://example.com/upload", nil
 }
-func (m *mockStorage) GeneratePresignedUploadURL(ctx context.Context, fileKey string, expiry time.Duration) (string, error) {
+func (m *mockStorage) GeneratePresignedUploadURL(ctx context.Context, bucket, fileKey string, expiry time.Duration) (string, error) {
 	m.generateUploadLinkCalled = true
 	m.objectKey = fileKey
 	m.ttl = expiry
-	if m.generateUploadLinkError != nil {
-		return "", m.generateUploadLinkError
+	if m.generateUploadLinkErr != nil {
+		return "", m.generateUploadLinkErr
 	}
 	return "https://example.com/upload", nil
 }
-func (m *mockStorage) StatFile(ctx context.Context, fileKey string) (FileInfo, error) {
+func (m *mockStorage) StatFile(ctx context.Context, bucket, fileKey string) (FileInfo, error) {
 	m.statCalled = true
 	if m.statErr != nil {
 		return FileInfo{}, m.statErr
 	}
 	return m.statInfo, nil
 }
-func (m *mockStorage) RemoveFile(ctx context.Context, fileKey string) error {
+func (m *mockStorage) RemoveFile(ctx context.Context, bucket, fileKey string) error {
 	m.removeCalled = true
 	return nil
 }
-func (m *mockStorage) GetFile(ctx context.Context, fileKey string) (io.ReadSeekCloser, error) {
+func (m *mockStorage) GetFile(ctx context.Context, bucket, fileKey string) (io.ReadSeekCloser, error) {
 	m.getCalled = true
 	if m.getErr != nil {
 		return nil, m.getErr
@@ -112,25 +111,20 @@ func (m *mockStorage) GetFile(ctx context.Context, fileKey string) (io.ReadSeekC
 	}
 	return nopRSC{bytes.NewReader([]byte("dummy"))}, nil
 }
-func (m *mockStorage) SaveFile(ctx context.Context, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
+func (m *mockStorage) SaveFile(ctx context.Context, bucket, fileKey string, reader io.Reader, fileSize int64, opts map[string]string) error {
 	m.saveCalled = true
 	return m.saveErr
 }
-func (m *mockStorage) CopyFile(ctx context.Context, srcKey, destKey string) error {
+func (m *mockStorage) CopyFile(ctx context.Context, bucket, srcKey, destKey string) error {
 	m.copyCalled = true
 	return m.copyErr
 }
-
-type mockStorageGetter struct {
-	strg *mockStorage
-	err  error
-}
-
-func (m *mockStorageGetter) Get(bucket string) (Storage, error) {
-	if m.err != nil {
-		return nil, m.err
+func (m *mockStorage) FileExists(ctx context.Context, bucket, fileKey string) (bool, error) {
+	m.fileExistsCalled = true
+	if m.fileExistsErr != nil {
+		return false, m.fileExistsErr
 	}
-	return m.strg, nil
+	return m.fileExists, nil
 }
 
 type mockCache struct {

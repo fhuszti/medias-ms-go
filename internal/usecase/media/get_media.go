@@ -16,13 +16,13 @@ type Getter interface {
 }
 
 type mediaGetterSrv struct {
-	repo          Repository
-	cache         Cache
-	getTargetStrg StorageGetter
+	repo  Repository
+	cache Cache
+	strg  Storage
 }
 
-func NewMediaGetter(repo Repository, cache Cache, getTargetStrg StorageGetter) Getter {
-	return &mediaGetterSrv{repo, cache, getTargetStrg}
+func NewMediaGetter(repo Repository, cache Cache, strg Storage) Getter {
+	return &mediaGetterSrv{repo, cache, strg}
 }
 
 type GetMediaInput struct {
@@ -61,12 +61,7 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMe
 		return nil, errors.New("media status should be 'completed' to be returned")
 	}
 
-	strg, err := s.getTargetStrg(media.Bucket)
-	if err != nil {
-		return nil, fmt.Errorf("unknown target bucket %q: %w", media.Bucket, err)
-	}
-
-	url, err := strg.GeneratePresignedDownloadURL(ctx, media.ObjectKey, DownloadUrlTTL)
+	url, err := s.strg.GeneratePresignedDownloadURL(ctx, media.Bucket, media.ObjectKey, DownloadUrlTTL)
 	if err != nil {
 		return nil, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
 	}
@@ -86,7 +81,7 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMe
 	if IsImage(*media.MimeType) {
 		var variants model.VariantsOutput
 		for _, v := range media.Variants {
-			vUrl, vErr := strg.GeneratePresignedDownloadURL(ctx, v.ObjectKey, DownloadUrlTTL)
+			vUrl, vErr := s.strg.GeneratePresignedDownloadURL(ctx, media.Bucket, v.ObjectKey, DownloadUrlTTL)
 			if vErr != nil {
 				log.Printf("error generating presigned download URL for variant %q: %+v", v.ObjectKey, vErr)
 				continue
