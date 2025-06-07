@@ -34,7 +34,7 @@ type StorageGetter func(bucket string) (Storage, error)
 
 type Cache interface {
 	GetMediaDetails(ctx context.Context, id db.UUID) (*GetMediaOutput, error)
-	SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput) error
+	SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput)
 }
 
 type FileOptimiser interface {

@@ -137,7 +137,6 @@ type mockCache struct {
 	out *GetMediaOutput
 
 	getMediaErr error
-	setMediaErr error
 	delMediaErr error
 
 	getMediaCalled bool
@@ -153,10 +152,9 @@ func (c *mockCache) GetMediaDetails(ctx context.Context, id db.UUID) (*GetMediaO
 	return c.out, nil
 }
 
-func (c *mockCache) SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput) error {
+func (c *mockCache) SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput) {
 	c.setMediaCalled = true
 	c.out = value
-	return c.setMediaErr
 }
 
 func (c *mockCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {

@@ -94,15 +94,27 @@ func Load() (*Settings, error) {
 }
 
 func getBuckets() []string {
-	buckets := make([]string, 0)
+	bucketsSet := make(map[string]struct{})
+	result := make([]string, 0)
+
 	for _, bucket := range strings.Split(viper.GetString("BUCKETS"), ",") {
 		bucket = strings.TrimSpace(bucket)
 		if bucket == "" {
 			continue
 		}
-		buckets = append(buckets, bucket)
+		// Prevent duplicates
+		if _, exists := bucketsSet[bucket]; !exists {
+			bucketsSet[bucket] = struct{}{}
+			result = append(result, bucket)
+		}
 	}
-	return buckets
+
+	// Ensure "staging" is included
+	if _, exists := bucketsSet["staging"]; !exists {
+		result = append(result, "staging")
+	}
+
+	return result
 }
 
 func getImagesSizes() []int {
