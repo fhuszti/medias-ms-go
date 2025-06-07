@@ -34,36 +34,19 @@ func TestUploadImageE2E(t *testing.T) {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
-	// Setup buckets (staging and docs)
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	// Setup buckets
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
-
-	// Prepare storages map
-	storages := make(map[string]mediaSvc.Storage)
-	for _, name := range []string{"staging", "images"} {
-		st, err := tb.StrgClient.WithBucket(name)
-		if err != nil {
-			t.Fatalf("initialise bucket %q: %v", name, err)
-		}
-		storages[name] = st
-	}
-	getDest := func(bucket string) (mediaSvc.Storage, error) {
-		st, ok := storages[bucket]
-		if !ok {
-			return nil, fmt.Errorf("bucket %q not configured", bucket)
-		}
-		return st, nil
-	}
+	defer bCleanup()
 
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
-	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, storages["staging"], db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, storages["staging"], getDest)
+	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg)
 	ca := cache.NewNoop()
-	getterSvc := mediaSvc.NewMediaGetter(repo, ca, getDest)
+	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
@@ -131,7 +114,7 @@ func TestUploadImageE2E(t *testing.T) {
 		t.Fatalf("decode finalise_upload JSON: %v", err)
 	}
 
-	// Basic assertions on finalise output
+	// Basic assertions on finalised output
 	if mediaOut.ID.String() != out1.ID {
 		t.Errorf("finalise ID = %q; want %q", mediaOut.ID, out1.ID)
 	}
@@ -211,36 +194,19 @@ func TestUploadMarkdownE2E(t *testing.T) {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
-	// Setup buckets (staging and docs)
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	// Setup buckets
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
-
-	// Prepare storages map
-	storages := make(map[string]mediaSvc.Storage)
-	for _, name := range []string{"staging", "docs"} {
-		st, err := tb.StrgClient.WithBucket(name)
-		if err != nil {
-			t.Fatalf("initialise bucket %q: %v", name, err)
-		}
-		storages[name] = st
-	}
-	getDest := func(bucket string) (mediaSvc.Storage, error) {
-		st, ok := storages[bucket]
-		if !ok {
-			return nil, fmt.Errorf("bucket %q not configured", bucket)
-		}
-		return st, nil
-	}
+	defer bCleanup()
 
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
-	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, storages["staging"], db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, storages["staging"], getDest)
+	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg)
 	ca := cache.NewNoop()
-	getterSvc := mediaSvc.NewMediaGetter(repo, ca, getDest)
+	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
@@ -394,36 +360,19 @@ func TestUploadPDFE2E(t *testing.T) {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
-	// Setup buckets (staging and docs)
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	// Setup buckets
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
-
-	// Prepare storages map
-	storages := make(map[string]mediaSvc.Storage)
-	for _, name := range []string{"staging", "docs"} {
-		st, err := tb.StrgClient.WithBucket(name)
-		if err != nil {
-			t.Fatalf("initialise bucket %q: %v", name, err)
-		}
-		storages[name] = st
-	}
-	getDest := func(bucket string) (mediaSvc.Storage, error) {
-		st, ok := storages[bucket]
-		if !ok {
-			return nil, fmt.Errorf("bucket %q not configured", bucket)
-		}
-		return st, nil
-	}
+	defer bCleanup()
 
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
-	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, storages["staging"], db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, storages["staging"], getDest)
+	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg)
 	ca := cache.NewNoop()
-	getterSvc := mediaSvc.NewMediaGetter(repo, ca, getDest)
+	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()

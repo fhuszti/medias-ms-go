@@ -34,23 +34,19 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
 	ca := cache.NewNoop()
-	getStrg := func(bucket string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(bucket)
-	}
-	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, GlobalStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
-	const bucket = "docs"
-	strg, _ := getStrg(bucket)
+	bucket := "docs"
 	content := testutil.GenerateMarkdown()
 	meta := model.Metadata{WordCount: 23, HeadingCount: 3, LinkCount: 2}
 
@@ -67,7 +63,7 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 		t.Fatalf("insert media: %v", err)
 	}
 
-	if err := strg.SaveFile(ctx, objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{
+	if err := GlobalStrg.SaveFile(ctx, bucket, objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{
 		"Content-Type": "text/markdown",
 	}); err != nil {
 		t.Fatalf("upload to %q bucket: %v", bucket, err)
@@ -123,23 +119,19 @@ func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
 	ca := cache.NewNoop()
-	getStrg := func(bucket string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(bucket)
-	}
-	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, GlobalStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
-	const bucket = "docs"
-	strg, _ := getStrg(bucket)
+	bucket := "docs"
 	content := testutil.LoadPDF(t)
 	meta := model.Metadata{PageCount: 4}
 
@@ -156,7 +148,7 @@ func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 		t.Fatalf("insert media: %v", err)
 	}
 
-	if err := strg.SaveFile(ctx, objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{
+	if err := GlobalStrg.SaveFile(ctx, bucket, objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{
 		"Content-Type": "application/pdf",
 	}); err != nil {
 		t.Fatalf("upload to %q bucket: %v", bucket, err)
@@ -205,18 +197,15 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 		t.Fatalf("migrate DB: %v", err)
 	}
 
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(testDB.DB)
 	ca := cache.NewNoop()
-	getStrg := func(bucket string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(bucket)
-	}
-	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, getStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, GlobalStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
@@ -227,8 +216,7 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 	origContent := testutil.GeneratePNG(t, width, height)
 	meta := model.Metadata{Width: width, Height: height}
 	sizeBytes := int64(len(origContent))
-	destStrg, _ := getStrg(bucket)
-	if err := destStrg.SaveFile(ctx, objectKey, bytes.NewReader(origContent), sizeBytes, map[string]string{
+	if err := GlobalStrg.SaveFile(ctx, bucket, objectKey, bytes.NewReader(origContent), sizeBytes, map[string]string{
 		"Content-Type": "image/png",
 	}); err != nil {
 		t.Fatalf("upload original: %v", err)
@@ -244,7 +232,7 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 		v := &variants[i]
 		content := testutil.GeneratePNG(t, v.Width, v.Height)
 		v.SizeBytes = int64(len(content))
-		if err := destStrg.SaveFile(ctx, v.ObjectKey, bytes.NewReader(content), v.SizeBytes, map[string]string{
+		if err := GlobalStrg.SaveFile(ctx, bucket, v.ObjectKey, bytes.NewReader(content), v.SizeBytes, map[string]string{
 			"Content-Type": "image/png",
 		}); err != nil {
 			t.Fatalf("upload variant %d: %v", v.Width, err)
@@ -328,15 +316,15 @@ func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 		t.Fatalf("migrate DB: %v", err)
 	}
 
-	tb, _ := testutil.SetupTestBuckets(GlobalMinioClient)
-	defer tb.Cleanup()
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+	defer bCleanup()
 
 	repo := mariadb.NewMediaRepository(testDB.DB)
 	ca := cache.NewNoop()
-	getStrg := func(b string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(b)
-	}
-	svc := mediaSvc.NewMediaGetter(repo, ca, getStrg)
+	svc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
 	r := chi.NewRouter()
 	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(svc))

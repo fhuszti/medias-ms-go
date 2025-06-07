@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-var GlobalMinioClient *storage.Strg
+var GlobalStrg *storage.Strg
 
 func TestMain(m *testing.M) {
 	if runtime.GOOS == "windows" {
@@ -62,12 +62,12 @@ func setupMinIO() (cleanup func(), err error) {
 		secret := os.Getenv("TEST_MINIO_SECRET_KEY")
 		useSSL := os.Getenv("TEST_MINIO_USE_SSL") == "true"
 
-		client, err := storage.NewMinioClient(endpoint, access, secret, useSSL)
+		strg, err := storage.NewStorage(endpoint, access, secret, useSSL)
 		if err != nil {
 			return nil, err
 		}
 
-		GlobalMinioClient = client
+		GlobalStrg = strg
 
 		return func() {}, nil
 	}
@@ -78,7 +78,7 @@ func setupMinIO() (cleanup func(), err error) {
 		return nil, err
 	}
 
-	GlobalMinioClient = mi.Client
+	GlobalStrg = mi.Strg
 
 	return mi.Cleanup, nil
 }

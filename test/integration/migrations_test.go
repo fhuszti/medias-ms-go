@@ -23,7 +23,7 @@ func TestMigrateUpIntegration(t *testing.T) {
 		t.Fatalf("MigrateUp failed: %v", err)
 	}
 
-	// Give some time for migration to finalize
+	// Give some time for migration to finalise
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify a known table exists

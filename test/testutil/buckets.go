@@ -7,12 +7,7 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
-type TestBuckets struct {
-	StrgClient *storage.Strg
-	Cleanup    func() error
-}
-
-func SetupTestBuckets(strg *storage.Strg) (*TestBuckets, error) {
+func SetupTestBuckets(strg *storage.Strg) (func() error, error) {
 	buckets := []string{"staging", "images", "docs"}
 	ctx := context.Background()
 	client := strg.Client
@@ -21,7 +16,7 @@ func SetupTestBuckets(strg *storage.Strg) (*TestBuckets, error) {
 	for _, b := range buckets {
 		// if it already exists, drop it
 		if err := client.RemoveBucket(ctx, b); err != nil {
-			// ignore any errors here (e.g., bucket not found)
+			// ignore any errors here (e.g. bucket not found)
 		}
 		// now make a fresh one
 		if err := client.MakeBucket(ctx, b, minio.MakeBucketOptions{}); err != nil {
@@ -51,8 +46,5 @@ func SetupTestBuckets(strg *storage.Strg) (*TestBuckets, error) {
 		return nil
 	}
 
-	return &TestBuckets{
-		StrgClient: strg,
-		Cleanup:    cleanup,
-	}, nil
+	return cleanup, nil
 }

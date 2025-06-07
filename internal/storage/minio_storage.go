@@ -15,14 +15,13 @@ import (
 )
 
 type Strg struct {
-	client minioClient
-	useSSL bool
+	Client minioClient
 }
 
-// compile-time check: *MinioStorage must satisfy media.Storage
+// compile-time check: *Strg must satisfy media.Storage
 var _ media.Storage = (*Strg)(nil)
 
-func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Strg, error) {
+func NewStorage(endpoint, accessKey, secretKey string, useSSL bool) (*Strg, error) {
 	log.Println("initialising minio client...")
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
@@ -31,17 +30,17 @@ func NewMinioClient(endpoint, accessKey, secretKey string, useSSL bool) (*Strg, 
 	if err != nil {
 		return nil, mapMinioErr(err)
 	}
-	return &Strg{client, useSSL}, nil
+	return &Strg{client}, nil
 }
 
 func (s *Strg) InitBucket(bucket string) error {
-	ok, err := s.client.BucketExists(context.Background(), bucket)
+	ok, err := s.Client.BucketExists(context.Background(), bucket)
 	if err != nil {
 		return mapMinioErr(err)
 	}
 	if !ok {
 		log.Printf("bucket %q does not exist, creating it...", bucket)
-		if err := s.client.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{}); err != nil {
+		if err := s.Client.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{}); err != nil {
 			return mapMinioErr(err)
 		}
 	}
@@ -51,7 +50,7 @@ func (s *Strg) InitBucket(bucket string) error {
 func (s *Strg) GeneratePresignedDownloadURL(ctx context.Context, bucket, fileKey string, expiry time.Duration) (string, error) {
 	log.Printf("generating a presigned download link for file %q in bucket %q...", fileKey, bucket)
 
-	presignedURL, err := s.client.PresignedGetObject(ctx, bucket, fileKey, expiry, url.Values{})
+	presignedURL, err := s.Client.PresignedGetObject(ctx, bucket, fileKey, expiry, url.Values{})
 	if err != nil {
 		return "", mapMinioErr(err)
 	}
@@ -62,7 +61,7 @@ func (s *Strg) GeneratePresignedDownloadURL(ctx context.Context, bucket, fileKey
 func (s *Strg) GeneratePresignedUploadURL(ctx context.Context, bucket, fileKey string, expiry time.Duration) (string, error) {
 	log.Printf("generating a presigned upload link for file %q in bucket %q...", fileKey, bucket)
 
-	presignedURL, err := s.client.PresignedPutObject(ctx, bucket, fileKey, expiry)
+	presignedURL, err := s.Client.PresignedPutObject(ctx, bucket, fileKey, expiry)
 	if err != nil {
 		return "", mapMinioErr(err)
 	}
@@ -86,7 +85,7 @@ func (s *Strg) FileExists(ctx context.Context, bucket, fileKey string) (bool, er
 func (s *Strg) StatFile(ctx context.Context, bucket, fileKey string) (media.FileInfo, error) {
 	log.Printf("getting stats on file %q in bucket %q...", fileKey, bucket)
 
-	info, err := s.client.StatObject(ctx, bucket, fileKey, minio.StatObjectOptions{})
+	info, err := s.Client.StatObject(ctx, bucket, fileKey, minio.StatObjectOptions{})
 	if err != nil {
 		return media.FileInfo{}, mapMinioErr(err)
 	}
@@ -99,14 +98,14 @@ func (s *Strg) StatFile(ctx context.Context, bucket, fileKey string) (media.File
 func (s *Strg) RemoveFile(ctx context.Context, bucket, fileKey string) error {
 	log.Printf("removing file %q from bucket %q...", fileKey, bucket)
 
-	err := s.client.RemoveObject(ctx, bucket, fileKey, minio.RemoveObjectOptions{})
+	err := s.Client.RemoveObject(ctx, bucket, fileKey, minio.RemoveObjectOptions{})
 	return mapMinioErr(err)
 }
 
 func (s *Strg) GetFile(ctx context.Context, bucket, fileKey string) (io.ReadSeekCloser, error) {
 	log.Printf("getting file %q from bucket %q...", fileKey, bucket)
 
-	obj, err := s.client.GetObject(ctx, bucket, fileKey, minio.GetObjectOptions{})
+	obj, err := s.Client.GetObject(ctx, bucket, fileKey, minio.GetObjectOptions{})
 	if err != nil {
 		return nil, mapMinioErr(err)
 	}
@@ -121,7 +120,7 @@ func (s *Strg) SaveFile(ctx context.Context, bucket, fileKey string, reader io.R
 		putOpts.ContentType = ct
 	}
 
-	_, err := s.client.PutObject(ctx, bucket, fileKey, reader, fileSize, putOpts)
+	_, err := s.Client.PutObject(ctx, bucket, fileKey, reader, fileSize, putOpts)
 	if err != nil {
 		return mapMinioErr(err)
 	}
@@ -140,7 +139,7 @@ func (s *Strg) CopyFile(ctx context.Context, bucket, srcKey, destKey string) err
 		Object: srcKey,
 	}
 
-	_, err := s.client.CopyObject(ctx, destOpts, srcOpts)
+	_, err := s.Client.CopyObject(ctx, destOpts, srcOpts)
 	if err != nil {
 		return mapMinioErr(err)
 	}

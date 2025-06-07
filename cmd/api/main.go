@@ -91,7 +91,7 @@ func initRouter() *chi.Mux {
 }
 
 func initStorage(cfg *config.Settings) mediaSvc.Storage {
-	strg, err := storage.NewMinioClient(
+	strg, err := storage.NewStorage(
 		cfg.MinioEndpoint,
 		cfg.MinioAccessKey,
 		cfg.MinioSecretKey,

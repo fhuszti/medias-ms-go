@@ -15,7 +15,7 @@ import (
 
 type MinIOContainerInfo struct {
 	DSN     string
-	Client  *storage.Strg
+	Strg    *storage.Strg
 	Cleanup func()
 }
 
@@ -70,7 +70,7 @@ func StartMinIOContainer() (*MinIOContainerInfo, error) {
 		return nil, fmt.Errorf("minio did not become ready: %w", err)
 	}
 
-	client, err := storage.NewMinioClient(endpoint, rootUser, rootPassword, false)
+	strg, err := storage.NewStorage(endpoint, rootUser, rootPassword, false)
 	if err != nil {
 		pool.Purge(resource)
 		return nil, fmt.Errorf("could not create minio client: %w", err)
@@ -78,8 +78,8 @@ func StartMinIOContainer() (*MinIOContainerInfo, error) {
 
 	port := resource.GetPort(internalPort)
 	ci := &MinIOContainerInfo{
-		DSN:    fmt.Sprintf("root:secret@(localhost:%s)/testdb?parseTime=true", port),
-		Client: client,
+		DSN:  fmt.Sprintf("root:secret@(localhost:%s)/testdb?parseTime=true", port),
+		Strg: strg,
 		Cleanup: func() {
 			if err := pool.Purge(resource); err != nil {
 				log.Printf("could not purge minio container: %s", err)

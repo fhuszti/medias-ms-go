@@ -33,21 +33,14 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
-	stgStrg, err := tb.StrgClient.WithBucket("staging")
-	if err != nil {
-		t.Fatalf("failed to initialise bucket 'staging': %v", err)
-	}
-	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(bucket)
-	}
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
 
 	// Prepare media record and staging file
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
@@ -65,8 +58,9 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	}
 
 	// upload into "staging"
-	if err := stgStrg.SaveFile(
+	if err := GlobalStrg.SaveFile(
 		ctx,
+		"staging",
 		objectKey,
 		bytes.NewReader(content),
 		int64(len(content)),
@@ -124,11 +118,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	}
 
 	// Assert file moved to "docs" and absent from "staging"
-	destStrg, err := getDestStrg("docs")
-	if err != nil {
-		t.Fatalf("init dest bucket: %v", err)
-	}
-	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	exists, err := GlobalStrg.FileExists(ctx, "docs", destObjectKey)
 	if err != nil {
 		t.Fatalf("checking dest FileExists: %v", err)
 	}
@@ -136,7 +126,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 		t.Error("expected file in dest bucket, but it does not exist")
 	}
 
-	stillThere, err := stgStrg.FileExists(ctx, objectKey)
+	stillThere, err := GlobalStrg.FileExists(ctx, "staging", objectKey)
 	if err != nil {
 		t.Fatalf("checking staging FileExists: %v", err)
 	}
@@ -145,7 +135,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	}
 
 	// Assert content round-trips
-	rsc, err := destStrg.GetFile(ctx, destObjectKey)
+	rsc, err := GlobalStrg.GetFile(ctx, "docs", destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}
@@ -174,22 +164,15 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 
 	// Setup buckets
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
-	stgStrg, err := tb.StrgClient.WithBucket("staging")
-	if err != nil {
-		t.Fatalf("failed to initialise bucket 'staging': %v", err)
-	}
-	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(bucket)
-	}
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
 
 	// Prepare a media record and staging file (PNG)
 	id := db.UUID(uuid.MustParse("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"))
@@ -209,8 +192,9 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 
 	// Upload into staging
-	if err := stgStrg.SaveFile(
+	if err := GlobalStrg.SaveFile(
 		ctx,
+		"staging",
 		objectKey,
 		bytes.NewReader(content),
 		int64(len(content)),
@@ -266,11 +250,7 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 
 	// Assert file moved to destination
-	destStrg, err := getDestStrg("images")
-	if err != nil {
-		t.Fatalf("init dest bucket: %v", err)
-	}
-	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	exists, err := GlobalStrg.FileExists(ctx, "images", destObjectKey)
 	if err != nil {
 		t.Fatalf("checking dest FileExists: %v", err)
 	}
@@ -279,7 +259,7 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 
 	// Staging should be cleaned up
-	stillThere, err := stgStrg.FileExists(ctx, objectKey)
+	stillThere, err := GlobalStrg.FileExists(ctx, "staging", objectKey)
 	if err != nil {
 		t.Fatalf("checking staging FileExists: %v", err)
 	}
@@ -288,7 +268,7 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 
 	// Assert content round-trips
-	rsc, err := destStrg.GetFile(ctx, destObjectKey)
+	rsc, err := GlobalStrg.GetFile(ctx, "images", destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}
@@ -317,22 +297,15 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 
 	// Setup buckets
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
-	stgStrg, err := tb.StrgClient.WithBucket("staging")
-	if err != nil {
-		t.Fatalf("failed to initialise bucket 'staging': %v", err)
-	}
-	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(bucket)
-	}
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
 
 	// Prepare media record and a staging file (PDF)
 	id := db.UUID(uuid.MustParse("cccccccc-dddd-eeee-ffff-000000000000"))
@@ -351,8 +324,9 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 
 	// Upload into staging
-	if err := stgStrg.SaveFile(
+	if err := GlobalStrg.SaveFile(
 		ctx,
+		"staging",
 		objectKey,
 		bytes.NewReader(content),
 		int64(len(content)),
@@ -402,11 +376,7 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 
 	// Assert file moved to destination
-	destStrg, err := getDestStrg("docs")
-	if err != nil {
-		t.Fatalf("init dest bucket: %v", err)
-	}
-	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	exists, err := GlobalStrg.FileExists(ctx, "docs", destObjectKey)
 	if err != nil {
 		t.Fatalf("checking dest FileExists: %v", err)
 	}
@@ -415,7 +385,7 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 
 	// Staging should be cleaned up
-	stillThere, err := stgStrg.FileExists(ctx, objectKey)
+	stillThere, err := GlobalStrg.FileExists(ctx, "staging", objectKey)
 	if err != nil {
 		t.Fatalf("checking staging FileExists: %v", err)
 	}
@@ -424,7 +394,7 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 
 	// Assert content round-trips
-	rsc, err := destStrg.GetFile(ctx, destObjectKey)
+	rsc, err := GlobalStrg.GetFile(ctx, "docs", destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}
@@ -453,22 +423,15 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 
 	// Setup buckets
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
-	stgStrg, err := tb.StrgClient.WithBucket("staging")
-	if err != nil {
-		t.Fatalf("failed to initialise bucket 'staging': %v", err)
-	}
-	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(bucket)
-	}
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
 
 	// Prepare a Markdown payload in staging
 	id := db.UUID(uuid.MustParse("dddddddd-eeee-ffff-0000-111111111111"))
@@ -485,7 +448,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 		t.Fatalf("insert media: %v", err)
 	}
 	// Upload to staging
-	if err := stgStrg.SaveFile(ctx, objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{"Content-Type": "text/markdown"}); err != nil {
+	if err := GlobalStrg.SaveFile(ctx, "staging", objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{"Content-Type": "text/markdown"}); err != nil {
 		t.Fatalf("upload to staging: %v", err)
 	}
 
@@ -515,11 +478,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 
 	// Destination file exists
-	destStrg, err := getDestStrg("docs")
-	if err != nil {
-		t.Fatalf("init dest bucket: %v", err)
-	}
-	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	exists, err := GlobalStrg.FileExists(ctx, "docs", destObjectKey)
 	if err != nil {
 		t.Fatalf("checking dest FileExists: %v", err)
 	}
@@ -528,7 +487,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 
 	// Staging remains empty
-	stillThere, err := stgStrg.FileExists(ctx, objectKey)
+	stillThere, err := GlobalStrg.FileExists(ctx, "staging", objectKey)
 	if err != nil {
 		t.Fatalf("checking staging FileExists: %v", err)
 	}
@@ -537,7 +496,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 
 	// Round-trip content still same
-	rsc, err := destStrg.GetFile(ctx, destObjectKey)
+	rsc, err := GlobalStrg.GetFile(ctx, "docs", destObjectKey)
 	if err != nil {
 		t.Fatalf("GetFile on dest: %v", err)
 	}
@@ -566,22 +525,15 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	}
 
 	// Setup buckets
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(dbConn)
-	stgStrg, err := tb.StrgClient.WithBucket("staging")
-	if err != nil {
-		t.Fatalf("failed to initialise bucket 'staging': %v", err)
-	}
-	getDestStrg := func(bucket string) (mediaSvc.Storage, error) {
-		return tb.StrgClient.WithBucket(bucket)
-	}
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, stgStrg, getDestStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
 
 	// Prepare an undersized Markdown file
 	id := db.UUID(uuid.MustParse("eeeeeeee-ffff-0000-1111-222222222222"))
@@ -600,8 +552,9 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	}
 
 	// Upload to staging
-	if err := stgStrg.SaveFile(
+	if err := GlobalStrg.SaveFile(
 		ctx,
+		"staging",
 		objectKey,
 		bytes.NewReader(content),
 		int64(len(content)),
@@ -620,7 +573,7 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	}
 
 	// Staging file should be cleaned up
-	stillStaged, err := stgStrg.FileExists(ctx, objectKey)
+	stillStaged, err := GlobalStrg.FileExists(ctx, "staging", objectKey)
 	if err != nil {
 		t.Fatalf("checking staging FileExists: %v", err)
 	}
@@ -641,11 +594,7 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	}
 
 	// No file should appear in the destination bucket
-	destStrg, err := getDestStrg("docs")
-	if err != nil {
-		t.Fatalf("init dest bucket: %v", err)
-	}
-	exists, err := destStrg.FileExists(ctx, destObjectKey)
+	exists, err := GlobalStrg.FileExists(ctx, "docs", destObjectKey)
 	if err != nil {
 		t.Fatalf("checking dest FileExists: %v", err)
 	}

@@ -32,18 +32,14 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
-	tb, err := testutil.SetupTestBuckets(GlobalMinioClient)
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer tb.Cleanup()
+	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
-	strg, err := tb.StrgClient.WithBucket("staging")
-	if err != nil {
-		t.Fatalf("failed to initialise bucket 'staging': %v", err)
-	}
-	svc := mediaService.NewUploadLinkGenerator(mediaRepo, strg, db.NewUUID)
+	svc := mediaService.NewUploadLinkGenerator(mediaRepo, GlobalStrg, db.NewUUID)
 
 	in := mediaService.GenerateUploadLinkInput{
 		Name: "file_example.png",

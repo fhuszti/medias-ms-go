@@ -61,10 +61,9 @@ func (m *mockMinio) CopyObject(ctx context.Context, dst minio.CopyDestOptions, s
 	return m.copyObjectFn(ctx, dst, src)
 }
 
-func makeStorage(mockClient *mockMinio, useSSL bool) media.Storage {
+func makeStorage(mockClient *mockMinio) media.Storage {
 	return &Strg{
-		client: mockClient,
-		useSSL: useSSL,
+		Client: mockClient,
 	}
 }
 
@@ -115,7 +114,7 @@ func TestInitBucket(t *testing.T) {
 				},
 			}
 
-			strg := &Strg{client: mock, useSSL: true}
+			strg := &Strg{Client: mock}
 			err := strg.InitBucket("my-bucket")
 
 			if tc.wantErr != nil {
@@ -154,7 +153,7 @@ func TestGeneratePresignedDownloadURL(t *testing.T) {
 			return fake, nil
 		},
 	}
-	s := makeStorage(mock, true)
+	s := makeStorage(mock)
 
 	out, err := s.GeneratePresignedDownloadURL(context.Background(), "bucket", "obj.bin", 5*time.Minute)
 	if err != nil {
@@ -171,7 +170,7 @@ func TestGeneratePresignedDownloadURL_Error(t *testing.T) {
 			return nil, errors.New("fail-put")
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 
 	_, err := s.GeneratePresignedDownloadURL(context.Background(), "bucket", "k", time.Minute)
 	if err == nil {
@@ -198,7 +197,7 @@ func TestGeneratePresignedUploadURL(t *testing.T) {
 			return fake, nil
 		},
 	}
-	s := makeStorage(mock, true)
+	s := makeStorage(mock)
 
 	out, err := s.GeneratePresignedUploadURL(context.Background(), "bucket", "obj.bin", 5*time.Minute)
 	if err != nil {
@@ -215,7 +214,7 @@ func TestGeneratePresignedUploadURL_Error(t *testing.T) {
 			return nil, errors.New("fail-put")
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 
 	_, err := s.GeneratePresignedUploadURL(context.Background(), "bucket", "k", time.Minute)
 	if err == nil {
@@ -235,7 +234,7 @@ func TestObjectExists(t *testing.T) {
 			return minio.ObjectInfo{}, nil
 		},
 	}
-	s1 := makeStorage(mock1, false)
+	s1 := makeStorage(mock1)
 	exists, err := s1.FileExists(ctx, "bucket", "foo")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -252,7 +251,7 @@ func TestObjectExists(t *testing.T) {
 			return minio.ObjectInfo{}, e
 		},
 	}
-	s2 := makeStorage(mock2, false)
+	s2 := makeStorage(mock2)
 	exists2, err2 := s2.FileExists(ctx, "bucket", "bar")
 	if err2 != nil {
 		t.Fatalf("unexpected error: %v", err2)
@@ -267,7 +266,7 @@ func TestObjectExists(t *testing.T) {
 			return minio.ObjectInfo{}, errors.New("boom")
 		},
 	}
-	s3 := makeStorage(mock3, true)
+	s3 := makeStorage(mock3)
 	exists3, err3 := s3.FileExists(ctx, "bucket", "baz")
 	if err3 == nil {
 		t.Fatal("expected error, got nil")
@@ -294,7 +293,7 @@ func TestStatFile_Success(t *testing.T) {
 			return expected, nil
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	fi, err := s.StatFile(ctx, "bucket", "f.txt")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -316,7 +315,7 @@ func TestStatFile_NotFound(t *testing.T) {
 			return minio.ObjectInfo{}, e
 		},
 	}
-	s := makeStorage(mock, true)
+	s := makeStorage(mock)
 	_, err := s.StatFile(ctx, "bucket", "k")
 	if !errors.Is(err, media.ErrObjectNotFound) {
 		t.Fatalf("err = %v; want ErrObjectNotFound", err)
@@ -330,7 +329,7 @@ func TestStatFile_OtherError(t *testing.T) {
 			return minio.ObjectInfo{}, errors.New("some failure")
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	_, err := s.StatFile(ctx, "bucket", "k")
 	if !errors.Is(err, media.ErrInternal) {
 		t.Fatalf("err = %v; want ErrInternal", err)
@@ -352,7 +351,7 @@ func TestRemoveFile_Success(t *testing.T) {
 			return nil
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	if err := s.RemoveFile(ctx, "bucket", "file"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -370,7 +369,7 @@ func TestRemoveFile_NotFound(t *testing.T) {
 			return e
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	err := s.RemoveFile(ctx, "bucket", "f")
 	if !errors.Is(err, media.ErrObjectNotFound) {
 		t.Fatalf("err = %v; want ErrObjectNotFound", err)
@@ -384,7 +383,7 @@ func TestRemoveFile_OtherError(t *testing.T) {
 			return errors.New("boom")
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	err := s.RemoveFile(ctx, "bucket", "f")
 	if !errors.Is(err, media.ErrInternal) {
 		t.Fatalf("err = %v; want ErrInternal", err)
@@ -412,7 +411,7 @@ func TestSaveFile_Success(t *testing.T) {
 			return minio.UploadInfo{Size: objectSize}, nil
 		},
 	}
-	s := makeStorage(mock, true)
+	s := makeStorage(mock)
 	content := "hello"
 	err := s.SaveFile(ctx, "dest", "obj", strings.NewReader(content), int64(len(content)), map[string]string{"Content-Type": "text/plain"})
 	if err != nil {
@@ -443,7 +442,7 @@ func TestSaveFile_NoContentType(t *testing.T) {
 			return minio.UploadInfo{}, nil
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	if err := s.SaveFile(ctx, "bucket", "k", nil, 0, map[string]string{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -461,7 +460,7 @@ func TestSaveFile_ErrorMapping(t *testing.T) {
 			return minio.UploadInfo{}, e
 		},
 	}
-	s := makeStorage(mock, true)
+	s := makeStorage(mock)
 	err := s.SaveFile(ctx, "bucket", "k", nil, 0, map[string]string{})
 	if !errors.Is(err, media.ErrUnauthorized) {
 		t.Fatalf("err = %v; want ErrUnauthorized", err)
@@ -491,7 +490,7 @@ func TestGetFile_Success(t *testing.T) {
 			return dummy, nil
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	rsc, err := s.GetFile(ctx, "bucket", "key")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -510,7 +509,7 @@ func TestGetFile_NotFound(t *testing.T) {
 			return nil, e
 		},
 	}
-	s := makeStorage(mock, true)
+	s := makeStorage(mock)
 	_, err := s.GetFile(ctx, "bucket", "k")
 	if !errors.Is(err, media.ErrObjectNotFound) {
 		t.Fatalf("err = %v; want ErrObjectNotFound", err)
@@ -524,7 +523,7 @@ func TestGetFile_OtherError(t *testing.T) {
 			return nil, errors.New("boom")
 		},
 	}
-	s := makeStorage(mock, true)
+	s := makeStorage(mock)
 	_, err := s.GetFile(ctx, "bucket", "k")
 	if !errors.Is(err, media.ErrInternal) {
 		t.Fatalf("err = %v; want ErrInternal", err)
@@ -553,7 +552,7 @@ func TestCopyFile_Success(t *testing.T) {
 			return minio.UploadInfo{}, nil
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	if err := s.CopyFile(ctx, "bucket", "srcKey", "destKey"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -571,7 +570,7 @@ func TestCopyFile_NotFound(t *testing.T) {
 			return minio.UploadInfo{}, e
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	err := s.CopyFile(ctx, "bucket", "srcKey", "destKey")
 	if !errors.Is(err, media.ErrObjectNotFound) {
 		t.Fatalf("err = %v; want ErrObjectNotFound", err)
@@ -585,7 +584,7 @@ func TestCopyFile_OtherError(t *testing.T) {
 			return minio.UploadInfo{}, errors.New("boom")
 		},
 	}
-	s := makeStorage(mock, false)
+	s := makeStorage(mock)
 	err := s.CopyFile(ctx, "bucket", "srcKey", "destKey")
 	if !errors.Is(err, media.ErrInternal) {
 		t.Fatalf("err = %v; want ErrInternal", err)
