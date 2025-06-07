@@ -26,9 +26,9 @@ func New(dsn string, maxOpen, maxIdle int, connMaxLifetime time.Duration) (*Data
 
 	// verify connectivity
 	if err := db.Ping(); err != nil {
-		err := db.Close()
-		if err != nil {
-			return nil, err
+		// close the connection pool before returning the ping error
+		if cErr := db.Close(); cErr != nil {
+			return nil, cErr
 		}
 		return nil, err
 	}
