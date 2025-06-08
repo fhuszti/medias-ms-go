@@ -3,7 +3,9 @@ package optimiser
 import (
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
+	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
@@ -123,9 +125,35 @@ func (fo *FileOptimiser) Compress(mimeType string, r io.Reader) (io.ReadCloser, 
 	return pr, newMimeType, nil
 }
 
-func (fo *FileOptimiser) Resize(mimeType string, r io.Reader, width, height int) ([]byte, error) {
+func (fo *FileOptimiser) Resize(mimeType string, r io.Reader, width, height int) (io.ReadCloser, error) {
 	log.Printf("resizing image of type %q...", mimeType)
 
-	//TODO implement me
-	panic("implement me")
+	pr, pw := io.Pipe()
+
+	go func() {
+		defer func() { _ = pw.Close() }()
+
+		if !media.IsImage(mimeType) {
+			if _, err := io.Copy(pw, r); err != nil {
+				_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to stream raw data: %w", err))
+			}
+			return
+		}
+
+		img, _, err := fo.webpEnc.Decode(r)
+		if err != nil {
+			_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to decode image: %w", err))
+			return
+		}
+
+		dst := image.NewRGBA(image.Rect(0, 0, width, height))
+		draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
+
+		if err := fo.webpEnc.Encode(dst, 100, pw); err != nil {
+			_ = pw.CloseWithError(fmt.Errorf("optimiser: failed to encode WebP: %w", err))
+			return
+		}
+	}()
+
+	return pr, nil
 }

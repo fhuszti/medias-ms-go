@@ -157,19 +157,27 @@ func (c *mockCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
 }
 
 type mockFileOptimiser struct {
-	out     []byte
-	mimeOut string
+	compressOut []byte
+	resizeOut   []byte
+	mimeOut     string
 
 	compressErr error
+	resizeErr   error
+
+	resizeCalled bool
 }
 
 func (m *mockFileOptimiser) Compress(mimeType string, r io.Reader) (io.ReadCloser, string, error) {
 	if m.compressErr != nil {
 		return nil, "", m.compressErr
 	}
-	return io.NopCloser(bytes.NewReader(m.out)), m.mimeOut, nil
+	return io.NopCloser(bytes.NewReader(m.compressOut)), m.mimeOut, nil
 }
 
-func (m *mockFileOptimiser) Resize(mimeType string, r io.Reader, width, height int) ([]byte, error) {
-	return nil, nil
+func (m *mockFileOptimiser) Resize(mimeType string, r io.Reader, width, height int) (io.ReadCloser, error) {
+	m.resizeCalled = true
+	if m.resizeErr != nil {
+		return nil, m.resizeErr
+	}
+	return io.NopCloser(bytes.NewReader(m.resizeOut)), nil
 }
