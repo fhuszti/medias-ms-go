@@ -35,7 +35,7 @@ func TestOptimiseMediaHandler_InvalidID(t *testing.T) {
 }
 
 func TestOptimiseMediaHandler_ServiceError(t *testing.T) {
-	id := uuid.New()
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	svcErr := errors.New("svc fail")
 	svc := &mockOptimiser{err: svcErr}
 
@@ -46,13 +46,13 @@ func TestOptimiseMediaHandler_ServiceError(t *testing.T) {
 	if !svc.called {
 		t.Error("service not called")
 	}
-	if svc.in.ID != db.UUID(id) {
+	if svc.in.ID != id {
 		t.Errorf("service got id %s; want %s", svc.in.ID, id)
 	}
 }
 
 func TestOptimiseMediaHandler_Success(t *testing.T) {
-	id := uuid.New()
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	svc := &mockOptimiser{}
 
 	err := OptimiseMediaHandler(context.Background(), task.OptimiseMediaPayload{MediaID: id.String()}, svc)
@@ -62,7 +62,7 @@ func TestOptimiseMediaHandler_Success(t *testing.T) {
 	if !svc.called {
 		t.Error("service not called")
 	}
-	if svc.in.ID != db.UUID(id) {
+	if svc.in.ID != id {
 		t.Errorf("service got id %s; want %s", svc.in.ID, id)
 	}
 }
