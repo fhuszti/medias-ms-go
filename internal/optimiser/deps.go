@@ -18,7 +18,6 @@ type PDFOptimizer interface {
 
 type webPEncoder struct{}
 
-// NewWebPEncoder returns a WebPEncoder that uses harvey-pro/webp + Go’s image.Decode.
 func NewWebPEncoder() WebPEncoder {
 	return &webPEncoder{}
 }
