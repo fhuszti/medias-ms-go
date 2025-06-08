@@ -156,7 +156,7 @@ func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 456}
-	fo := &mockFileOptimiser{mimeOut: *m.MimeType, out: []byte("comp")}
+	fo := &mockFileOptimiser{mimeOut: *m.MimeType, compressOut: []byte("comp")}
 	svc := NewMediaOptimiser(repo, fo, strg)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
@@ -183,7 +183,7 @@ func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 789}
-	fo := &mockFileOptimiser{mimeOut: "image/webp", out: []byte("webp")}
+	fo := &mockFileOptimiser{mimeOut: "image/webp", compressOut: []byte("webp")}
 	svc := NewMediaOptimiser(repo, fo, strg)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})

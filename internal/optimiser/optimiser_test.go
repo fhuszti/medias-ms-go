@@ -345,3 +345,80 @@ func TestCompress_OtherPath_ReadError(t *testing.T) {
 		t.Errorf("expected newMimeType 'text/plain', got %q", newMime)
 	}
 }
+
+func TestResize_Image_Success(t *testing.T) {
+	const expected = "RESIZED"
+	wEnc := &fakeWebPEncoder{returnBytes: []byte(expected)}
+	pOpt := &fakePDFOptimizer{}
+	opt := NewFileOptimiser(wEnc, pOpt)
+
+	outRC, err := opt.Resize("image/png", strings.NewReader("ignored"), 10, 10)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	defer func() { _ = outRC.Close() }()
+
+	out, err := io.ReadAll(outRC)
+	if err != nil {
+		t.Fatalf("failed to read output: %v", err)
+	}
+	if string(out) != expected {
+		t.Errorf("expected %q, got %q", expected, string(out))
+	}
+}
+
+func TestResize_Image_DecodeError(t *testing.T) {
+	wEnc := &fakeWebPEncoder{returnDecodeErr: errors.New("dec fail")}
+	opt := NewFileOptimiser(wEnc, &fakePDFOptimizer{})
+
+	reader, err := opt.Resize("image/webp", strings.NewReader("irrelevant"), 1, 1)
+	if err != nil {
+		t.Fatalf("expected no immediate error, got %v", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	_, readErr := io.ReadAll(reader)
+	if readErr == nil {
+		t.Fatal("expected decode error on read, got nil")
+	}
+	if !strings.Contains(readErr.Error(), "dec fail") {
+		t.Errorf("unexpected error %v", readErr)
+	}
+}
+
+func TestResize_Image_EncodeError(t *testing.T) {
+	wEnc := &fakeWebPEncoder{returnEncodeErr: errors.New("enc fail")}
+	opt := NewFileOptimiser(wEnc, &fakePDFOptimizer{})
+
+	reader, err := opt.Resize("image/webp", strings.NewReader("irrelevant"), 1, 1)
+	if err != nil {
+		t.Fatalf("expected no immediate error, got %v", err)
+	}
+	defer func() { _ = reader.Close() }()
+
+	_, readErr := io.ReadAll(reader)
+	if readErr == nil {
+		t.Fatal("expected encode error on read, got nil")
+	}
+	if !strings.Contains(readErr.Error(), "enc fail") {
+		t.Errorf("unexpected error %v", readErr)
+	}
+}
+
+func TestResize_NonImage(t *testing.T) {
+	opt := NewFileOptimiser(&fakeWebPEncoder{returnBytes: []byte("NOP")}, &fakePDFOptimizer{})
+	data := []byte("plain")
+	rc, err := opt.Resize("application/pdf", bytes.NewReader(data), 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = rc.Close() }()
+
+	out, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("failed to read: %v", err)
+	}
+	if !bytes.Equal(out, data) {
+		t.Errorf("expected %q, got %q", data, out)
+	}
+}
