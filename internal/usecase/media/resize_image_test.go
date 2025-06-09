@@ -24,7 +24,8 @@ func TestResizeImage_GetByIDNotFound(t *testing.T) {
 	repo := &mockRepo{getErr: sql.ErrNoRows}
 	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{})
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID()})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
 	if !errors.Is(err, ErrObjectNotFound) {
 		t.Fatalf("expected ErrObjectNotFound, got %v", err)
 	}
@@ -34,7 +35,8 @@ func TestResizeImage_GetByIDError(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
 	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{})
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID()})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
 	if err == nil || err.Error() != "db fail" {
 		t.Fatalf("expected db fail, got %v", err)
 	}
@@ -46,7 +48,8 @@ func TestResizeImage_WrongStatus(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{})
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID()})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
 	want := "media status should be 'completed' to be resized"
 	if err == nil || err.Error() != want {
 		t.Fatalf("expected %q, got %v", want, err)
@@ -59,7 +62,8 @@ func TestResizeImage_NotImage(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{})
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID()})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
 	if err == nil || err.Error() != "media is not an image" {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -72,7 +76,8 @@ func TestResizeImage_GetFileError(t *testing.T) {
 	stg := &mockStorage{getErr: errors.New("get fail")}
 	svc := NewImageResizer(repo, &mockFileOptimiser{}, stg)
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID()})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
 	if err == nil || err.Error() != "get fail" {
 		t.Fatalf("expected get fail, got %v", err)
 	}
@@ -85,7 +90,8 @@ func TestResizeImage_SeekError(t *testing.T) {
 	stg := &mockStorage{reader: errSeekReader{bytes.NewReader([]byte("a"))}}
 	svc := NewImageResizer(repo, &mockFileOptimiser{}, stg)
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID(), Sizes: []int{10}})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
 	if err == nil || !strings.Contains(err.Error(), "seek fail") {
 		t.Fatalf("expected seek fail, got %v", err)
 	}
@@ -99,7 +105,8 @@ func TestResizeImage_ResizeError(t *testing.T) {
 	fo := &mockFileOptimiser{resizeErr: errors.New("resize fail")}
 	svc := NewImageResizer(repo, fo, stg)
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID(), Sizes: []int{10}})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
 	if err == nil || err.Error() != "resize fail" {
 		t.Fatalf("expected resize fail, got %v", err)
 	}
@@ -113,7 +120,8 @@ func TestResizeImage_SaveFileError(t *testing.T) {
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
 	svc := NewImageResizer(repo, fo, stg)
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID(), Sizes: []int{10}})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
 	if err == nil || !strings.Contains(err.Error(), "save fail") {
 		t.Fatalf("expected save fail, got %v", err)
 	}
@@ -127,7 +135,8 @@ func TestResizeImage_StatError(t *testing.T) {
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
 	svc := NewImageResizer(repo, fo, stg)
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID(), Sizes: []int{10}})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
 	if err == nil || !strings.Contains(err.Error(), "stat fail") {
 		t.Fatalf("expected stat fail, got %v", err)
 	}
@@ -141,7 +150,8 @@ func TestResizeImage_UpdateError(t *testing.T) {
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
 	svc := NewImageResizer(repo, fo, stg)
 
-	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: db.NewUUID(), Sizes: []int{10}})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
 	if err == nil || !strings.Contains(err.Error(), "update fail") {
 		t.Fatalf("expected update fail, got %v", err)
 	}
