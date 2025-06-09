@@ -72,38 +72,11 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 		t.Fatalf("upload to staging: %v", err)
 	}
 
-	out, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
+	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
 		ID:         id,
 		DestBucket: "docs",
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatalf("FinaliseUpload returned error: %v", err)
-	}
-
-	// Assert returned media
-	if out.ID != id {
-		t.Errorf("returned ID = %v; want %v", out.ID, id)
-	}
-	if out.Bucket != "docs" {
-		t.Errorf("bucket should be 'docs', got %q", out.Bucket)
-	}
-	if out.Status != model.MediaStatusCompleted {
-		t.Errorf("returned Status = %q; want %q", out.Status, model.MediaStatusCompleted)
-	}
-	if out.SizeBytes == nil || *out.SizeBytes != int64(len(content)) {
-		t.Errorf("returned SizeBytes = %v; want %v", out.SizeBytes, len(content))
-	}
-	if out.MimeType == nil || *out.MimeType != "text/markdown" {
-		t.Errorf("returned MimeType = %q; want %q", *out.MimeType, "text/markdown")
-	}
-	if out.Metadata.WordCount != 23 {
-		t.Errorf("WordCount = %d; want %d", out.Metadata.WordCount, 23)
-	}
-	if out.Metadata.HeadingCount != 3 {
-		t.Errorf("HeadingCount = %d; want %d", out.Metadata.HeadingCount, 3)
-	}
-	if out.Metadata.LinkCount != 2 {
-		t.Errorf("LinkCount = %d; want %d", out.Metadata.LinkCount, 2)
 	}
 
 	// Assert DB was updated
@@ -205,37 +178,11 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 
 	// Execute finalisation
-	out, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
+	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
 		ID:         id,
 		DestBucket: "images",
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatalf("FinaliseUpload returned error: %v", err)
-	}
-
-	// Basic assertions
-	if out.ID != id {
-		t.Errorf("returned ID = %v; want %v", out.ID, id)
-	}
-	if out.Bucket != "images" {
-		t.Errorf("bucket should be 'images', got %q", out.Bucket)
-	}
-	if out.Status != model.MediaStatusCompleted {
-		t.Errorf("returned Status = %q; want %q", out.Status, model.MediaStatusCompleted)
-	}
-	if out.SizeBytes == nil || *out.SizeBytes != int64(len(content)) {
-		t.Errorf("returned SizeBytes = %v; want %v", out.SizeBytes, len(content))
-	}
-	if out.MimeType == nil || *out.MimeType != "image/png" {
-		t.Errorf("returned MimeType = %q; want %q", *out.MimeType, "image/png")
-	}
-
-	// Assert image metadata
-	if out.Metadata.Width != width {
-		t.Errorf("Metadata.Width = %d; want %d", out.Metadata.Width, width)
-	}
-	if out.Metadata.Height != height {
-		t.Errorf("Metadata.Height = %d; want %d", out.Metadata.Height, height)
 	}
 
 	// Assert DB updated
@@ -243,11 +190,23 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
-	if fromDB.Metadata.Width != out.Metadata.Width {
-		t.Errorf("DB Metadata.Width = %d; want %d", fromDB.Metadata.Width, out.Metadata.Width)
+	if fromDB.Bucket != "images" {
+		t.Errorf("bucket should be 'images', got %q", fromDB.Bucket)
 	}
-	if fromDB.Metadata.Height != out.Metadata.Height {
-		t.Errorf("DB Metadata.Height = %d; want %d", fromDB.Metadata.Height, out.Metadata.Height)
+	if fromDB.Status != model.MediaStatusCompleted {
+		t.Errorf("DB Status = %q; want %q", fromDB.Status, model.MediaStatusCompleted)
+	}
+	if fromDB.SizeBytes == nil || *fromDB.SizeBytes != int64(len(content)) {
+		t.Errorf("DB SizeBytes = %v; want %v", fromDB.SizeBytes, len(content))
+	}
+	if fromDB.MimeType == nil || *fromDB.MimeType != "image/png" {
+		t.Errorf("DB MimeType = %q; want %q", *fromDB.MimeType, "image/png")
+	}
+	if fromDB.Metadata.Width != width {
+		t.Errorf("Metadata.Width = %d; want %d", fromDB.Metadata.Width, width)
+	}
+	if fromDB.Metadata.Height != height {
+		t.Errorf("Metadata.Height = %d; want %d", fromDB.Metadata.Height, height)
 	}
 
 	// Assert file moved to destination
@@ -337,34 +296,11 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 
 	// Execute finalisation
-	out, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
+	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
 		ID:         id,
 		DestBucket: "docs",
-	})
-	if err != nil {
+	}); err != nil {
 		t.Fatalf("FinaliseUpload returned error: %v", err)
-	}
-
-	// Basic assertions
-	if out.ID != id {
-		t.Errorf("returned ID = %v; want %v", out.ID, id)
-	}
-	if out.Bucket != "docs" {
-		t.Errorf("bucket should be 'docs', got %q", out.Bucket)
-	}
-	if out.Status != model.MediaStatusCompleted {
-		t.Errorf("returned Status = %q; want %q", out.Status, model.MediaStatusCompleted)
-	}
-	if out.SizeBytes == nil || *out.SizeBytes != int64(len(content)) {
-		t.Errorf("returned SizeBytes = %v; want %v", out.SizeBytes, len(content))
-	}
-	if out.MimeType == nil || *out.MimeType != "application/pdf" {
-		t.Errorf("returned MimeType = %q; want %q", *out.MimeType, "application/pdf")
-	}
-
-	// Assert PDF metadata
-	if out.Metadata.PageCount != 4 {
-		t.Errorf("PageCount = %d; want %d", out.Metadata.PageCount, 4)
 	}
 
 	// Assert DB updated
@@ -372,8 +308,20 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
 	}
-	if fromDB.Metadata.PageCount != out.Metadata.PageCount {
-		t.Errorf("DB PageCount = %d; want %d", fromDB.Metadata.PageCount, out.Metadata.PageCount)
+	if fromDB.Bucket != "docs" {
+		t.Errorf("bucket should be 'docs', got %q", fromDB.Bucket)
+	}
+	if fromDB.Status != model.MediaStatusCompleted {
+		t.Errorf("DB Status = %q; want %q", fromDB.Status, model.MediaStatusCompleted)
+	}
+	if fromDB.SizeBytes == nil || *fromDB.SizeBytes != int64(len(content)) {
+		t.Errorf("DB SizeBytes = %v; want %v", fromDB.SizeBytes, len(content))
+	}
+	if fromDB.MimeType == nil || *fromDB.MimeType != "application/pdf" {
+		t.Errorf("DB MimeType = %q; want %q", *fromDB.MimeType, "application/pdf")
+	}
+	if fromDB.Metadata.PageCount != 4 {
+		t.Errorf("PageCount = %d; want %d", fromDB.Metadata.PageCount, 4)
 	}
 
 	// Assert file moved to destination
@@ -454,23 +402,30 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 
 	// First call: expect success
-	out1, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
-	if err != nil {
+	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"}); err != nil {
 		t.Fatalf("first FinaliseUpload error: %v", err)
+	}
+
+	out1, err := mediaRepo.GetByID(ctx, id)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
 	}
 	if out1.Status != model.MediaStatusCompleted {
 		t.Errorf("first call Status = %q; want %q", out1.Status, model.MediaStatusCompleted)
 	}
 
 	// Second call: should be no-op, return existing
-	out2, err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
-	if err != nil {
+	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"}); err != nil {
 		t.Fatalf("second FinaliseUpload error: %v", err)
+	}
+
+	out2, err := mediaRepo.GetByID(ctx, id)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
 	}
 	if out2.Status != model.MediaStatusCompleted {
 		t.Errorf("second call Status = %q; want %q", out2.Status, model.MediaStatusCompleted)
 	}
-	// Should not change object key or bucket
 	if out2.Bucket != out1.Bucket {
 		t.Errorf("second call Bucket = %q; want %q", out2.Bucket, out1.Bucket)
 	}
@@ -565,7 +520,7 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	}
 
 	// Attempt finalisation: expect "too small" error
-	_, err = svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
+	err = svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
 	if err == nil {
 		t.Fatalf("expected error for too small file, got nil")
 	}

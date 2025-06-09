@@ -20,7 +20,7 @@ import (
 )
 
 type UploadFinaliser interface {
-	FinaliseUpload(ctx context.Context, in FinaliseUploadInput) (*model.Media, error)
+	FinaliseUpload(ctx context.Context, in FinaliseUploadInput) error
 }
 
 type uploadFinaliserSrv struct {
@@ -38,16 +38,16 @@ type FinaliseUploadInput struct {
 	DestBucket string
 }
 
-func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUploadInput) (*model.Media, error) {
+func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUploadInput) error {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if media.Status == model.MediaStatusCompleted {
-		return media, nil
+		return nil
 	}
 	if media.Status != model.MediaStatusPending {
-		return nil, errors.New("media status should be 'pending' to be finalised")
+		return errors.New("media status should be 'pending' to be finalised")
 	}
 
 	// Cleanup function
@@ -70,33 +70,33 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 		} else {
 			finalErr = fmt.Errorf("stats for file %q failed: %w", media.ObjectKey, err)
 		}
-		return nil, finalErr
+		return finalErr
 	}
 
 	if info.SizeBytes < MinFileSize {
 		finalErr = fmt.Errorf("file %q too small: %d bytes (min size: %d bytes)", media.ObjectKey, info.SizeBytes, MinFileSize)
-		return nil, finalErr
+		return finalErr
 	}
 	if info.SizeBytes > MaxFileSize {
 		finalErr = fmt.Errorf("file %q too large: %d bytes (max size: %d bytes)", media.ObjectKey, info.SizeBytes, MaxFileSize)
-		return nil, finalErr
+		return finalErr
 	}
 
 	if !IsMimeTypeAllowed(info.ContentType) {
 		finalErr = fmt.Errorf("unsupported mime-type %q for file %q", info.ContentType, media.ObjectKey)
-		return nil, finalErr
+		return finalErr
 	}
 
 	if err := s.moveFile(ctx, media, info.SizeBytes, info.ContentType, in.DestBucket); err != nil {
 		finalErr = fmt.Errorf("move file %q from staging to bucket %q failed: %w", media.ObjectKey, in.DestBucket, err)
-		return nil, finalErr
+		return finalErr
 	}
 
 	if err := s.tasks.EnqueueOptimiseMedia(ctx, media.ID); err != nil {
 		log.Printf("failed to enqueue optimise task for media #%s: %v", media.ID, err)
 	}
 
-	return media, nil
+	return nil
 }
 
 func (s *uploadFinaliserSrv) cleanupFile(objectKey string) error {
