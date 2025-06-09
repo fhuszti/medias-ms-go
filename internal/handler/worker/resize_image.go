@@ -12,7 +12,7 @@ import (
 
 // ResizeImagePayload represents the payload for a resize-image task.
 type ResizeImagePayload struct {
-	MediaID string `json:"media_id" validate:"required,uuid"`
+	ID string `json:"id" validate:"required,uuid"`
 }
 
 // ResizeImageHandler handles a resize-image task.
@@ -23,7 +23,7 @@ func ResizeImageHandler(ctx context.Context, p ResizeImagePayload, sizes []int, 
 		return err
 	}
 
-	id := uuid.MustParse(p.MediaID)
+	id := uuid.MustParse(p.ID)
 	in := media.ResizeImageInput{ID: db.UUID(id), Sizes: sizes}
 	if err := svc.ResizeImage(ctx, in); err != nil {
 		log.Printf("❌  Failed to resize image #%s: %v", id, err)
