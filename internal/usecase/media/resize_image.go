@@ -3,12 +3,14 @@ package media
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"io"
 	"log"
-	"path/filepath"
+	"path"
+	"strings"
 )
 
 // ImageResizer resizes images and saves the generated variants.
@@ -37,7 +39,7 @@ type ResizeImageInput struct {
 func (s *imageResizerSrv) ResizeImage(ctx context.Context, in ResizeImageInput) error {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return ErrObjectNotFound
 		}
 		return err
@@ -70,7 +72,13 @@ func (s *imageResizerSrv) ResizeImage(ctx context.Context, in ResizeImageInput) 
 			return err
 		}
 
-		variantKey := filepath.Join("variants", fmt.Sprintf("%s_%d.webp", media.ObjectKey, width))
+		ext := path.Ext(media.ObjectKey)
+		base := strings.TrimSuffix(media.ObjectKey, ext)
+		variantKey := path.Join(
+			"variants",
+			media.ID.String(),
+			fmt.Sprintf("%s_%d.webp", base, width),
+		)
 		if err := s.strg.SaveFile(ctx, media.Bucket, variantKey, resized, -1, map[string]string{"Content-Type": "image/webp"}); err != nil {
 			_ = resized.Close()
 			return fmt.Errorf("failed to save variant %q: %w", variantKey, err)

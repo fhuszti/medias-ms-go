@@ -184,7 +184,7 @@ func (m *mockFileOptimiser) Resize(mimeType string, r io.Reader, width, height i
 
 type mockDispatcher struct {
 	optimiseCalled bool
-	id             db.UUID
+	optimiseID     db.UUID
 	optimiseErr    error
 
 	resizeCalled bool
@@ -194,7 +194,7 @@ type mockDispatcher struct {
 
 func (m *mockDispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error {
 	m.optimiseCalled = true
-	m.id = id
+	m.optimiseID = id
 	return m.optimiseErr
 }
 

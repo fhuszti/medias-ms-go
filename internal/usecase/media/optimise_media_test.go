@@ -188,8 +188,8 @@ func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 789}
 	fo := &mockFileOptimiser{mimeOut: "image/webp", compressOut: []byte("webp")}
-	dispatcher2 := &mockDispatcher{}
-	svc := NewMediaOptimiser(repo, fo, strg, dispatcher2)
+	dispatcher := &mockDispatcher{}
+	svc := NewMediaOptimiser(repo, fo, strg, dispatcher)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err != nil {
@@ -204,7 +204,7 @@ func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	if !strg.saveCalled || !strg.copyCalled {
 		t.Error("expected save and copy calls")
 	}
-	if !dispatcher2.resizeCalled || dispatcher2.resizeID != m.ID {
+	if !dispatcher.resizeCalled || dispatcher.resizeID != m.ID {
 		t.Error("resize task not enqueued")
 	}
 }

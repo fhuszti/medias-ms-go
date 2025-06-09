@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -158,10 +159,11 @@ func TestResizeImage_UpdateError(t *testing.T) {
 }
 
 func TestResizeImage_Success(t *testing.T) {
+	idStr := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 	mt := "image/png"
 	size := int64(0)
 	m := &model.Media{
-		ID:        db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")),
+		ID:        db.UUID(uuid.MustParse(idStr)),
 		Status:    model.MediaStatusCompleted,
 		MimeType:  &mt,
 		Bucket:    "images",
@@ -189,11 +191,11 @@ func TestResizeImage_Success(t *testing.T) {
 		t.Fatalf("expected 2 variants, got %d", len(repo.updated.Variants))
 	}
 	v := repo.updated.Variants[0]
-	if v.ObjectKey != "variants/foo.png_20.webp" || v.Width != 20 || v.Height != 10 || v.SizeBytes != 123 {
+	if v.ObjectKey != fmt.Sprintf("variants/%s/foo_20.webp", idStr) || v.Width != 20 || v.Height != 10 || v.SizeBytes != 123 {
 		t.Errorf("first variant unexpected: %+v", v)
 	}
 	v2 := repo.updated.Variants[1]
-	if v2.ObjectKey != "variants/foo.png_40.webp" || v2.Width != 40 || v2.Height != 20 {
+	if v2.ObjectKey != fmt.Sprintf("variants/%s/foo_40.webp", idStr) || v2.Width != 40 || v2.Height != 20 {
 		t.Errorf("second variant unexpected: %+v", v2)
 	}
 }
