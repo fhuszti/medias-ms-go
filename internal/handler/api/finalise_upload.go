@@ -50,13 +50,12 @@ func FinaliseUploadHandler(svc media.UploadFinaliser) http.HandlerFunc {
 			ID:         db.UUID(id),
 			DestBucket: destBucket,
 		}
-		output, err := svc.FinaliseUpload(r.Context(), input)
-		if err != nil {
+		if err := svc.FinaliseUpload(r.Context(), input); err != nil {
 			WriteError(w, http.StatusInternalServerError, fmt.Sprintf("could not finalise upload of media #%s", input.ID), err)
 			return
 		}
 
-		RespondJSON(w, http.StatusOK, output)
+		w.WriteHeader(http.StatusNoContent)
 		log.Printf("✅  Successfully finalised upload of media #%s", input.ID)
 	}
 }

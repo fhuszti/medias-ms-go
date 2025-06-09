@@ -19,7 +19,7 @@ func TestFinaliseUpload_ErrGetByID(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
 	svc := NewUploadFinaliser(repo, &mockStorage{}, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || err.Error() != "db fail" {
 		t.Errorf("expected getByID error, got %v", err)
 	}
@@ -30,12 +30,8 @@ func TestFinaliseUpload_AlreadyCompleted(t *testing.T) {
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, &mockStorage{}, &mockDispatcher{})
 
-	out, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
-	if err != nil {
+	if err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if out != mrec {
-		t.Errorf("expected returned media unchanged, got %v", out)
 	}
 }
 
@@ -44,7 +40,7 @@ func TestFinaliseUpload_WrongStatus(t *testing.T) {
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, &mockStorage{}, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "media status should be 'pending'") {
 		t.Errorf("expected status error, got %v", err)
 	}
@@ -56,7 +52,7 @@ func TestFinaliseUpload_StatNotFound(t *testing.T) {
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "staging file \"k\" not found") {
 		t.Errorf("expected not found error, got %v", err)
 	}
@@ -81,7 +77,7 @@ func TestFinaliseUpload_SizeValidation(t *testing.T) {
 		stg := &mockStorage{statInfo: FileInfo{SizeBytes: tc.size, ContentType: "image/png"}}
 		repo := &mockRepo{mediaRecord: mrec}
 		svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
-		_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+		err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 		if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 			t.Errorf("size %d: expected error containing %q, got %v", tc.size, tc.wantErr, err)
 		}
@@ -94,7 +90,7 @@ func TestFinaliseUpload_UnsupportedMime(t *testing.T) {
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "unsupported mime-type") {
 		t.Errorf("expected unsupported mime-type error, got %v", err)
 	}
@@ -106,7 +102,7 @@ func TestFinaliseUpload_MoveGetFileError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "can't read file") {
 		t.Errorf("expected getfile error, got %v", err)
 	}
@@ -118,7 +114,7 @@ func TestFinaliseUpload_MoveExtensionError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "unsupported mime-type") {
 		t.Errorf("expected extension error, got %v", err)
 	}
@@ -130,7 +126,7 @@ func TestFinaliseUpload_MoveMetadataError(t *testing.T) {
 	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: strings.NewReader("not-a-png")}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "error decoding") {
 		t.Errorf("expected metadata error, got %v", err)
 	}
@@ -142,7 +138,7 @@ func TestFinaliseUpload_MoveSaveFileError(t *testing.T) {
 	stg := &mockStorage{saveErr: errors.New("save fail"), statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "save fail") {
 		t.Errorf("expected savefile error, got %v", err)
 	}
@@ -154,7 +150,7 @@ func TestFinaliseUpload_MoveUpdateMediaError(t *testing.T) {
 	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
-	_, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
+	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "update fail") {
 		t.Errorf("expected repo update error, got %v", err)
 	}
@@ -167,15 +163,14 @@ func TestFinaliseUpload_Success(t *testing.T) {
 	dispatcher := &mockDispatcher{}
 	svc := NewUploadFinaliser(repo, stg, dispatcher)
 
-	out, err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
-	if err != nil {
+	if err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if out.Bucket != "images" {
-		t.Errorf("bucket should be 'images', got %q", out.Bucket)
+	if mrec.Bucket != "images" {
+		t.Errorf("bucket should be 'images', got %q", mrec.Bucket)
 	}
-	if out.Status != model.MediaStatusCompleted {
-		t.Errorf("Status = %q; want Completed", out.Status)
+	if mrec.Status != model.MediaStatusCompleted {
+		t.Errorf("Status = %q; want Completed", mrec.Status)
 	}
 	if !stg.saveCalled {
 		t.Error("expected SaveFile on destination to be called")
