@@ -28,7 +28,7 @@ func newCompletedMedia() *model.Media {
 func TestOptimiseMedia_GetByIDNotFound(t *testing.T) {
 	repo := &mockRepo{getErr: sql.ErrNoRows}
 	strg := &mockStorage{}
-	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, strg)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: db.NewUUID()})
 	if !errors.Is(err, ErrObjectNotFound) {
@@ -39,7 +39,7 @@ func TestOptimiseMedia_GetByIDNotFound(t *testing.T) {
 func TestOptimiseMedia_GetByIDError(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
 	strg := &mockStorage{}
-	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, strg)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: db.NewUUID()})
 	if err == nil || err.Error() != "db fail" {
@@ -52,7 +52,7 @@ func TestOptimiseMedia_WrongStatus(t *testing.T) {
 	m.Status = model.MediaStatusPending
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
-	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, strg)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || !strings.Contains(err.Error(), "completed") {
@@ -64,7 +64,7 @@ func TestOptimiseMedia_GetFileError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{getErr: errors.New("get fail")}
-	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, strg)
+	svc := NewMediaOptimiser(repo, &mockFileOptimiser{}, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || err.Error() != "get fail" {
@@ -77,7 +77,7 @@ func TestOptimiseMedia_CompressError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
 	fo := &mockFileOptimiser{compressErr: errors.New("compress fail")}
-	svc := NewMediaOptimiser(repo, fo, strg)
+	svc := NewMediaOptimiser(repo, fo, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || err.Error() != "compress fail" {
@@ -90,7 +90,7 @@ func TestOptimiseMedia_ExtensionError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
 	fo := &mockFileOptimiser{mimeOut: "application/unknown"}
-	svc := NewMediaOptimiser(repo, fo, strg)
+	svc := NewMediaOptimiser(repo, fo, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || !strings.Contains(err.Error(), "unsupported mime type") {
@@ -103,7 +103,7 @@ func TestOptimiseMedia_SaveFileError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{saveErr: errors.New("save fail")}
 	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
-	svc := NewMediaOptimiser(repo, fo, strg)
+	svc := NewMediaOptimiser(repo, fo, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || !strings.Contains(err.Error(), "save fail") {
@@ -116,7 +116,7 @@ func TestOptimiseMedia_CopyFileError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{copyErr: errors.New("copy fail")}
 	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
-	svc := NewMediaOptimiser(repo, fo, strg)
+	svc := NewMediaOptimiser(repo, fo, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || !strings.Contains(err.Error(), "copy fail") {
@@ -129,7 +129,7 @@ func TestOptimiseMedia_StatError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{statErr: errors.New("stat fail")}
 	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
-	svc := NewMediaOptimiser(repo, fo, strg)
+	svc := NewMediaOptimiser(repo, fo, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || !strings.Contains(err.Error(), "stat fail") {
@@ -143,7 +143,7 @@ func TestOptimiseMedia_UpdateError(t *testing.T) {
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 200}
 	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
-	svc := NewMediaOptimiser(repo, fo, strg)
+	svc := NewMediaOptimiser(repo, fo, strg, &mockDispatcher{})
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err == nil || !strings.Contains(err.Error(), "update fail") {
@@ -157,7 +157,8 @@ func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 456}
 	fo := &mockFileOptimiser{mimeOut: *m.MimeType, compressOut: []byte("comp")}
-	svc := NewMediaOptimiser(repo, fo, strg)
+	dispatcher := &mockDispatcher{}
+	svc := NewMediaOptimiser(repo, fo, strg, dispatcher)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err != nil {
@@ -176,6 +177,9 @@ func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 	if !strg.saveCalled || !strg.copyCalled || !strg.removeCalled || !strg.getCalled || !strg.statCalled {
 		t.Error("storage methods not fully called")
 	}
+	if !dispatcher.resizeCalled || dispatcher.resizeID != m.ID {
+		t.Error("resize task not enqueued")
+	}
 }
 
 func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
@@ -184,7 +188,8 @@ func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	strg := &mockStorage{}
 	strg.statInfo = FileInfo{SizeBytes: 789}
 	fo := &mockFileOptimiser{mimeOut: "image/webp", compressOut: []byte("webp")}
-	svc := NewMediaOptimiser(repo, fo, strg)
+	dispatcher2 := &mockDispatcher{}
+	svc := NewMediaOptimiser(repo, fo, strg, dispatcher2)
 
 	err := svc.OptimiseMedia(context.Background(), OptimiseMediaInput{ID: m.ID})
 	if err != nil {
@@ -198,5 +203,8 @@ func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	}
 	if !strg.saveCalled || !strg.copyCalled {
 		t.Error("expected save and copy calls")
+	}
+	if !dispatcher2.resizeCalled || dispatcher2.resizeID != m.ID {
+		t.Error("resize task not enqueued")
 	}
 }

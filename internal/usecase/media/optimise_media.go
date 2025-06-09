@@ -18,13 +18,14 @@ type Optimiser interface {
 }
 
 type mediaOptimiserSrv struct {
-	repo Repository
-	opt  FileOptimiser
-	strg Storage
+	repo  Repository
+	opt   FileOptimiser
+	strg  Storage
+	tasks TaskDispatcher
 }
 
-func NewMediaOptimiser(repo Repository, opt FileOptimiser, strg Storage) Optimiser {
-	return &mediaOptimiserSrv{repo, opt, strg}
+func NewMediaOptimiser(repo Repository, opt FileOptimiser, strg Storage, tasks TaskDispatcher) Optimiser {
+	return &mediaOptimiserSrv{repo, opt, strg, tasks}
 }
 
 type OptimiseMediaInput struct {
@@ -115,6 +116,12 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 
 	if err := m.repo.Update(ctx, media); err != nil {
 		return fmt.Errorf("failed updating media: %w", err)
+	}
+
+	if IsImage(newMimeType) {
+		if err := m.tasks.EnqueueResizeImage(ctx, media.ID); err != nil {
+			log.Printf("failed to enqueue resize task for media #%s: %v", media.ID, err)
+		}
 	}
 
 	return nil
