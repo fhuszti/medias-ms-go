@@ -40,7 +40,9 @@ func main() {
 
 	repo := mariadb.NewMediaRepository(database.DB)
 	fo := optimiser.NewFileOptimiser(optimiser.NewWebPEncoder(), optimiser.NewPDFOptimizer())
-	optimiseSvc := mediaSvc.NewMediaOptimiser(repo, fo, strg)
+	dispatcher := task.NewDispatcher(cfg.RedisAddr, cfg.RedisPassword)
+	optimiseSvc := mediaSvc.NewMediaOptimiser(repo, fo, strg, dispatcher)
+	resizeSvc := mediaSvc.NewImageResizer(repo, fo, strg)
 
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(task.TypeOptimiseMedia, func(ctx context.Context, t *asynq.Task) error {
@@ -49,6 +51,13 @@ func main() {
 			return err
 		}
 		return workerHandler.OptimiseMediaHandler(ctx, p, optimiseSvc)
+	})
+	mux.HandleFunc(task.TypeResizeImage, func(ctx context.Context, t *asynq.Task) error {
+		p, err := task.ParseResizeImagePayload(t)
+		if err != nil {
+			return err
+		}
+		return workerHandler.ResizeImageHandler(ctx, p, cfg.ImagesSizes, resizeSvc)
 	})
 
 	runWorker(mux, cfg, database)

@@ -16,3 +16,7 @@ func NewNoopDispatcher() *NoopDispatcher { return &NoopDispatcher{} }
 func (d *NoopDispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error {
 	return nil
 }
+
+func (d *NoopDispatcher) EnqueueResizeImage(ctx context.Context, id db.UUID) error {
+	return nil
+}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/google/uuid"
 )
@@ -24,7 +25,7 @@ func (m *mockResizer) ResizeImage(ctx context.Context, in mediaSvc.ResizeImageIn
 
 func TestResizeImageHandler_InvalidID(t *testing.T) {
 	svc := &mockResizer{}
-	err := ResizeImageHandler(context.Background(), ResizeImagePayload{ID: "invalid"}, nil, svc)
+	err := ResizeImageHandler(context.Background(), task.ResizeImagePayload{ID: "invalid"}, nil, svc)
 	if err == nil {
 		t.Fatal("expected error for invalid UUID")
 	}
@@ -39,7 +40,7 @@ func TestResizeImageHandler_ServiceError(t *testing.T) {
 	svc := &mockResizer{err: svcErr}
 
 	sizes := []int{100, 200}
-	err := ResizeImageHandler(context.Background(), ResizeImagePayload{ID: id.String()}, sizes, svc)
+	err := ResizeImageHandler(context.Background(), task.ResizeImagePayload{ID: id.String()}, sizes, svc)
 	if !errors.Is(err, svcErr) {
 		t.Fatalf("got error %v; want %v", err, svcErr)
 	}
@@ -59,7 +60,7 @@ func TestResizeImageHandler_Success(t *testing.T) {
 	svc := &mockResizer{}
 	sizes := []int{100, 200}
 
-	err := ResizeImageHandler(context.Background(), ResizeImagePayload{ID: id.String()}, sizes, svc)
+	err := ResizeImageHandler(context.Background(), task.ResizeImagePayload{ID: id.String()}, sizes, svc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

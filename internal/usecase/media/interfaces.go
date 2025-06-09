@@ -45,4 +45,5 @@ type FileOptimiser interface {
 
 type TaskDispatcher interface {
 	EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error
+	EnqueueResizeImage(ctx context.Context, id db.UUID) error
 }
