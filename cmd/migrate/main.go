@@ -11,12 +11,12 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("configuration error: %v", err)
+		log.Fatalf("❌  Configuration error: %v", err)
 	}
 
 	database, err := initDb(cfg)
 	if err != nil {
-		log.Fatalf("failed to connect to db: %v", err)
+		log.Fatalf("❌  Failed to connect to db: %v", err)
 	}
 	defer func(database *db.Database) {
 		err := database.Close()
@@ -26,10 +26,10 @@ func main() {
 	}(database)
 
 	if err := migration.MigrateUp(database.DB); err != nil {
-		log.Fatalf("migration up failed: %v", err)
+		log.Fatalf("❌  Migration up failed: %v", err)
 	}
 
-	log.Println("migrations applied successfully")
+	log.Println("✅  Migrations applied successfully")
 }
 
 func initDb(cfg *config.Settings) (*db.Database, error) {

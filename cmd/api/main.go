@@ -26,7 +26,7 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Configuration error: %v", err)
+		log.Fatalf("❌  Configuration error: %v", err)
 	}
 
 	database := initDb(cfg)
@@ -75,7 +75,7 @@ func initDb(cfg *config.Settings) *db.Database {
 
 	database, err := db.NewFromConfig(dbCfg)
 	if err != nil {
-		log.Fatalf("Failed to connect to db: %v", err)
+		log.Fatalf("❌  Failed to connect to db: %v", err)
 	}
 
 	return database
@@ -102,7 +102,7 @@ func initStorage(cfg *config.Settings) mediaSvc.Storage {
 		cfg.MinioUseSSL,
 	)
 	if err != nil {
-		log.Fatalf("Failed to initialize MinIO client: %v", err)
+		log.Fatalf("❌  Failed to initialize MinIO client: %v", err)
 	}
 
 	return strg
@@ -111,7 +111,7 @@ func initStorage(cfg *config.Settings) mediaSvc.Storage {
 func initBuckets(strg mediaSvc.Storage, buckets []string) {
 	for _, b := range buckets {
 		if err := strg.InitBucket(b); err != nil {
-			log.Fatalf("Failed to initialize bucket %q: %v", b, err)
+			log.Fatalf("❌  Failed to initialize bucket %q: %v", b, err)
 		}
 	}
 }
@@ -123,7 +123,7 @@ func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {
 	go func() {
 		log.Printf("🚀 API listening on %s", srv.Addr)
 		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Listen error: %v", err)
+			log.Fatalf("❌  Listen error: %v", err)
 		}
 	}()
 
@@ -137,7 +137,7 @@ func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server shutdown failed: %v", err)
+		log.Fatalf("❌  Server shutdown failed: %v", err)
 	}
 	log.Println("✅  Server gracefully stopped")
 

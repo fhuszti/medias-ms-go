@@ -22,7 +22,7 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Configuration error: %v", err)
+		log.Fatalf("❌  Configuration error: %v", err)
 	}
 	if cfg.RedisAddr == "" {
 		log.Fatal("⚠️  REDIS_ADDR must be set to run the worker")
@@ -66,7 +66,7 @@ func initDb(cfg *config.Settings) *db.Database {
 
 	database, err := db.NewFromConfig(dbCfg)
 	if err != nil {
-		log.Fatalf("Failed to connect to db: %v", err)
+		log.Fatalf("❌  Failed to connect to db: %v", err)
 	}
 	return database
 }
@@ -79,7 +79,7 @@ func initStorage(cfg *config.Settings) mediaSvc.Storage {
 		cfg.MinioUseSSL,
 	)
 	if err != nil {
-		log.Fatalf("Failed to initialize MinIO client: %v", err)
+		log.Fatalf("❌  Failed to initialize MinIO client: %v", err)
 	}
 
 	return strg
@@ -88,7 +88,7 @@ func initStorage(cfg *config.Settings) mediaSvc.Storage {
 func initBuckets(strg mediaSvc.Storage, buckets []string) {
 	for _, b := range buckets {
 		if err := strg.InitBucket(b); err != nil {
-			log.Fatalf("Failed to initialize bucket %q: %v", b, err)
+			log.Fatalf("❌  Failed to initialize bucket %q: %v", b, err)
 		}
 	}
 }
@@ -102,7 +102,7 @@ func runWorker(mux *asynq.ServeMux, cfg *config.Settings, database *db.Database)
 	// Run server in background
 	go func() {
 		if err := srv.Run(mux); err != nil {
-			log.Fatalf("❌ Worker failed: %v", err)
+			log.Fatalf("❌  Worker failed: %v", err)
 		}
 	}()
 	log.Println("🚀 Worker started")
