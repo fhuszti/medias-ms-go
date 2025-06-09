@@ -32,6 +32,35 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 - The ``staging`` bucket is mandatory and will be created even when missing from the env variable. It is used to temporarily host files waiting for validation
 - You have access to a UI for browsing MinIO buckets and objects at [localhost:9001](http://localhost:9001), using the login info from ``MINIO_USER`` / ``MINIO_PASS`` in the env variables
 
+## Basic API usage
+
+1. **Generate an upload link** – ``POST /medias/generate_upload_link``
+   - Body: ``{"name": "original-file.ext"}``
+   - Returns ``201`` with ``{"id":"<uuid>","url":"<upload_url>"}``.
+2. **Upload the file** using the ``url`` from step 1 with a ``PUT`` request.
+   - The file lands in the ``staging`` bucket.
+3. **Finalise the upload** – ``POST /medias/finalise_upload/{destBucket}``
+   - Path param ``destBucket`` must be one of the buckets defined in ``BUCKETS``.
+   - Body: ``{"id": "<uuid>"}``
+   - Moves the file from ``staging`` to ``destBucket`` and stores metadata.
+   - Returns ``204`` with no content.
+4. **Retrieve the media** – ``GET /medias/{id}``
+   - Returns ``200`` with ``{"valid_until":"<time>","optimised":<bool>,"url":"<download_url>","metadata":{...},"variants":[]}``.
+   - ``metadata`` always contains ``size_bytes`` and ``mime_type``.
+     - **Images**: also include ``width`` and ``height``.
+     - **PDFs**: ``metadata`` has ``page_count``.
+     - **Markdown**: ``metadata`` has ``word_count``, ``heading_count``, ``link_count``.
+   - ``variants`` lists resized ``.webp`` versions for images. Each variant has ``url``, ``width``, ``height``, ``size_bytes``. Other file types return an empty list.
+
+### Async optimisations
+
+After step 3 the service enqueues optimisation tasks handled by the worker (requires Redis):
+
+- The original file is compressed (images become lossy ``.webp``; PDFs are stripped, etc.).
+- If the resulting file is an image, resized variants are created for the sizes in ``IMAGES_SIZES``.
+- These operations run in the background so the original file remains available immediately after finalisation.
+  While processing, ``optimised`` in ``GET /medias/{id}`` stays ``false`` and ``variants`` is empty. Once compression and resizing finish, ``optimised`` becomes ``true`` and image variants are listed.
+
 ## Tests
 
 You can run the full tests suite with a simple ``make test``.
