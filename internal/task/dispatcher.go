@@ -30,3 +30,14 @@ func (d *Dispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error
 	}
 	return nil
 }
+
+func (d *Dispatcher) EnqueueResizeImage(ctx context.Context, id db.UUID) error {
+	t, err := NewResizeImageTask(id.String())
+	if err != nil {
+		return err
+	}
+	if _, err := d.client.EnqueueContext(ctx, t); err != nil {
+		return err
+	}
+	return nil
+}

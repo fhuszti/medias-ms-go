@@ -7,6 +7,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/validation"
 	"github.com/google/uuid"
 )
 
@@ -14,11 +15,12 @@ import (
 // It converts the incoming task payload to the input expected by
 // the media.Optimiser service and delegates the call.
 func OptimiseMediaHandler(ctx context.Context, p task.OptimiseMediaPayload, svc media.Optimiser) error {
-	id, err := uuid.Parse(p.MediaID)
-	if err != nil {
-		log.Printf("❌  Invalid media ID %q: %v", p.MediaID, err)
+	if err := validation.ValidateStruct(p); err != nil {
+		log.Printf("❌  Payload validation failed: %v", err)
 		return err
 	}
+
+	id := uuid.MustParse(p.ID)
 
 	in := media.OptimiseMediaInput{ID: db.UUID(id)}
 	if err := svc.OptimiseMedia(ctx, in); err != nil {
