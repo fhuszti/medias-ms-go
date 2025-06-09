@@ -186,10 +186,20 @@ type mockDispatcher struct {
 	optimiseCalled bool
 	id             db.UUID
 	optimiseErr    error
+
+	resizeCalled bool
+	resizeID     db.UUID
+	resizeErr    error
 }
 
 func (m *mockDispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error {
 	m.optimiseCalled = true
 	m.id = id
 	return m.optimiseErr
+}
+
+func (m *mockDispatcher) EnqueueResizeImage(ctx context.Context, id db.UUID) error {
+	m.resizeCalled = true
+	m.resizeID = id
+	return m.resizeErr
 }
