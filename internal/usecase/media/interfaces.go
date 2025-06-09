@@ -42,3 +42,7 @@ type FileOptimiser interface {
 	Compress(mimeType string, r io.Reader) (io.ReadCloser, string, error)
 	Resize(mimeType string, r io.Reader, width, height int) (io.ReadCloser, error)
 }
+
+type TaskDispatcher interface {
+	EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error
+}

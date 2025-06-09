@@ -181,3 +181,15 @@ func (m *mockFileOptimiser) Resize(mimeType string, r io.Reader, width, height i
 	}
 	return io.NopCloser(bytes.NewReader(m.resizeOut)), nil
 }
+
+type mockDispatcher struct {
+	optimiseCalled bool
+	id             db.UUID
+	optimiseErr    error
+}
+
+func (m *mockDispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error {
+	m.optimiseCalled = true
+	m.id = id
+	return m.optimiseErr
+}

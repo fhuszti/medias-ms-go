@@ -17,6 +17,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
+	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
@@ -44,7 +45,7 @@ func TestUploadImageE2E(t *testing.T) {
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg)
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewNoopDispatcher())
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
@@ -204,7 +205,7 @@ func TestUploadMarkdownE2E(t *testing.T) {
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg)
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewNoopDispatcher())
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
@@ -370,7 +371,7 @@ func TestUploadPDFE2E(t *testing.T) {
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg)
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewNoopDispatcher())
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 

@@ -9,6 +9,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
+	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
@@ -40,7 +41,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
 
 	// Prepare media record and staging file
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
@@ -172,7 +173,7 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 
 	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
 
 	// Prepare a media record and staging file (PNG)
 	id := db.UUID(uuid.MustParse("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"))
@@ -305,7 +306,7 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 
 	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
 
 	// Prepare media record and a staging file (PDF)
 	id := db.UUID(uuid.MustParse("cccccccc-dddd-eeee-ffff-000000000000"))
@@ -431,7 +432,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 
 	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
 
 	// Prepare a Markdown payload in staging
 	id := db.UUID(uuid.MustParse("dddddddd-eeee-ffff-0000-111111111111"))
@@ -533,7 +534,7 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 
 	// Initialise service
 	mediaRepo := mariadb.NewMediaRepository(dbConn)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg)
+	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
 
 	// Prepare an undersized Markdown file
 	id := db.UUID(uuid.MustParse("eeeeeeee-ffff-0000-1111-222222222222"))
