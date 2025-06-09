@@ -17,6 +17,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/storage"
+	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -37,18 +38,21 @@ func main() {
 
 	mediaRepo := mariadb.NewMediaRepository(database.DB)
 	var ca mediaSvc.Cache
+	var dispatcher mediaSvc.TaskDispatcher
 	if cfg.RedisAddr != "" {
 		ca = cache.NewCache(cfg.RedisAddr, cfg.RedisPassword)
+		dispatcher = task.NewDispatcher(cfg.RedisAddr, cfg.RedisPassword)
 		log.Println("✅  Redis cache enabled")
 	} else {
 		ca = cache.NewNoop()
+		dispatcher = task.NewNoopDispatcher()
 		log.Println("⚠️  Redis not configured — caching is disabled")
 	}
 
 	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, strg, db.NewUUID)
 	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
-	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, strg)
+	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, strg, dispatcher)
 	r.With(api.WithDestBucket(cfg.Buckets)).
 		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(uploadFinaliserSvc))
 

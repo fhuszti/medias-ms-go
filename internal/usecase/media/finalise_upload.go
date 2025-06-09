@@ -24,12 +24,13 @@ type UploadFinaliser interface {
 }
 
 type uploadFinaliserSrv struct {
-	repo Repository
-	strg Storage
+	repo  Repository
+	strg  Storage
+	tasks TaskDispatcher
 }
 
-func NewUploadFinaliser(repo Repository, strg Storage) UploadFinaliser {
-	return &uploadFinaliserSrv{repo, strg}
+func NewUploadFinaliser(repo Repository, strg Storage, tasks TaskDispatcher) UploadFinaliser {
+	return &uploadFinaliserSrv{repo, strg, tasks}
 }
 
 type FinaliseUploadInput struct {
@@ -89,6 +90,10 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUplo
 	if err := s.moveFile(ctx, media, info.SizeBytes, info.ContentType, in.DestBucket); err != nil {
 		finalErr = fmt.Errorf("move file %q from staging to bucket %q failed: %w", media.ObjectKey, in.DestBucket, err)
 		return nil, finalErr
+	}
+
+	if err := s.tasks.EnqueueOptimiseMedia(ctx, media.ID); err != nil {
+		log.Printf("failed to enqueue optimise task for media #%s: %v", media.ID, err)
 	}
 
 	return media, nil
