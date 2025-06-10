@@ -17,6 +17,7 @@ type Repository interface {
 	Create(ctx context.Context, media *model.Media) error
 	Update(ctx context.Context, media *model.Media) error
 	GetByID(ctx context.Context, ID db.UUID) (*model.Media, error)
+	ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]db.UUID, error)
 }
 
 type Storage interface {

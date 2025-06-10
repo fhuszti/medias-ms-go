@@ -12,13 +12,17 @@ import (
 type mockRepo struct {
 	mediaRecord *model.Media
 
-	getErr    error
-	createErr error
-	updateErr error
+	getErr     error
+	createErr  error
+	updateErr  error
+	listErr    error
+	listOut    []db.UUID
+	listBefore time.Time
 
-	getCalled bool
-	created   *model.Media
-	updated   *model.Media
+	getCalled  bool
+	created    *model.Media
+	updated    *model.Media
+	listCalled bool
 }
 
 func (m *mockRepo) GetByID(ctx context.Context, id db.UUID) (*model.Media, error) {
@@ -35,6 +39,15 @@ func (m *mockRepo) Update(ctx context.Context, media *model.Media) error {
 func (m *mockRepo) Create(ctx context.Context, media *model.Media) error {
 	m.created = media
 	return m.createErr
+}
+
+func (m *mockRepo) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
+	m.listCalled = true
+	m.listBefore = before
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
+	return m.listOut, nil
 }
 
 type nopRSC struct{ io.ReadSeeker }
@@ -184,7 +197,7 @@ func (m *mockFileOptimiser) Resize(mimeType string, r io.Reader, width, height i
 
 type mockDispatcher struct {
 	optimiseCalled bool
-	optimiseID     db.UUID
+	optimiseIDs    []db.UUID
 	optimiseErr    error
 
 	resizeCalled bool
@@ -194,7 +207,7 @@ type mockDispatcher struct {
 
 func (m *mockDispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error {
 	m.optimiseCalled = true
-	m.optimiseID = id
+	m.optimiseIDs = append(m.optimiseIDs, id)
 	return m.optimiseErr
 }
 

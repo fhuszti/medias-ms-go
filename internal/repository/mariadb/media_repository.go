@@ -7,6 +7,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"log"
+	"time"
 )
 
 type MediaRepository struct {
@@ -98,4 +99,35 @@ func (r *MediaRepository) GetByID(ctx context.Context, ID db.UUID) (*model.Media
 	}
 
 	return &media, nil
+}
+
+func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
+	log.Printf("fetching medias to reoptimise before %s...", before)
+
+	const query = `
+      SELECT id FROM medias
+      WHERE status = ? AND optimised = FALSE AND created_at <= ?
+    `
+	rows, err := r.db.QueryContext(ctx, query, model.MediaStatusCompleted, before)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			log.Printf("rows close error: %v", cerr)
+		}
+	}()
+
+	var ids []db.UUID
+	for rows.Next() {
+		var id db.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
 }
