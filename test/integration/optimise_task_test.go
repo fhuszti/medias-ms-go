@@ -109,8 +109,11 @@ func TestOptimiseTaskIntegration_SuccessPNG(t *testing.T) {
 			found300 = true
 		}
 	}
-	if !found50 || !found300 {
-		t.Error("expected variants for widths 50 and 300")
+	if !found50 {
+		t.Error("expected 50px variant")
+	}
+	if !found300 {
+		t.Error("expected 300px variant")
 	}
 	exists, err := GlobalStrg.FileExists(ctx, "images", out.ObjectKey)
 	if err != nil || !exists {
@@ -198,8 +201,11 @@ func TestOptimiseTaskIntegration_SuccessWEBP(t *testing.T) {
 			found300 = true
 		}
 	}
-	if !found50 || !found300 {
-		t.Error("expected variants for widths 50 and 300")
+	if !found50 {
+		t.Error("expected 50px variant")
+	}
+	if !found300 {
+		t.Error("expected 300px variant")
 	}
 	vKey1 := fmt.Sprintf("variants/%s/%s_50.webp", id, id)
 	exists, err := GlobalStrg.FileExists(ctx, "images", vKey1)

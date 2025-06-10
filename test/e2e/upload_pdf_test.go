@@ -179,14 +179,16 @@ func TestUploadImageE2E(t *testing.T) {
 		t.Fatalf("Variants length = %d; want 2", len(getOut.Variants))
 	}
 	var found50, found300 bool
+	key50 := fmt.Sprintf("variants/%s/%s_50.webp", out1.ID, out1.ID)
+	key300 := fmt.Sprintf("variants/%s/%s_300.webp", out1.ID, out1.ID)
 	for _, v := range getOut.Variants {
-		if v.Width == 50 {
-			if v.Height != 37 {
-				t.Errorf("variant 50 height = %d; want 37", v.Height)
+		if strings.Contains(v.URL, key50) {
+			if v.Width != 50 || v.Height != 37 {
+				t.Errorf("variant 50 dims = %dx%d; want 50x37", v.Width, v.Height)
 			}
 			found50 = true
-		} else if v.Width == 200 {
-			if v.Height != 150 {
+		} else if strings.Contains(v.URL, key300) {
+			if v.Width != 200 || v.Height != 150 {
 				t.Errorf("variant 300 dims = %dx%d; want 200x150", v.Width, v.Height)
 			}
 			found300 = true
@@ -200,8 +202,11 @@ func TestUploadImageE2E(t *testing.T) {
 			t.Errorf("variant size = %d; want >0", v.SizeBytes)
 		}
 	}
-	if !found50 || !found300 {
-		t.Error("expected variants for widths 50 and 300")
+	if !found50 {
+		t.Error("expected 50px variant")
+	}
+	if !found300 {
+		t.Error("expected 300px variant")
 	}
 }
 
