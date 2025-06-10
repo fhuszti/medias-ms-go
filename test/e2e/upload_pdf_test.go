@@ -160,8 +160,20 @@ func TestUploadImageE2E(t *testing.T) {
 	if getOut.Metadata.Height != 600 {
 		t.Errorf("Metadata.Height = %d; want 600", getOut.Metadata.Height)
 	}
-	if len(getOut.Variants) == 0 {
-		t.Errorf("Variants = %v; want non-empty slice", getOut.Variants)
+	if len(getOut.Variants) != 1 {
+		t.Fatalf("Variants length = %d; want 1", len(getOut.Variants))
+	}
+	v := getOut.Variants[0]
+	if v.Width != 100 || v.Height != 75 {
+		t.Errorf("variant dimensions = %dx%d; want 100x75", v.Width, v.Height)
+	}
+	if v.SizeBytes == 0 {
+		t.Errorf("variant size = %d; want >0", v.SizeBytes)
+	}
+	if v.URL == "" {
+		t.Error("variant URL empty; want non-empty presigned URL")
+	} else if _, err := url.Parse(v.URL); err != nil {
+		t.Errorf("variant URL = %q; invalid: %v", v.URL, err)
 	}
 }
 

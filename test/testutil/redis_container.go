@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-       "github.com/redis/go-redis/v9"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisContainerInfo struct {
