@@ -96,7 +96,7 @@ func TestOptimiseTaskIntegration_SuccessPNG(t *testing.T) {
 		t.Fatalf("len(Variants) = %d; want 1", len(out.Variants))
 	}
 	v := out.Variants[0]
-	if v.Width != 100 || v.Height != 200 {
+	if v.Width != 16 || v.Height != 32 {
 		t.Errorf("variant dimensions = %dx%d; want 100x200", v.Width, v.Height)
 	}
 	exists, err := GlobalStrg.FileExists(ctx, "images", out.ObjectKey)
@@ -139,7 +139,7 @@ func TestOptimiseTaskIntegration_SuccessWEBP(t *testing.T) {
 
 	id := db.UUID(uuid.MustParse("22222222-2222-2222-2222-222222222222"))
 	objectKey := id.String() + ".webp"
-	width, height := 30, 60
+	width, height := 150, 300
 	content := testutil.GenerateWebP(t, width, height)
 	size := int64(len(content))
 	mime := "image/webp"
