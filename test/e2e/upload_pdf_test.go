@@ -22,6 +22,34 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+func waitOptimised(t *testing.T, url, id string, wantsVariants bool) mediaSvc.GetMediaOutput {
+	t.Helper()
+
+	var getOut mediaSvc.GetMediaOutput
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		resp3, err := http.Get(url + "/medias/" + id)
+		if err != nil {
+			t.Fatalf("GET media error: %v", err)
+		}
+		if resp3.StatusCode != http.StatusOK {
+			t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
+		}
+		if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
+			resp3.Body.Close()
+			t.Fatalf("decode GET media JSON: %v", err)
+		}
+		resp3.Body.Close()
+		if getOut.Optimised && (!wantsVariants || len(getOut.Variants) > 0) {
+			return getOut
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timeout waiting for optimisation of %s", id)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
 func TestUploadImageE2E(t *testing.T) {
 	// Setup database
 	testDB, err := testutil.SetupTestDB()
@@ -113,29 +141,8 @@ func TestUploadImageE2E(t *testing.T) {
 	}
 
 	// ---- Step 4: Poll GET media details until optimised ----
-	var getOut mediaSvc.GetMediaOutput
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
-		if err != nil {
-			t.Fatalf("GET media error: %v", err)
-		}
-		if resp3.StatusCode != http.StatusOK {
-			t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
-		}
-		if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
-			resp3.Body.Close()
-			t.Fatalf("decode GET media JSON: %v", err)
-		}
-		resp3.Body.Close()
-		if getOut.Optimised && len(getOut.Variants) > 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	getOut := waitOptimised(t, ts.URL, out1.ID, true)
+
 	// Validate output
 	if time.Until(getOut.ValidUntil) <= 0 {
 		t.Errorf("ValidUntil = %v; want a time in the future", getOut.ValidUntil)
@@ -268,29 +275,8 @@ func TestUploadMarkdownE2E(t *testing.T) {
 	}
 
 	// ---- Step 4: Poll GET media details until optimised ----
-	var getOut mediaSvc.GetMediaOutput
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
-		if err != nil {
-			t.Fatalf("GET media error: %v", err)
-		}
-		if resp3.StatusCode != http.StatusOK {
-			t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
-		}
-		if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
-			resp3.Body.Close()
-			t.Fatalf("decode GET media JSON: %v", err)
-		}
-		resp3.Body.Close()
-		if getOut.Optimised {
-			break
-		}
-		if time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	getOut := waitOptimised(t, ts.URL, out1.ID, false)
+
 	// Validate output
 	if time.Until(getOut.ValidUntil) <= 0 {
 		t.Errorf("ValidUntil = %v; want a time in the future", getOut.ValidUntil)
@@ -414,29 +400,8 @@ func TestUploadPDFE2E(t *testing.T) {
 	}
 
 	// ---- Step 4: Poll GET media details until optimised ----
-	var getOut mediaSvc.GetMediaOutput
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
-		if err != nil {
-			t.Fatalf("GET media error: %v", err)
-		}
-		if resp3.StatusCode != http.StatusOK {
-			t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
-		}
-		if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
-			resp3.Body.Close()
-			t.Fatalf("decode GET media JSON: %v", err)
-		}
-		resp3.Body.Close()
-		if getOut.Optimised {
-			break
-		}
-		if time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	getOut := waitOptimised(t, ts.URL, out1.ID, false)
+
 	// Validate output
 	if time.Until(getOut.ValidUntil) <= 0 {
 		t.Errorf("ValidUntil = %v; want a time in the future", getOut.ValidUntil)
