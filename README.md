@@ -25,7 +25,6 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 - run ``docker-compose up -d``
 - run migrations with ``go run ./cmd/migrate/``
 - run the server with ``go run ./cmd/api/``
-- run the backlog optimiser with ``go run ./cmd/optimise-backlog/`` *(requires Redis)*
 
 ## Notes
 
@@ -61,6 +60,12 @@ After step 3 the service enqueues optimisation tasks handled by the worker (requ
 - If the resulting file is an image, resized variants are created for the sizes in ``IMAGES_SIZES``.
 - These operations run in the background so the original file remains available immediately after finalisation.
   While processing, ``optimised`` in ``GET /medias/{id}`` stays ``false`` and ``variants`` is empty. Once compression and resizing finish, ``optimised`` becomes ``true`` and image variants are listed.
+
+## Manual commands
+
+- run the server with ``go run ./cmd/api/``
+- start the worker with ``go run ./cmd/worker/`` *(requires Redis)*
+- run the backlog optimiser with ``go run ./cmd/optimise-backlog/`` *(requires Redis)*
 
 ## Tests
 
