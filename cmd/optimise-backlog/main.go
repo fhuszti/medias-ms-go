@@ -51,8 +51,7 @@ func initDb(cfg *config.Settings) *db.Database {
 
 func initDispatcher(cfg *config.Settings) mediaSvc.TaskDispatcher {
 	if cfg.RedisAddr == "" {
-		log.Println("⚠️  Redis not configured — optimisation tasks won't be enqueued")
-		return task.NewNoopDispatcher()
+		log.Fatalf("❌  Redis not configured: this command requires a running Redis instance")
 	}
 	return task.NewDispatcher(cfg.RedisAddr, cfg.RedisPassword)
 }

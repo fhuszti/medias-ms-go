@@ -25,6 +25,7 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 - run ``docker-compose up -d``
 - run migrations with ``go run ./cmd/migrate/``
 - run the server with ``go run ./cmd/api/``
+- run the backlog optimiser with ``go run ./cmd/optimise-backlog/`` *(requires Redis)*
 
 ## Notes
 
