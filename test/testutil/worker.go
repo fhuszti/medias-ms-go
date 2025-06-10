@@ -36,7 +36,7 @@ func StartWorker(dbConn *db.Database, strg *storage.Strg, redisAddr string) func
 		if err != nil {
 			return err
 		}
-		return workerHandler.ResizeImageHandler(ctx, p, []int{100}, resizeSvc)
+		return workerHandler.ResizeImageHandler(ctx, p, []int{50, 300}, resizeSvc)
 	})
 
 	srv := asynq.NewServer(asynq.RedisClientOpt{Addr: redisAddr}, asynq.Config{Concurrency: 5})

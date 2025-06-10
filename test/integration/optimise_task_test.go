@@ -59,7 +59,7 @@ func TestOptimiseTaskIntegration_SuccessPNG(t *testing.T) {
 
 	id := db.UUID(uuid.MustParse("11111111-1111-1111-1111-111111111111"))
 	objectKey := id.String() + ".png"
-	width, height := 16, 32
+	width, height := 200, 100
 	content := testutil.GeneratePNG(t, width, height)
 	size := int64(len(content))
 	mime := "image/png"
@@ -92,19 +92,37 @@ func TestOptimiseTaskIntegration_SuccessPNG(t *testing.T) {
 	if out.MimeType == nil || *out.MimeType != "image/webp" {
 		t.Errorf("MimeType = %v; want image/webp", out.MimeType)
 	}
-	if len(out.Variants) != 1 {
-		t.Fatalf("len(Variants) = %d; want 1", len(out.Variants))
+	if len(out.Variants) != 2 {
+		t.Fatalf("len(Variants) = %d; want 2", len(out.Variants))
 	}
-	v := out.Variants[0]
-	if v.Width != 16 || v.Height != 32 {
-		t.Errorf("variant dimensions = %dx%d; want 100x200", v.Width, v.Height)
+	var found50, found300 bool
+	for _, v := range out.Variants {
+		if v.ObjectKey == fmt.Sprintf("variants/%s/%s_50.webp", id, id) {
+			if v.Width != 50 || v.Height != 25 {
+				t.Errorf("variant 50 dims = %dx%d; want 50x25", v.Width, v.Height)
+			}
+			found50 = true
+		} else if v.ObjectKey == fmt.Sprintf("variants/%s/%s_300.webp", id, id) {
+			if v.Width != 200 || v.Height != 100 {
+				t.Errorf("variant 300 dims = %dx%d; want 200x100", v.Width, v.Height)
+			}
+			found300 = true
+		}
+	}
+	if !found50 || !found300 {
+		t.Error("expected variants for widths 50 and 300")
 	}
 	exists, err := GlobalStrg.FileExists(ctx, "images", out.ObjectKey)
 	if err != nil || !exists {
 		t.Fatalf("optimised file missing: %v", err)
 	}
-	variantKey := fmt.Sprintf("variants/%s/%s_100.webp", id, id)
-	ex, err := GlobalStrg.FileExists(ctx, "images", variantKey)
+	variantKey1 := fmt.Sprintf("variants/%s/%s_50.webp", id, id)
+	ex, err := GlobalStrg.FileExists(ctx, "images", variantKey1)
+	if err != nil || !ex {
+		t.Fatalf("variant file missing: %v", err)
+	}
+	variantKey2 := fmt.Sprintf("variants/%s/%s_300.webp", id, id)
+	ex, err = GlobalStrg.FileExists(ctx, "images", variantKey2)
 	if err != nil || !ex {
 		t.Fatalf("variant file missing: %v", err)
 	}
@@ -139,7 +157,7 @@ func TestOptimiseTaskIntegration_SuccessWEBP(t *testing.T) {
 
 	id := db.UUID(uuid.MustParse("22222222-2222-2222-2222-222222222222"))
 	objectKey := id.String() + ".webp"
-	width, height := 150, 300
+	width, height := 200, 400
 	content := testutil.GenerateWebP(t, width, height)
 	size := int64(len(content))
 	mime := "image/webp"
@@ -163,15 +181,33 @@ func TestOptimiseTaskIntegration_SuccessWEBP(t *testing.T) {
 	if out.MimeType == nil || *out.MimeType != "image/webp" {
 		t.Errorf("MimeType = %v; want image/webp", out.MimeType)
 	}
-	if len(out.Variants) != 1 {
-		t.Fatalf("len(Variants) = %d; want 1", len(out.Variants))
+	if len(out.Variants) != 2 {
+		t.Fatalf("len(Variants) = %d; want 2", len(out.Variants))
 	}
-	v := out.Variants[0]
-	if v.Width != 100 || v.Height != 200 {
-		t.Errorf("variant dimensions = %dx%d; want 100x200", v.Width, v.Height)
+	var found50, found300 bool
+	for _, v := range out.Variants {
+		if v.ObjectKey == fmt.Sprintf("variants/%s/%s_50.webp", id, id) {
+			if v.Width != 50 || v.Height != 100 {
+				t.Errorf("variant 50 dims = %dx%d; want 50x100", v.Width, v.Height)
+			}
+			found50 = true
+		} else if v.ObjectKey == fmt.Sprintf("variants/%s/%s_300.webp", id, id) {
+			if v.Width != 200 || v.Height != 400 {
+				t.Errorf("variant 300 dims = %dx%d; want 200x400", v.Width, v.Height)
+			}
+			found300 = true
+		}
 	}
-	vKey := fmt.Sprintf("variants/%s/%s_100.webp", id, id)
-	exists, err := GlobalStrg.FileExists(ctx, "images", vKey)
+	if !found50 || !found300 {
+		t.Error("expected variants for widths 50 and 300")
+	}
+	vKey1 := fmt.Sprintf("variants/%s/%s_50.webp", id, id)
+	exists, err := GlobalStrg.FileExists(ctx, "images", vKey1)
+	if err != nil || !exists {
+		t.Fatalf("variant file missing: %v", err)
+	}
+	vKey2 := fmt.Sprintf("variants/%s/%s_300.webp", id, id)
+	exists, err = GlobalStrg.FileExists(ctx, "images", vKey2)
 	if err != nil || !exists {
 		t.Fatalf("variant file missing: %v", err)
 	}
