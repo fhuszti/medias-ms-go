@@ -122,7 +122,7 @@ func TestUploadImageE2E(t *testing.T) {
 	}
 
 	// ---- Step 2: PUT a PNG file to the presigned URL ----
-	raw := testutil.GeneratePNG(t, 800, 600)
+	raw := testutil.GeneratePNG(t, 200, 150)
 	reqPut, err := http.NewRequest(http.MethodPut, out1.URL, bytes.NewReader(raw))
 	if err != nil {
 		t.Fatalf("new PUT request error: %v", err)
@@ -169,26 +169,44 @@ func TestUploadImageE2E(t *testing.T) {
 	if getOut.Metadata.MimeType != "image/webp" {
 		t.Errorf("Metadata.MimeType = %q; want image/webp", getOut.Metadata.MimeType)
 	}
-	if getOut.Metadata.Width != 800 {
-		t.Errorf("Metadata.Width = %d; want 800", getOut.Metadata.Width)
+	if getOut.Metadata.Width != 200 {
+		t.Errorf("Metadata.Width = %d; want 200", getOut.Metadata.Width)
 	}
-	if getOut.Metadata.Height != 600 {
-		t.Errorf("Metadata.Height = %d; want 600", getOut.Metadata.Height)
+	if getOut.Metadata.Height != 150 {
+		t.Errorf("Metadata.Height = %d; want 150", getOut.Metadata.Height)
 	}
-	if len(getOut.Variants) != 1 {
-		t.Fatalf("Variants length = %d; want 1", len(getOut.Variants))
+	if len(getOut.Variants) != 2 {
+		t.Fatalf("Variants length = %d; want 2", len(getOut.Variants))
 	}
-	v := getOut.Variants[0]
-	if v.Width != 100 || v.Height != 75 {
-		t.Errorf("variant dimensions = %dx%d; want 100x75", v.Width, v.Height)
+	var found50, found300 bool
+	key50 := fmt.Sprintf("variants/%s/%s_50.webp", out1.ID, out1.ID)
+	key300 := fmt.Sprintf("variants/%s/%s_300.webp", out1.ID, out1.ID)
+	for _, v := range getOut.Variants {
+		if strings.Contains(v.URL, key50) {
+			if v.Width != 50 || v.Height != 37 {
+				t.Errorf("variant 50 dims = %dx%d; want 50x37", v.Width, v.Height)
+			}
+			found50 = true
+		} else if strings.Contains(v.URL, key300) {
+			if v.Width != 200 || v.Height != 150 {
+				t.Errorf("variant 300 dims = %dx%d; want 200x150", v.Width, v.Height)
+			}
+			found300 = true
+		}
+		if v.URL == "" {
+			t.Error("variant URL empty; want non-empty presigned URL")
+		} else if _, err := url.Parse(v.URL); err != nil {
+			t.Errorf("variant URL = %q; invalid: %v", v.URL, err)
+		}
+		if v.SizeBytes == 0 {
+			t.Errorf("variant size = %d; want >0", v.SizeBytes)
+		}
 	}
-	if v.SizeBytes == 0 {
-		t.Errorf("variant size = %d; want >0", v.SizeBytes)
+	if !found50 {
+		t.Error("expected 50px variant")
 	}
-	if v.URL == "" {
-		t.Error("variant URL empty; want non-empty presigned URL")
-	} else if _, err := url.Parse(v.URL); err != nil {
-		t.Errorf("variant URL = %q; invalid: %v", v.URL, err)
+	if !found300 {
+		t.Error("expected 300px variant")
 	}
 }
 
