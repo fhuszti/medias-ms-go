@@ -86,7 +86,7 @@ func TestResizeImage_GetFileError(t *testing.T) {
 
 func TestResizeImage_SeekError(t *testing.T) {
 	mt := "image/png"
-	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
+	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt, Metadata: model.Metadata{Width: 100, Height: 50}}
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{reader: errSeekReader{bytes.NewReader([]byte("a"))}}
 	svc := NewImageResizer(repo, &mockFileOptimiser{}, stg)
@@ -100,7 +100,7 @@ func TestResizeImage_SeekError(t *testing.T) {
 
 func TestResizeImage_ResizeError(t *testing.T) {
 	mt := "image/png"
-	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
+	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt, Metadata: model.Metadata{Width: 100, Height: 50}}
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{reader: bytes.NewReader([]byte("a"))}
 	fo := &mockFileOptimiser{resizeErr: errors.New("resize fail")}
@@ -115,7 +115,7 @@ func TestResizeImage_ResizeError(t *testing.T) {
 
 func TestResizeImage_SaveFileError(t *testing.T) {
 	mt := "image/png"
-	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
+	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt, Metadata: model.Metadata{Width: 100, Height: 50}}
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{saveErr: errors.New("save fail"), reader: bytes.NewReader([]byte("a"))}
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
@@ -130,7 +130,7 @@ func TestResizeImage_SaveFileError(t *testing.T) {
 
 func TestResizeImage_StatError(t *testing.T) {
 	mt := "image/png"
-	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
+	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt, Metadata: model.Metadata{Width: 100, Height: 50}}
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{statErr: errors.New("stat fail"), reader: bytes.NewReader([]byte("a"))}
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
@@ -145,7 +145,7 @@ func TestResizeImage_StatError(t *testing.T) {
 
 func TestResizeImage_UpdateError(t *testing.T) {
 	mt := "image/png"
-	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
+	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt, Metadata: model.Metadata{Width: 100, Height: 50}}
 	repo := &mockRepo{mediaRecord: m, updateErr: errors.New("update fail")}
 	stg := &mockStorage{reader: bytes.NewReader([]byte("a")), statInfo: FileInfo{SizeBytes: 1}}
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
@@ -197,5 +197,49 @@ func TestResizeImage_Success(t *testing.T) {
 	v2 := repo.updated.Variants[1]
 	if v2.ObjectKey != fmt.Sprintf("variants/%s/foo_40.webp", idStr) || v2.Width != 40 || v2.Height != 20 {
 		t.Errorf("second variant unexpected: %+v", v2)
+	}
+}
+
+func TestResizeImage_CopyWhenWidthTooLarge(t *testing.T) {
+	idStr := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+	mt := "image/png"
+	size := int64(0)
+	m := &model.Media{
+		ID:        db.UUID(uuid.MustParse(idStr)),
+		Status:    model.MediaStatusCompleted,
+		MimeType:  &mt,
+		Bucket:    "images",
+		ObjectKey: "foo.png",
+		Metadata: model.Metadata{
+			Width:  100,
+			Height: 50,
+		},
+		SizeBytes: &size,
+	}
+	repo := &mockRepo{mediaRecord: m}
+	stg := &mockStorage{reader: bytes.NewReader([]byte("abc")), statInfo: FileInfo{SizeBytes: 456}}
+	fo := &mockFileOptimiser{resizeOut: []byte("resized")}
+	svc := NewImageResizer(repo, fo, stg)
+
+	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: m.ID, Sizes: []int{200}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !stg.copyCalled {
+		t.Error("expected CopyFile to be called")
+	}
+	if stg.saveCalled {
+		t.Error("SaveFile should not be called when copying original")
+	}
+	if fo.resizeCalled {
+		t.Error("Resize should not be called when width is larger than original")
+	}
+	if len(repo.updated.Variants) != 1 {
+		t.Fatalf("expected 1 variant, got %d", len(repo.updated.Variants))
+	}
+	v := repo.updated.Variants[0]
+	if v.ObjectKey != fmt.Sprintf("variants/%s/foo_200.webp", idStr) || v.Width != 100 || v.Height != 50 || v.SizeBytes != 456 {
+		t.Errorf("variant unexpected: %+v", v)
 	}
 }

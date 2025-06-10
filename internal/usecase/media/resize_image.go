@@ -61,16 +61,6 @@ func (s *imageResizerSrv) ResizeImage(ctx context.Context, in ResizeImageInput) 
 		if width <= 0 {
 			continue
 		}
-		height := int(float64(media.Metadata.Height) * float64(width) / float64(media.Metadata.Width))
-
-		if _, err := originalReader.Seek(0, io.SeekStart); err != nil {
-			return fmt.Errorf("failed to reset reader: %w", err)
-		}
-
-		resized, err := s.opt.Resize(*media.MimeType, originalReader, width, height)
-		if err != nil {
-			return err
-		}
 
 		ext := path.Ext(media.ObjectKey)
 		base := strings.TrimSuffix(media.ObjectKey, ext)
@@ -79,12 +69,38 @@ func (s *imageResizerSrv) ResizeImage(ctx context.Context, in ResizeImageInput) 
 			media.ID.String(),
 			fmt.Sprintf("%s_%d.webp", base, width),
 		)
-		if err := s.strg.SaveFile(ctx, media.Bucket, variantKey, resized, -1, map[string]string{"Content-Type": "image/webp"}); err != nil {
-			_ = resized.Close()
-			return fmt.Errorf("failed to save variant %q: %w", variantKey, err)
-		}
-		_ = resized.Close()
 
+		var (
+			variantWidth  int
+			variantHeight int
+		)
+
+		if width < media.Metadata.Width {
+			variantWidth = width
+			variantHeight = int(float64(media.Metadata.Height) * float64(width) / float64(media.Metadata.Width))
+
+			if _, err := originalReader.Seek(0, io.SeekStart); err != nil {
+				return fmt.Errorf("failed to reset reader: %w", err)
+			}
+
+			resized, err := s.opt.Resize(*media.MimeType, originalReader, variantWidth, variantHeight)
+			if err != nil {
+				return err
+			}
+
+			if err := s.strg.SaveFile(ctx, media.Bucket, variantKey, resized, -1, map[string]string{"Content-Type": "image/webp"}); err != nil {
+				_ = resized.Close()
+				return fmt.Errorf("failed to save variant %q: %w", variantKey, err)
+			}
+			_ = resized.Close()
+		} else {
+			variantWidth = media.Metadata.Width
+			variantHeight = media.Metadata.Height
+
+			if err := s.strg.CopyFile(ctx, media.Bucket, media.ObjectKey, variantKey); err != nil {
+				return fmt.Errorf("failed to copy original file to variant %q: %w", variantKey, err)
+			}
+		}
 		info, err := s.strg.StatFile(ctx, media.Bucket, variantKey)
 		if err != nil {
 			return fmt.Errorf("failed reading info about variant %q: %w", variantKey, err)
@@ -93,8 +109,8 @@ func (s *imageResizerSrv) ResizeImage(ctx context.Context, in ResizeImageInput) 
 		media.Variants = append(media.Variants, model.Variant{
 			ObjectKey: variantKey,
 			SizeBytes: info.SizeBytes,
-			Width:     width,
-			Height:    height,
+			Width:     variantWidth,
+			Height:    variantHeight,
 		})
 	}
 
