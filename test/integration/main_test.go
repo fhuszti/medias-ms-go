@@ -9,7 +9,10 @@ import (
 	"testing"
 )
 
-var GlobalStrg *storage.Strg
+var (
+	GlobalStrg *storage.Strg
+	RedisAddr  string
+)
 
 func TestMain(m *testing.M) {
 	if runtime.GOOS == "windows" {
@@ -31,6 +34,14 @@ func TestMain(m *testing.M) {
 			return 1
 		}
 		defer minioCleanup()
+
+		redisCleanup, addr, err := setupRedis()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Redis setup failed: %v\n", err)
+			return 1
+		}
+		RedisAddr = addr
+		defer redisCleanup()
 
 		return m.Run()
 	}()
@@ -81,6 +92,20 @@ func setupMinIO() (cleanup func(), err error) {
 	GlobalStrg = mi.Strg
 
 	return mi.Cleanup, nil
+}
+
+func setupRedis() (cleanup func(), addr string, err error) {
+	if env := os.Getenv("TEST_REDIS_ADDR"); env != "" {
+		return func() {}, env, nil
+	}
+
+	rc, err := testutil.StartRedisContainer()
+	if err != nil {
+		return nil, "", err
+	}
+
+	os.Setenv("TEST_REDIS_ADDR", rc.Addr)
+	return rc.Cleanup, rc.Addr, nil
 }
 
 type errorResponse struct {
