@@ -54,10 +54,11 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 
 ### Async optimisations
 
-After step 3 the service enqueues optimisation tasks handled by the worker (requires Redis):
+ After step 3 the service enqueues optimisation tasks handled by the worker (requires Redis):
 
 - The original file is compressed (images become lossy ``.webp``; PDFs are stripped, etc.).
 - If the resulting file is an image, resized variants are created for the sizes in ``IMAGES_SIZES``.
+- When a size in ``IMAGES_SIZES`` exceeds the original width, that variant is generated as an untouched copy so the image is never stretched.
 - These operations run in the background so the original file remains available immediately after finalisation.
   While processing, ``optimised`` in ``GET /medias/{id}`` stays ``false`` and ``variants`` is empty. Once compression and resizing finish, ``optimised`` becomes ``true`` and image variants are listed.
 
@@ -65,6 +66,7 @@ After step 3 the service enqueues optimisation tasks handled by the worker (requ
 
 - run the server with ``go run ./cmd/api/``
 - start the worker with ``go run ./cmd/worker/`` *(requires Redis)*
+- run database migrations with ``go run ./cmd/migrate/``
 - run the backlog optimiser with ``go run ./cmd/optimise-backlog/`` *(requires Redis)*
 
 ## Tests
