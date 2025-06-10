@@ -126,12 +126,21 @@ jobs:
                     --health-interval=10s
                     --health-timeout=5s
                     --health-retries=3
+            redis:
+                image: redis:7
+                ports: [ '6379:6379' ]
+                options: >-
+                    --health-cmd="redis-cli ping"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
         env:
             TEST_DB_DSN: root:secret@(localhost:3306)/testdb?parseTime=true&multiStatements=true
             TEST_MINIO_ENDPOINT: localhost:9000
             TEST_MINIO_ACCESS_KEY: minioadmin
             TEST_MINIO_SECRET_KEY: minioadmin
             TEST_MINIO_USE_SSL: false
+            TEST_REDIS_ADDR: localhost:6379
         steps:
             -   uses: actions/checkout@v4
             -   name: Set up Go

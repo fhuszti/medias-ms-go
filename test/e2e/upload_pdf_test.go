@@ -44,7 +44,9 @@ func TestUploadImageE2E(t *testing.T) {
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewNoopDispatcher())
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
+	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
+	defer workerStop()
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
@@ -110,25 +112,36 @@ func TestUploadImageE2E(t *testing.T) {
 		t.Fatalf("status finalise_upload = %d; want %d", resp2.StatusCode, http.StatusNoContent)
 	}
 
-	// ---- Step 4: GET media details ----
-	resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
-	if err != nil {
-		t.Fatalf("GET media error: %v", err)
-	}
-	defer resp3.Body.Close()
-	if resp3.StatusCode != http.StatusOK {
-		t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
-	}
+	// ---- Step 4: Poll GET media details until optimised ----
 	var getOut mediaSvc.GetMediaOutput
-	if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
-		t.Fatalf("decode GET media JSON: %v", err)
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
+		if err != nil {
+			t.Fatalf("GET media error: %v", err)
+		}
+		if resp3.StatusCode != http.StatusOK {
+			t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
+		}
+		if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
+			resp3.Body.Close()
+			t.Fatalf("decode GET media JSON: %v", err)
+		}
+		resp3.Body.Close()
+		if getOut.Optimised && len(getOut.Variants) > 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 	// Validate output
 	if time.Until(getOut.ValidUntil) <= 0 {
 		t.Errorf("ValidUntil = %v; want a time in the future", getOut.ValidUntil)
 	}
-	if getOut.Optimised {
-		t.Errorf("Optimised = %v; want false", getOut.Optimised)
+	if !getOut.Optimised {
+		t.Errorf("Optimised = %v; want true", getOut.Optimised)
 	}
 	if getOut.URL == "" {
 		t.Error("URL is empty; want a presigned download URL")
@@ -138,8 +151,8 @@ func TestUploadImageE2E(t *testing.T) {
 	if getOut.Metadata.SizeBytes == 0 {
 		t.Error("Metadata.SizeBytes = 0; want non-zero")
 	}
-	if getOut.Metadata.MimeType != "image/png" {
-		t.Errorf("Metadata.MimeType = %q; want image/png", getOut.Metadata.MimeType)
+	if getOut.Metadata.MimeType != "image/webp" {
+		t.Errorf("Metadata.MimeType = %q; want image/webp", getOut.Metadata.MimeType)
 	}
 	if getOut.Metadata.Width != 800 {
 		t.Errorf("Metadata.Width = %d; want 800", getOut.Metadata.Width)
@@ -147,8 +160,8 @@ func TestUploadImageE2E(t *testing.T) {
 	if getOut.Metadata.Height != 600 {
 		t.Errorf("Metadata.Height = %d; want 600", getOut.Metadata.Height)
 	}
-	if len(getOut.Variants) != 0 {
-		t.Errorf("Variants = %v; want empty slice", getOut.Variants)
+	if len(getOut.Variants) == 0 {
+		t.Errorf("Variants = %v; want non-empty slice", getOut.Variants)
 	}
 }
 
@@ -174,7 +187,9 @@ func TestUploadMarkdownE2E(t *testing.T) {
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewNoopDispatcher())
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
+	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
+	defer workerStop()
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
@@ -240,25 +255,36 @@ func TestUploadMarkdownE2E(t *testing.T) {
 		t.Fatalf("status finalise_upload = %d; want %d", resp2.StatusCode, http.StatusNoContent)
 	}
 
-	// ---- Step 4: GET media details ----
-	resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
-	if err != nil {
-		t.Fatalf("GET media error: %v", err)
-	}
-	defer resp3.Body.Close()
-	if resp3.StatusCode != http.StatusOK {
-		t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
-	}
+	// ---- Step 4: Poll GET media details until optimised ----
 	var getOut mediaSvc.GetMediaOutput
-	if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
-		t.Fatalf("decode GET media JSON: %v", err)
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
+		if err != nil {
+			t.Fatalf("GET media error: %v", err)
+		}
+		if resp3.StatusCode != http.StatusOK {
+			t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
+		}
+		if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
+			resp3.Body.Close()
+			t.Fatalf("decode GET media JSON: %v", err)
+		}
+		resp3.Body.Close()
+		if getOut.Optimised {
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 	// Validate output
 	if time.Until(getOut.ValidUntil) <= 0 {
 		t.Errorf("ValidUntil = %v; want a time in the future", getOut.ValidUntil)
 	}
-	if getOut.Optimised {
-		t.Errorf("Optimised = %v; want false", getOut.Optimised)
+	if !getOut.Optimised {
+		t.Errorf("Optimised = %v; want true", getOut.Optimised)
 	}
 	if getOut.URL == "" {
 		t.Error("URL is empty; want a presigned download URL")
@@ -307,7 +333,9 @@ func TestUploadPDFE2E(t *testing.T) {
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewNoopDispatcher())
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
+	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
+	defer workerStop()
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
@@ -373,25 +401,36 @@ func TestUploadPDFE2E(t *testing.T) {
 		t.Fatalf("status finalise_upload = %d; want %d", resp2.StatusCode, http.StatusNoContent)
 	}
 
-	// ---- Step 4: GET media details ----
-	resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
-	if err != nil {
-		t.Fatalf("GET media error: %v", err)
-	}
-	defer resp3.Body.Close()
-	if resp3.StatusCode != http.StatusOK {
-		t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
-	}
+	// ---- Step 4: Poll GET media details until optimised ----
 	var getOut mediaSvc.GetMediaOutput
-	if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
-		t.Fatalf("decode GET media JSON: %v", err)
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		resp3, err := http.Get(ts.URL + "/medias/" + out1.ID)
+		if err != nil {
+			t.Fatalf("GET media error: %v", err)
+		}
+		if resp3.StatusCode != http.StatusOK {
+			t.Fatalf("status GET media = %d; want %d", resp3.StatusCode, http.StatusOK)
+		}
+		if err := json.NewDecoder(resp3.Body).Decode(&getOut); err != nil {
+			resp3.Body.Close()
+			t.Fatalf("decode GET media JSON: %v", err)
+		}
+		resp3.Body.Close()
+		if getOut.Optimised {
+			break
+		}
+		if time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 	// Validate output
 	if time.Until(getOut.ValidUntil) <= 0 {
 		t.Errorf("ValidUntil = %v; want a time in the future", getOut.ValidUntil)
 	}
-	if getOut.Optimised {
-		t.Errorf("Optimised = %v; want false", getOut.Optimised)
+	if !getOut.Optimised {
+		t.Errorf("Optimised = %v; want true", getOut.Optimised)
 	}
 	if getOut.URL == "" {
 		t.Error("URL is empty; want a presigned download URL")
