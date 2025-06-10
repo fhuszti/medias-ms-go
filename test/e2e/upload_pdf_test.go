@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
@@ -50,13 +50,15 @@ func waitOptimised(t *testing.T, url, id string, wantsVariants bool) mediaSvc.Ge
 	}
 }
 
-func TestUploadImageE2E(t *testing.T) {
+func setupServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
 	// Setup database
 	testDB, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("setup DB: %v", err)
 	}
-	defer testDB.Cleanup()
+	t.Cleanup(func() { _ = testDB.Cleanup() })
 	dbConn := testDB.DB
 	if err := migration.MigrateUp(dbConn); err != nil {
 		t.Fatalf("could not run migrations: %v", err)
@@ -67,27 +69,33 @@ func TestUploadImageE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer bCleanup()
+	t.Cleanup(func() { _ = bCleanup() })
 
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
 	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
 	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
+	t.Cleanup(workerStop)
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
 	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
-	r.With(api.WithDestBucket([]string{"staging", "images"})).
+	r.With(api.WithDestBucket([]string{"staging", "images", "docs"})).
 		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(finaliserSvc))
 	r.With(api.WithID()).
 		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
 
 	ts := httptest.NewServer(r)
-	defer ts.Close()
+	t.Cleanup(ts.Close)
+
+	return ts
+}
+
+func TestUploadImageE2E(t *testing.T) {
+	ts := setupServer(t)
 
 	// ---- Step 1: Generate upload link ----
 	genReq := `{"name":"sample.png"}`
@@ -185,43 +193,7 @@ func TestUploadImageE2E(t *testing.T) {
 }
 
 func TestUploadMarkdownE2E(t *testing.T) {
-	// Setup database
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-
-	// Setup buckets
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	// Initialize repo and services
-	repo := mariadb.NewMediaRepository(dbConn)
-	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
-	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
-	ca := cache.NewNoop()
-	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
-
-	// Setup HTTP handlers
-	r := chi.NewRouter()
-	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
-	r.With(api.WithDestBucket([]string{"staging", "docs"})).
-		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(finaliserSvc))
-	r.With(api.WithID()).
-		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
-
-	ts := httptest.NewServer(r)
-	defer ts.Close()
+	ts := setupServer(t)
 
 	// ---- Step 1: Generate upload link ----
 	genReq := `{"name":"sample.md"}`
@@ -310,43 +282,7 @@ func TestUploadMarkdownE2E(t *testing.T) {
 }
 
 func TestUploadPDFE2E(t *testing.T) {
-	// Setup database
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-
-	// Setup buckets
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	// Initialize repo and services
-	repo := mariadb.NewMediaRepository(dbConn)
-	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
-	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
-	ca := cache.NewNoop()
-	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
-
-	// Setup HTTP handlers
-	r := chi.NewRouter()
-	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
-	r.With(api.WithDestBucket([]string{"staging", "docs"})).
-		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(finaliserSvc))
-	r.With(api.WithID()).
-		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
-
-	ts := httptest.NewServer(r)
-	defer ts.Close()
+	ts := setupServer(t)
 
 	// ---- Step 1: Generate upload link ----
 	genReq := `{"name":"sample.pdf"}`
