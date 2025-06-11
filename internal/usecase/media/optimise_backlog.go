@@ -30,6 +30,10 @@ func (s *backlogOptimiserSrv) OptimiseBacklog(ctx context.Context) error {
 		return err
 	}
 
+	if len(ids) == 0 {
+		log.Printf("no medias found to optimise")
+	}
+
 	for _, id := range ids {
 		log.Printf("starting optimisation for media #%s", id)
 		if err := s.tasks.EnqueueOptimiseMedia(ctx, id); err != nil {
