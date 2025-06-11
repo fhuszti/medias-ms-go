@@ -8,13 +8,15 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/google/uuid"
 )
 
 func TestDeleteMedia_NotFound(t *testing.T) {
 	repo := &mockRepo{getErr: sql.ErrNoRows}
 	svc := NewMediaDeleter(repo, &mockCache{}, &mockStorage{})
 
-	err := svc.DeleteMedia(context.Background(), DeleteMediaInput{ID: db.NewUUID()})
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	err := svc.DeleteMedia(context.Background(), DeleteMediaInput{ID: id})
 	if !errors.Is(err, ErrObjectNotFound) {
 		t.Fatalf("expected ErrObjectNotFound, got %v", err)
 	}
@@ -24,13 +26,14 @@ func TestDeleteMedia_GetByIDError(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
 	svc := NewMediaDeleter(repo, &mockCache{}, &mockStorage{})
 
-	if err := svc.DeleteMedia(context.Background(), DeleteMediaInput{ID: db.NewUUID()}); err == nil || err.Error() != "db fail" {
+	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	if err := svc.DeleteMedia(context.Background(), DeleteMediaInput{ID: id}); err == nil || err.Error() != "db fail" {
 		t.Fatalf("expected db fail, got %v", err)
 	}
 }
 
 func TestDeleteMedia_RemoveError(t *testing.T) {
-	m := &model.Media{ID: db.NewUUID(), Bucket: "images", ObjectKey: "k"}
+	m := &model.Media{ID: db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k"}
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{removeErr: errors.New("remove fail")}
 	svc := NewMediaDeleter(repo, &mockCache{}, strg)
@@ -42,7 +45,7 @@ func TestDeleteMedia_RemoveError(t *testing.T) {
 }
 
 func TestDeleteMedia_DeleteError(t *testing.T) {
-	m := &model.Media{ID: db.NewUUID(), Bucket: "images", ObjectKey: "k"}
+	m := &model.Media{ID: db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k"}
 	repo := &mockRepo{mediaRecord: m, deleteErr: errors.New("delete fail")}
 	strg := &mockStorage{}
 	svc := NewMediaDeleter(repo, &mockCache{}, strg)
@@ -54,7 +57,7 @@ func TestDeleteMedia_DeleteError(t *testing.T) {
 }
 
 func TestDeleteMedia_Success(t *testing.T) {
-	m := &model.Media{ID: db.NewUUID(), Bucket: "images", ObjectKey: "k", Variants: model.Variants{{ObjectKey: "v1"}}}
+	m := &model.Media{ID: db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k", Variants: model.Variants{{ObjectKey: "v1"}}}
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
 	cache := &mockCache{}
