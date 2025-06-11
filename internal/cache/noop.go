@@ -17,3 +17,5 @@ func (n *NoopCache) GetMediaDetails(ctx context.Context, id db.UUID) (*media.Get
 }
 
 func (n *NoopCache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.GetMediaOutput) {}
+
+func (n *NoopCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error { return nil }
