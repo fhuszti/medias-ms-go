@@ -1,12 +1,11 @@
 package integration
 
 import (
+	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
+	_ "github.com/go-sql-driver/mysql"
 	"testing"
 	"time"
-
-	"github.com/fhuszti/medias-ms-go/internal/migration"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 func TestMigrateUpIntegration(t *testing.T) {
@@ -34,10 +33,8 @@ func TestMigrateUpIntegration(t *testing.T) {
 	}
 	// No rows inserted yet, but the query should succeed
 	if recs != 0 {
-		var (
-			id, objectKey, mimeType string
-		)
-		err = db.QueryRow("SELECT id, object_key, mime_type FROM medias").Scan(&id, &objectKey, &mimeType)
-		t.Errorf("expected 0 rows in medias after migration, got %d results: %s, %s, %s", recs, id, objectKey, mimeType)
+		var id string
+		err = db.QueryRow("SELECT id FROM medias").Scan(&id)
+		t.Errorf("expected 0 rows in medias after migration, got %d results: %s=", recs, id)
 	}
 }
