@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
@@ -580,5 +581,72 @@ func TestFinaliseUploadIntegration_ErrorInvalidBucket(t *testing.T) {
 	wantMsg := `destination bucket "not-a-bucket" does not exist`
 	if resp.Error != wantMsg {
 		t.Errorf("error = %q; want %q", resp.Error, wantMsg)
+	}
+}
+
+type failingUpdateRepo struct{ *mariadb.MediaRepository }
+
+func (f *failingUpdateRepo) Update(ctx context.Context, m *model.Media) error {
+	return errors.New("update fail")
+}
+
+func TestFinaliseUploadIntegration_ErrorDBUpdate(t *testing.T) {
+	ctx := context.Background()
+
+	testDB, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Fatalf("setup DB: %v", err)
+	}
+	defer testDB.Cleanup()
+	database := testDB.DB
+	if err := migration.MigrateUp(database); err != nil {
+		t.Fatalf("could not run migrations: %v", err)
+	}
+
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+	defer bCleanup()
+
+	baseRepo := mariadb.NewMediaRepository(database)
+	repo := &failingUpdateRepo{baseRepo}
+	svc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewNoopDispatcher())
+
+	id := db.UUID(uuid.MustParse("ffffffff-1111-2222-3333-444444444444"))
+	objectKey := id.String()
+	destObjectKey := objectKey + ".md"
+	content := testutil.GenerateMarkdown()
+
+	m := &model.Media{ID: id, ObjectKey: objectKey, Status: model.MediaStatusPending}
+	if err := repo.Create(ctx, m); err != nil {
+		t.Fatalf("insert media: %v", err)
+	}
+
+	if err := GlobalStrg.SaveFile(ctx, "staging", objectKey, bytes.NewReader(content), int64(len(content)), map[string]string{"Content-Type": "text/markdown"}); err != nil {
+		t.Fatalf("upload to staging: %v", err)
+	}
+
+	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"}); err == nil {
+		t.Fatal("expected error from failing update, got nil")
+	}
+
+	exists, err := GlobalStrg.FileExists(ctx, "docs", destObjectKey)
+	if err != nil {
+		t.Fatalf("checking dest FileExists: %v", err)
+	}
+	if exists {
+		t.Error("expected dest file to be removed after update failure")
+	}
+
+	fromDB, err := baseRepo.GetByID(ctx, id)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if fromDB.Status != model.MediaStatusPending {
+		t.Errorf("db status = %q; want %q", fromDB.Status, model.MediaStatusPending)
+	}
+	if fromDB.Bucket != "" {
+		t.Errorf("bucket = %q; want empty", fromDB.Bucket)
 	}
 }
