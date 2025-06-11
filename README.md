@@ -88,3 +88,10 @@ If Redis is not configured:
 
 **To enable Redis:**
 - Set `REDIS_ADDR` in your environment (typically something like ``localhost:6379``)
+
+## JWT authentication *(optional)*
+
+If `JWT_SECRET_KEY` is set in the environment, the API requires all requests to
+include a valid JWT token as a Bearer token in the `Authorization` header. The
+token signature is verified using this secret. When `JWT_SECRET_KEY` is empty,
+authentication is skipped and all requests are allowed through.

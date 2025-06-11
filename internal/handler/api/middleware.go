@@ -3,9 +3,12 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/google/uuid"
 	"net/http"
+	"strings"
+
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -53,6 +56,39 @@ func WithID() func(http.Handler) http.Handler {
 			// stash it in context and call the real handler
 			ctx := context.WithValue(r.Context(), IDKey, db.UUID(parsedID))
 			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func WithJWTAuth(secret string) func(http.Handler) http.Handler {
+	if secret == "" {
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})
+		}
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			auth := r.Header.Get("Authorization")
+			if !strings.HasPrefix(auth, "Bearer ") {
+				WriteError(w, http.StatusUnauthorized, "missing bearer token", nil)
+				return
+			}
+			tokenStr := strings.TrimPrefix(auth, "Bearer ")
+			token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected signing method")
+				}
+				return []byte(secret), nil
+			})
+			if err != nil || !token.Valid {
+				WriteError(w, http.StatusUnauthorized, "unauthorized", nil)
+				return
+			}
+
+			next.ServeHTTP(w, r)
 		})
 	}
 }
