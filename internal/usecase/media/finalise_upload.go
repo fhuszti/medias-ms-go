@@ -159,15 +159,22 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 		log.Printf("failed to clean up file %q in staging: %v", media.ObjectKey, err)
 	}
 
-	media.ObjectKey = newObjectKey
-	media.Bucket = destBucket
-	media.Status = model.MediaStatusCompleted
-	media.SizeBytes = &size
-	media.MimeType = &contentType
-	media.Metadata = metadata
-	if err := s.repo.Update(ctx, media); err != nil {
+	updated := *media
+	updated.ObjectKey = newObjectKey
+	updated.Bucket = destBucket
+	updated.Status = model.MediaStatusCompleted
+	updated.SizeBytes = &size
+	updated.MimeType = &contentType
+	updated.Metadata = metadata
+
+	if err := s.repo.Update(ctx, &updated); err != nil {
+		if remErr := s.strg.RemoveFile(ctx, destBucket, newObjectKey); remErr != nil {
+			log.Printf("failed to remove file %q from bucket %q after update failure: %v", newObjectKey, destBucket, remErr)
+		}
 		return fmt.Errorf("failed updating media: %w", err)
 	}
+
+	*media = updated
 
 	return nil
 }
