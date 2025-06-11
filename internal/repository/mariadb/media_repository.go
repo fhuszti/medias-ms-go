@@ -131,3 +131,11 @@ func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, be
 	}
 	return ids, nil
 }
+
+func (r *MediaRepository) Delete(ctx context.Context, ID db.UUID) error {
+	log.Printf("deleting media #%s from the database...", ID)
+
+	const query = `DELETE FROM medias WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, ID)
+	return err
+}

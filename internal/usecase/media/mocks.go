@@ -15,14 +15,17 @@ type mockRepo struct {
 	getErr     error
 	createErr  error
 	updateErr  error
+	deleteErr  error
 	listErr    error
 	listOut    []db.UUID
 	listBefore time.Time
 
-	getCalled  bool
-	created    *model.Media
-	updated    *model.Media
-	listCalled bool
+	getCalled    bool
+	created      *model.Media
+	updated      *model.Media
+	deleteCalled bool
+	deletedID    db.UUID
+	listCalled   bool
 }
 
 func (m *mockRepo) GetByID(ctx context.Context, id db.UUID) (*model.Media, error) {
@@ -39,6 +42,12 @@ func (m *mockRepo) Update(ctx context.Context, media *model.Media) error {
 func (m *mockRepo) Create(ctx context.Context, media *model.Media) error {
 	m.created = media
 	return m.createErr
+}
+
+func (m *mockRepo) Delete(ctx context.Context, id db.UUID) error {
+	m.deleteCalled = true
+	m.deletedID = id
+	return m.deleteErr
 }
 
 func (m *mockRepo) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
@@ -68,6 +77,7 @@ type mockStorage struct {
 	getErr                  error
 	saveErr                 error
 	copyErr                 error
+	removeErr               error
 	fileExistsErr           error
 
 	initBucketCalled           bool
@@ -112,7 +122,7 @@ func (m *mockStorage) StatFile(ctx context.Context, bucket, fileKey string) (Fil
 }
 func (m *mockStorage) RemoveFile(ctx context.Context, bucket, fileKey string) error {
 	m.removeCalled = true
-	return nil
+	return m.removeErr
 }
 func (m *mockStorage) GetFile(ctx context.Context, bucket, fileKey string) (io.ReadSeekCloser, error) {
 	m.getCalled = true
