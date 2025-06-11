@@ -30,6 +30,8 @@ This microservice is designed to:
 ## Code Structure
 - cmd/api/: Entry point for the HTTP API
 - cmd/migrate/: Runs SQL migrations
+- cmd/optimise-backlog/: CLI to optimise existing media
+- cmd/worker/: Background task runner
 - internal/cache/: Cache implementation
 - internal/config/: Loads and validates configuration
 - internal/db/: Database implementation
@@ -39,12 +41,18 @@ This microservice is designed to:
 - internal/model/: Model layer
 - internal/optimiser/: File optimiser implementation
 - internal/repository/: Database operations
+- internal/repository/mariadb/: MariaDB implementation
 - internal/storage/: File storage (MinIO) implementation
 - internal/task/: Async task definitions
 - internal/usecase/: Implementation of the core application logic
+- internal/usecase/media/: Media-specific use cases
 - internal/validation/: Request validations
 - scripts/: Helper scripts (e.g., migration scaffolder)
 - test/: Integration and e2e tests
+- test/e2e/: End-to-end tests
+- test/integration/: Integration tests
+- test/testdata/: Sample media files for tests
+- test/testutil/: Test utilities
 
 ## Make Targets
 - make test: Run full test suite
