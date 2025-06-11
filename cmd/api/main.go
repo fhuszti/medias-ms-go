@@ -32,6 +32,7 @@ func main() {
 	database := initDb(cfg)
 
 	r := initRouter()
+	r.Use(api.WithJWTAuth(cfg.JWTSecret))
 
 	strg := initStorage(cfg)
 	initBuckets(strg, cfg.Buckets)

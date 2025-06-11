@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 func TestWithDestBucketMiddleware(t *testing.T) {
@@ -120,6 +121,56 @@ func TestWithIDMiddleware(t *testing.T) {
 				if got != tc.paramValue {
 					t.Errorf("ID in context = %q; want %q", got, tc.paramValue)
 				}
+			}
+		})
+	}
+}
+
+func TestWithJWTAuthMiddleware(t *testing.T) {
+	secret := "secret"
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"foo": "bar"})
+	validToken, err := token.SignedString([]byte(secret))
+	if err != nil {
+		t.Fatalf("could not sign token: %v", err)
+	}
+
+	tests := []struct {
+		name           string
+		secret         string
+		authHeader     string
+		wantStatus     int
+		expectNextCall bool
+	}{
+		{"no secret", "", "", http.StatusNoContent, true},
+		{"missing header", secret, "", http.StatusUnauthorized, false},
+		{"bad token", secret, "Bearer bad", http.StatusUnauthorized, false},
+		{"valid", secret, "Bearer " + validToken, http.StatusNoContent, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			mw := WithJWTAuth(tc.secret)
+
+			nextCalled := false
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				nextCalled = true
+				w.WriteHeader(http.StatusNoContent)
+			})
+
+			req := httptest.NewRequest("GET", "/any", nil)
+			if tc.authHeader != "" {
+				req.Header.Set("Authorization", tc.authHeader)
+			}
+			rec := httptest.NewRecorder()
+
+			handler := mw(next)
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status = %d; want %d", rec.Code, tc.wantStatus)
+			}
+			if nextCalled != tc.expectNextCall {
+				t.Errorf("nextCalled = %v; want %v", nextCalled, tc.expectNextCall)
 			}
 		})
 	}

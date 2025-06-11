@@ -24,6 +24,7 @@ type Settings struct {
 	ImagesSizes     []int
 	RedisAddr       string
 	RedisPassword   string
+	JWTSecret       string
 }
 
 func Load() (*Settings, error) {
@@ -90,6 +91,7 @@ func Load() (*Settings, error) {
 		ImagesSizes:     getImagesSizes(),
 		RedisAddr:       viper.GetString("REDIS_ADDR"),
 		RedisPassword:   viper.GetString("REDIS_PASSWORD"),
+		JWTSecret:       viper.GetString("JWT_SECRET_KEY"),
 	}, nil
 }
 
