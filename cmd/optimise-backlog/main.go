@@ -31,7 +31,7 @@ func main() {
 	if err := optimiser.OptimiseBacklog(context.Background()); err != nil {
 		log.Fatalf("❌  Backlog optimisation failed: %v", err)
 	}
-	log.Println("✅  Backlog optimisation completed")
+	log.Println("✅  Backlog optimisation enqueuing done")
 }
 
 func initDb(cfg *config.Settings) *db.Database {

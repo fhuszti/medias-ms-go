@@ -25,3 +25,6 @@ test:
 
 clean:
 	golangci-lint run
+
+optimise-backlog:
+	go run .\cmd\optimise-backlog\
