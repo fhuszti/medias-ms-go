@@ -61,6 +61,10 @@ func main() {
 	r.With(api.WithID()).
 		Get("/medias/{id}", api.GetMediaHandler(getMediaSvc))
 
+	deleteMediaSvc := mediaSvc.NewMediaDeleter(mediaRepo, ca, strg)
+	r.With(api.WithID()).
+		Delete("/medias/{id}", api.DeleteMediaHandler(deleteMediaSvc))
+
 	listenRouter(r, cfg, database)
 }
 
