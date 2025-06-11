@@ -79,6 +79,7 @@ func setupServer(t *testing.T) *httptest.Server {
 	t.Cleanup(workerStop)
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
+	deleterSvc := mediaSvc.NewMediaDeleter(repo, ca, GlobalStrg)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
@@ -87,6 +88,8 @@ func setupServer(t *testing.T) *httptest.Server {
 		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(finaliserSvc))
 	r.With(api.WithID()).
 		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
+	r.With(api.WithID()).
+		Delete("/medias/{id}", api.DeleteMediaHandler(deleterSvc))
 
 	ts := httptest.NewServer(r)
 	t.Cleanup(ts.Close)
@@ -208,6 +211,30 @@ func TestUploadImageE2E(t *testing.T) {
 	if !found300 {
 		t.Error("expected 300px variant")
 	}
+
+	// ---- Step 5: Delete the media ----
+	reqDel, err := http.NewRequest(http.MethodDelete, ts.URL+"/medias/"+out1.ID, nil)
+	if err != nil {
+		t.Fatalf("new DELETE request error: %v", err)
+	}
+	respDel, err := http.DefaultClient.Do(reqDel)
+	if err != nil {
+		t.Fatalf("DELETE media error: %v", err)
+	}
+	respDel.Body.Close()
+	if respDel.StatusCode != http.StatusNoContent {
+		t.Fatalf("status delete = %d; want %d", respDel.StatusCode, http.StatusNoContent)
+	}
+
+	// ---- Step 6: Confirm GET returns 404 ----
+	respGet, err := http.Get(ts.URL + "/medias/" + out1.ID)
+	if err != nil {
+		t.Fatalf("GET after delete error: %v", err)
+	}
+	defer respGet.Body.Close()
+	if respGet.StatusCode != http.StatusNotFound {
+		t.Fatalf("status after delete GET = %d; want %d", respGet.StatusCode, http.StatusNotFound)
+	}
 }
 
 func TestUploadMarkdownE2E(t *testing.T) {
@@ -297,6 +324,30 @@ func TestUploadMarkdownE2E(t *testing.T) {
 	if len(getOut.Variants) != 0 {
 		t.Errorf("Variants = %v; want empty slice", getOut.Variants)
 	}
+
+	// ---- Step 5: Delete the media ----
+	reqDel, err := http.NewRequest(http.MethodDelete, ts.URL+"/medias/"+out1.ID, nil)
+	if err != nil {
+		t.Fatalf("new DELETE request error: %v", err)
+	}
+	respDel, err := http.DefaultClient.Do(reqDel)
+	if err != nil {
+		t.Fatalf("DELETE media error: %v", err)
+	}
+	respDel.Body.Close()
+	if respDel.StatusCode != http.StatusNoContent {
+		t.Fatalf("status delete = %d; want %d", respDel.StatusCode, http.StatusNoContent)
+	}
+
+	// ---- Step 6: Confirm GET returns 404 ----
+	respGet, err := http.Get(ts.URL + "/medias/" + out1.ID)
+	if err != nil {
+		t.Fatalf("GET after delete error: %v", err)
+	}
+	defer respGet.Body.Close()
+	if respGet.StatusCode != http.StatusNotFound {
+		t.Fatalf("status after delete GET = %d; want %d", respGet.StatusCode, http.StatusNotFound)
+	}
 }
 
 func TestUploadPDFE2E(t *testing.T) {
@@ -379,5 +430,29 @@ func TestUploadPDFE2E(t *testing.T) {
 	}
 	if len(getOut.Variants) != 0 {
 		t.Errorf("Variants = %v; want empty slice", getOut.Variants)
+	}
+
+	// ---- Step 5: Delete the media ----
+	reqDel, err := http.NewRequest(http.MethodDelete, ts.URL+"/medias/"+out1.ID, nil)
+	if err != nil {
+		t.Fatalf("new DELETE request error: %v", err)
+	}
+	respDel, err := http.DefaultClient.Do(reqDel)
+	if err != nil {
+		t.Fatalf("DELETE media error: %v", err)
+	}
+	respDel.Body.Close()
+	if respDel.StatusCode != http.StatusNoContent {
+		t.Fatalf("status delete = %d; want %d", respDel.StatusCode, http.StatusNoContent)
+	}
+
+	// ---- Step 6: Confirm GET returns 404 ----
+	respGet, err := http.Get(ts.URL + "/medias/" + out1.ID)
+	if err != nil {
+		t.Fatalf("GET after delete error: %v", err)
+	}
+	defer respGet.Body.Close()
+	if respGet.StatusCode != http.StatusNotFound {
+		t.Fatalf("status after delete GET = %d; want %d", respGet.StatusCode, http.StatusNotFound)
 	}
 }
