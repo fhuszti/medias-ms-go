@@ -2,6 +2,10 @@ package api
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -127,29 +131,38 @@ func TestWithIDMiddleware(t *testing.T) {
 }
 
 func TestWithJWTAuthMiddleware(t *testing.T) {
-	secret := "secret"
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"foo": "bar"})
-	validToken, err := token.SignedString([]byte(secret))
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("could not generate key: %v", err)
+	}
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(&privKey.PublicKey)
+	if err != nil {
+		t.Fatalf("could not marshal public key: %v", err)
+	}
+	pubPem := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubKeyBytes})
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{"foo": "bar"})
+	validToken, err := token.SignedString(privKey)
 	if err != nil {
 		t.Fatalf("could not sign token: %v", err)
 	}
 
 	tests := []struct {
 		name           string
-		secret         string
+		pubKey         string
 		authHeader     string
 		wantStatus     int
 		expectNextCall bool
 	}{
-		{"no secret", "", "", http.StatusNoContent, true},
-		{"missing header", secret, "", http.StatusUnauthorized, false},
-		{"bad token", secret, "Bearer bad", http.StatusUnauthorized, false},
-		{"valid", secret, "Bearer " + validToken, http.StatusNoContent, true},
+		{"no key", "", "", http.StatusNoContent, true},
+		{"missing header", string(pubPem), "", http.StatusUnauthorized, false},
+		{"bad token", string(pubPem), "Bearer bad", http.StatusUnauthorized, false},
+		{"valid", string(pubPem), "Bearer " + validToken, http.StatusNoContent, true},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mw := WithJWTAuth(tc.secret)
+			mw := WithJWTAuth(tc.pubKey)
 
 			nextCalled := false
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
