@@ -23,8 +23,8 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 
 - copy ``.env.dist`` to a new ``.env``, update any value you feel like changing
 - run ``docker-compose up -d``
-- run migrations with ``go run ./cmd/migrate/``
-- run the server with ``go run ./cmd/api/``
+- run migrations with ``make migrate``
+- run the server with ``make start``
 
 ## Notes
 
@@ -64,10 +64,10 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 
 ## Manual commands
 
-- run the server with ``go run ./cmd/api/``
-- start the worker with ``go run ./cmd/worker/`` *(requires Redis)*
-- run database migrations with ``go run ./cmd/migrate/``
-- run the backlog optimiser with ``go run ./cmd/optimise-backlog/`` *(requires Redis)*
+- run the server with ``make start`` (``go run ./cmd/api/``)
+- start the worker with ``make worker`` (``go run ./cmd/worker/``) *(requires Redis)*
+- run database migrations with ``make migrate`` (``go run ./cmd/migrate/``)
+- run the backlog optimiser with ``make optimise-backlog`` (``go run ./cmd/optimise-backlog/``) *(requires Redis)*
 
 ## Tests
 

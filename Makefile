@@ -26,5 +26,14 @@ test:
 clean:
 	golangci-lint run
 
+start:
+	go run .\cmd\api\
+
+migrate:
+	go run .\cmd\migrate\
+
+worker:
+	go run .\cmd\worker\
+
 optimise-backlog:
 	go run .\cmd\optimise-backlog\
