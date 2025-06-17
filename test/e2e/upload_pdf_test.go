@@ -141,7 +141,7 @@ func TestUploadImageE2E(t *testing.T) {
 	}
 
 	// ---- Step 3: Finalise upload ----
-	finReq := `{"destBucket":"images"}`
+	finReq := `{"dest_bucket":"images"}`
 	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)
@@ -281,7 +281,7 @@ func TestUploadMarkdownE2E(t *testing.T) {
 	}
 
 	// ---- Step 3: Finalise upload ----
-	finReq := `{"destBucket":"docs"}`
+	finReq := `{"dest_bucket":"docs"}`
 	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)
@@ -394,7 +394,7 @@ func TestUploadPDFE2E(t *testing.T) {
 	}
 
 	// ---- Step 3: Finalise upload ----
-	finReq := `{"destBucket":"docs"}`
+	finReq := `{"dest_bucket":"docs"}`
 	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)

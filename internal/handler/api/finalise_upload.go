@@ -10,12 +10,12 @@ import (
 )
 
 type FinaliseUploadRequest struct {
-	DestBucket string `json:"destBucket" validate:"required"`
+	DestBucket string `json:"dest_bucket" validate:"required"`
 }
 
-func FinaliseUploadHandler(svc media.UploadFinaliser, allowed []string) http.HandlerFunc {
-	allowedSet := make(map[string]struct{}, len(allowed))
-	for _, b := range allowed {
+func FinaliseUploadHandler(svc media.UploadFinaliser, allowedBuckets []string) http.HandlerFunc {
+	allowedSet := make(map[string]struct{}, len(allowedBuckets))
+	for _, b := range allowedBuckets {
 		allowedSet[b] = struct{}{}
 	}
 

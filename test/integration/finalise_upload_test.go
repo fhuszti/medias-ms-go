@@ -565,7 +565,7 @@ func TestFinaliseUploadIntegration_ErrorInvalidBucket(t *testing.T) {
 	r.With(api.WithID()).
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(nil, allowed))
 
-	body := strings.NewReader(`{"destBucket":"not-a-bucket"}`)
+	body := strings.NewReader(`{"dest_bucket":"not-a-bucket"}`)
 	req := httptest.NewRequest("POST", "/medias/finalise_upload/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", body)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)

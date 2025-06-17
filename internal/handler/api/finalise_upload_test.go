@@ -40,7 +40,7 @@ func TestFinaliseUploadHandler(t *testing.T) {
 		{
 			name:            "missing ID",
 			ctxID:           false,
-			body:            `{"destBucket":"bucket1"}`,
+			body:            `{"dest_bucket":"bucket1"}`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 			wantBodyContain: "ID is required",
@@ -48,23 +48,23 @@ func TestFinaliseUploadHandler(t *testing.T) {
 		{
 			name:            "invalid JSON",
 			ctxID:           true,
-			body:            `{"destBucket":`, // malformed
+			body:            `{"dest_bucket":`, // malformed
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 			wantBodyContain: "invalid request payload",
 		},
 		{
-			name:            "validation error: empty destBucket",
+			name:            "validation error: empty dest_bucket",
 			ctxID:           true,
-			body:            `{"destBucket":""}`,
+			body:            `{"dest_bucket":""}`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
-			wantErrorMap:    map[string]string{"destBucket": "required"},
+			wantErrorMap:    map[string]string{"dest_bucket": "required"},
 		},
 		{
-			name:            "validation error: invalid destBucket",
+			name:            "validation error: invalid dest_bucket",
 			ctxID:           true,
-			body:            `{"destBucket":"not-a-bucket"}`,
+			body:            `{"dest_bucket":"not-a-bucket"}`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 			wantBodyContain: "destination bucket \"not-a-bucket\" does not exist",
@@ -72,7 +72,7 @@ func TestFinaliseUploadHandler(t *testing.T) {
 		{
 			name:            "service error",
 			ctxID:           true,
-			body:            `{"destBucket":"bucket1"}`,
+			body:            `{"dest_bucket":"bucket1"}`,
 			svcErr:          errors.New("oops"),
 			wantStatus:      http.StatusInternalServerError,
 			wantContentType: "application/json",
@@ -81,7 +81,7 @@ func TestFinaliseUploadHandler(t *testing.T) {
 		{
 			name:            "happy path",
 			ctxID:           true,
-			body:            `{"destBucket":"bucket1"}`,
+			body:            `{"dest_bucket":"bucket1"}`,
 			wantStatus:      http.StatusNoContent,
 			wantContentType: "",
 		},
