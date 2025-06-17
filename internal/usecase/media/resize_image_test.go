@@ -23,7 +23,7 @@ func (errSeekReader) Close() error                   { return nil }
 
 func TestResizeImage_GetByIDNotFound(t *testing.T) {
 	repo := &mockRepo{getErr: sql.ErrNoRows}
-	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{})
+	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{}, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
@@ -34,7 +34,7 @@ func TestResizeImage_GetByIDNotFound(t *testing.T) {
 
 func TestResizeImage_GetByIDError(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
-	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{})
+	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{}, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
@@ -47,7 +47,7 @@ func TestResizeImage_WrongStatus(t *testing.T) {
 	mt := "image/png"
 	m := &model.Media{Status: model.MediaStatusPending, MimeType: &mt}
 	repo := &mockRepo{mediaRecord: m}
-	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{})
+	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{}, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
@@ -61,7 +61,7 @@ func TestResizeImage_NotImage(t *testing.T) {
 	mt := "application/pdf"
 	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
 	repo := &mockRepo{mediaRecord: m}
-	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{})
+	svc := NewImageResizer(repo, &mockFileOptimiser{}, &mockStorage{}, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
@@ -75,7 +75,7 @@ func TestResizeImage_GetFileError(t *testing.T) {
 	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{getErr: errors.New("get fail")}
-	svc := NewImageResizer(repo, &mockFileOptimiser{}, stg)
+	svc := NewImageResizer(repo, &mockFileOptimiser{}, stg, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id})
@@ -89,7 +89,7 @@ func TestResizeImage_SeekError(t *testing.T) {
 	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt, Metadata: model.Metadata{Width: 100, Height: 50}}
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{reader: errSeekReader{bytes.NewReader([]byte("a"))}}
-	svc := NewImageResizer(repo, &mockFileOptimiser{}, stg)
+	svc := NewImageResizer(repo, &mockFileOptimiser{}, stg, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
@@ -104,7 +104,7 @@ func TestResizeImage_ResizeError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{reader: bytes.NewReader([]byte("a"))}
 	fo := &mockFileOptimiser{resizeErr: errors.New("resize fail")}
-	svc := NewImageResizer(repo, fo, stg)
+	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
@@ -119,7 +119,7 @@ func TestResizeImage_SaveFileError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{saveErr: errors.New("save fail"), reader: bytes.NewReader([]byte("a"))}
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
-	svc := NewImageResizer(repo, fo, stg)
+	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
@@ -134,7 +134,7 @@ func TestResizeImage_StatError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{statErr: errors.New("stat fail"), reader: bytes.NewReader([]byte("a"))}
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
-	svc := NewImageResizer(repo, fo, stg)
+	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
@@ -149,7 +149,7 @@ func TestResizeImage_UpdateError(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m, updateErr: errors.New("update fail")}
 	stg := &mockStorage{reader: bytes.NewReader([]byte("a")), statInfo: FileInfo{SizeBytes: 1}}
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
-	svc := NewImageResizer(repo, fo, stg)
+	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: id, Sizes: []int{10}})
@@ -177,7 +177,7 @@ func TestResizeImage_Success(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{reader: bytes.NewReader([]byte("abc")), statInfo: FileInfo{SizeBytes: 123}}
 	fo := &mockFileOptimiser{resizeOut: []byte("resized")}
-	svc := NewImageResizer(repo, fo, stg)
+	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: m.ID, Sizes: []int{20, 0, -1, 40}})
 	if err != nil {
@@ -219,7 +219,7 @@ func TestResizeImage_CopyWhenWidthTooLarge(t *testing.T) {
 	repo := &mockRepo{mediaRecord: m}
 	stg := &mockStorage{reader: bytes.NewReader([]byte("abc")), statInfo: FileInfo{SizeBytes: 456}}
 	fo := &mockFileOptimiser{resizeOut: []byte("resized")}
-	svc := NewImageResizer(repo, fo, stg)
+	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
 	err := svc.ResizeImage(context.Background(), ResizeImageInput{ID: m.ID, Sizes: []int{200}})
 	if err != nil {
