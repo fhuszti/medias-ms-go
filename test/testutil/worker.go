@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	workerHandler "github.com/fhuszti/medias-ms-go/internal/handler/worker"
 	"github.com/fhuszti/medias-ms-go/internal/optimiser"
@@ -20,8 +21,9 @@ func StartWorker(dbConn *db.Database, strg *storage.Strg, redisAddr string) func
 	repo := mariadb.NewMediaRepository(dbConn.DB)
 	fo := optimiser.NewFileOptimiser(optimiser.NewWebPEncoder(), optimiser.NewPDFOptimizer())
 	dispatcher := task.NewDispatcher(redisAddr, "")
-	optimiseSvc := mediaSvc.NewMediaOptimiser(repo, fo, strg, dispatcher)
-	resizeSvc := mediaSvc.NewImageResizer(repo, fo, strg)
+	ca := cache.NewNoop()
+	optimiseSvc := mediaSvc.NewMediaOptimiser(repo, fo, strg, dispatcher, ca)
+	resizeSvc := mediaSvc.NewImageResizer(repo, fo, strg, ca)
 
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(task.TypeOptimiseMedia, func(ctx context.Context, t *asynq.Task) error {

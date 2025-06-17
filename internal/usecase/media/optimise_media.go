@@ -22,10 +22,11 @@ type mediaOptimiserSrv struct {
 	opt   FileOptimiser
 	strg  Storage
 	tasks TaskDispatcher
+	cache Cache
 }
 
-func NewMediaOptimiser(repo Repository, opt FileOptimiser, strg Storage, tasks TaskDispatcher) Optimiser {
-	return &mediaOptimiserSrv{repo, opt, strg, tasks}
+func NewMediaOptimiser(repo Repository, opt FileOptimiser, strg Storage, tasks TaskDispatcher, cache Cache) Optimiser {
+	return &mediaOptimiserSrv{repo, opt, strg, tasks, cache}
 }
 
 type OptimiseMediaInput struct {
@@ -122,6 +123,10 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 		if err := m.tasks.EnqueueResizeImage(ctx, media.ID); err != nil {
 			log.Printf("failed to enqueue resize task for media #%s: %v", media.ID, err)
 		}
+	}
+
+	if err := m.cache.DeleteMediaDetails(ctx, media.ID); err != nil {
+		log.Printf("failed deleting cache for media #%s: %v", media.ID, err)
 	}
 
 	return nil

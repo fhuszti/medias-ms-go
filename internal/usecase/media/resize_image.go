@@ -19,14 +19,15 @@ type ImageResizer interface {
 }
 
 type imageResizerSrv struct {
-	repo Repository
-	opt  FileOptimiser
-	strg Storage
+	repo  Repository
+	opt   FileOptimiser
+	strg  Storage
+	cache Cache
 }
 
 // NewImageResizer constructs an ImageResizer implementation.
-func NewImageResizer(repo Repository, opt FileOptimiser, strg Storage) ImageResizer {
-	return &imageResizerSrv{repo, opt, strg}
+func NewImageResizer(repo Repository, opt FileOptimiser, strg Storage, cache Cache) ImageResizer {
+	return &imageResizerSrv{repo, opt, strg, cache}
 }
 
 // ResizeImageInput represents the input for creating resized variants.
@@ -117,6 +118,10 @@ func (s *imageResizerSrv) ResizeImage(ctx context.Context, in ResizeImageInput) 
 	if err := s.repo.Update(ctx, media); err != nil {
 		log.Printf("failed updating media with variants: %v", err)
 		return fmt.Errorf("failed updating media: %w", err)
+	}
+
+	if err := s.cache.DeleteMediaDetails(ctx, media.ID); err != nil {
+		log.Printf("failed deleting cache for media #%s: %v", media.ID, err)
 	}
 	return nil
 }
