@@ -3,6 +3,7 @@ package media
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	_ "golang.org/x/image/webp"
@@ -41,6 +42,9 @@ type FinaliseUploadInput struct {
 func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUploadInput) error {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrObjectNotFound
+		}
 		return err
 	}
 	if media.Status == model.MediaStatusCompleted {
