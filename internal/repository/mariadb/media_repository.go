@@ -139,3 +139,38 @@ func (r *MediaRepository) Delete(ctx context.Context, ID db.UUID) error {
 	_, err := r.db.ExecContext(ctx, query, ID)
 	return err
 }
+
+func (r *MediaRepository) ListOptimisedImagesNoVariantsBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
+	log.Printf("fetching images to resize before %s...", before)
+
+	const query = `
+      SELECT id FROM medias
+      WHERE status = ?
+        AND optimised = TRUE
+        AND JSON_LENGTH(variants) = 0
+        AND created_at <= ?
+        AND mime_type LIKE 'image/%'
+    `
+	rows, err := r.db.QueryContext(ctx, query, model.MediaStatusCompleted, before)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if cerr := rows.Close(); cerr != nil {
+			log.Printf("rows close error: %v", cerr)
+		}
+	}()
+
+	var ids []db.UUID
+	for rows.Next() {
+		var id db.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}

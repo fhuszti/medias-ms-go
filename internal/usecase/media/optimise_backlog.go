@@ -40,5 +40,21 @@ func (s *backlogOptimiserSrv) OptimiseBacklog(ctx context.Context) error {
 			log.Printf("failed to enqueue optimise task for media #%s: %v", id, err)
 		}
 	}
+
+	resizeIDs, err := s.repo.ListOptimisedImagesNoVariantsBefore(ctx, cutoff)
+	if err != nil {
+		return err
+	}
+
+	if len(resizeIDs) == 0 {
+		log.Printf("no images found to resize")
+	}
+
+	for _, id := range resizeIDs {
+		log.Printf("starting resize for media #%s", id)
+		if err := s.tasks.EnqueueResizeImage(ctx, id); err != nil {
+			log.Printf("failed to enqueue resize task for media #%s: %v", id, err)
+		}
+	}
 	return nil
 }
