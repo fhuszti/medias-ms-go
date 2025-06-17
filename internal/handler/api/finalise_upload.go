@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
@@ -53,6 +54,10 @@ func FinaliseUploadHandler(svc media.UploadFinaliser, allowedBuckets []string) h
 			DestBucket: req.DestBucket,
 		}
 		if err := svc.FinaliseUpload(r.Context(), input); err != nil {
+			if errors.Is(err, media.ErrObjectNotFound) {
+				WriteError(w, http.StatusNotFound, "Media not found", nil)
+				return
+			}
 			WriteError(w, http.StatusInternalServerError, fmt.Sprintf("could not finalise upload of media #%s", input.ID), err)
 			return
 		}
