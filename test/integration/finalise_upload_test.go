@@ -562,10 +562,11 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 func TestFinaliseUploadIntegration_ErrorInvalidBucket(t *testing.T) {
 	r := chi.NewRouter()
 	allowed := []string{"images", "docs"}
-	r.With(api.WithDestBucket(allowed)).
-		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(nil))
+	r.With(api.WithID()).
+		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(nil, allowed))
 
-	req := httptest.NewRequest("POST", "/medias/finalise_upload/not-a-bucket", nil)
+	body := strings.NewReader(`{"dest_bucket":"not-a-bucket"}`)
+	req := httptest.NewRequest("POST", "/medias/finalise_upload/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", body)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 

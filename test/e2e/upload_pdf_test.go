@@ -84,8 +84,8 @@ func setupServer(t *testing.T) *httptest.Server {
 	// Setup HTTP handlers
 	r := chi.NewRouter()
 	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
-	r.With(api.WithDestBucket([]string{"staging", "images", "docs"})).
-		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(finaliserSvc))
+	r.With(api.WithID()).
+		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(finaliserSvc, []string{"staging", "images", "docs"}))
 	r.With(api.WithID()).
 		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
 	r.With(api.WithID()).
@@ -141,8 +141,8 @@ func TestUploadImageE2E(t *testing.T) {
 	}
 
 	// ---- Step 3: Finalise upload ----
-	finReq := fmt.Sprintf(`{"id":"%s"}`, out1.ID)
-	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/images", "application/json", strings.NewReader(finReq))
+	finReq := `{"dest_bucket":"images"}`
+	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)
 	}
@@ -281,8 +281,8 @@ func TestUploadMarkdownE2E(t *testing.T) {
 	}
 
 	// ---- Step 3: Finalise upload ----
-	finReq := fmt.Sprintf(`{"id":"%s"}`, out1.ID)
-	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/docs", "application/json", strings.NewReader(finReq))
+	finReq := `{"dest_bucket":"docs"}`
+	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)
 	}
@@ -394,8 +394,8 @@ func TestUploadPDFE2E(t *testing.T) {
 	}
 
 	// ---- Step 3: Finalise upload ----
-	finReq := fmt.Sprintf(`{"id":"%s"}`, out1.ID)
-	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/docs", "application/json", strings.NewReader(finReq))
+	finReq := `{"dest_bucket":"docs"}`
+	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)
 	}

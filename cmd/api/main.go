@@ -54,8 +54,8 @@ func main() {
 	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
 	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, strg, dispatcher)
-	r.With(api.WithDestBucket(cfg.Buckets)).
-		Post("/medias/finalise_upload/{destBucket}", api.FinaliseUploadHandler(uploadFinaliserSvc))
+	r.With(api.WithID()).
+		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(uploadFinaliserSvc, cfg.Buckets))
 
 	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, ca, strg)
 	r.With(api.WithID()).

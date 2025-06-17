@@ -2,7 +2,6 @@ package api
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"context"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	mediaUC "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/google/uuid"
@@ -29,7 +29,7 @@ func TestFinaliseUploadHandler(t *testing.T) {
 	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	tests := []struct {
 		name            string
-		ctxBucket       string
+		ctxID           bool
 		body            string
 		svcErr          error
 		wantStatus      int
@@ -38,41 +38,41 @@ func TestFinaliseUploadHandler(t *testing.T) {
 		wantBodyContain string            // substring for plain-text errors
 	}{
 		{
-			name:            "missing destBucket",
-			ctxBucket:       "",
-			body:            `{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}`,
+			name:            "missing ID",
+			ctxID:           false,
+			body:            `{"dest_bucket":"bucket1"}`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
-			wantBodyContain: "destination bucket is required",
+			wantBodyContain: "ID is required",
 		},
 		{
 			name:            "invalid JSON",
-			ctxBucket:       "bucket1",
-			body:            `{"id":`, // malformed
+			ctxID:           true,
+			body:            `{"dest_bucket":`, // malformed
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
 			wantBodyContain: "invalid request payload",
 		},
 		{
-			name:            "validation error: empty id",
-			ctxBucket:       "bucket1",
-			body:            `{"id":""}`,
+			name:            "validation error: empty dest_bucket",
+			ctxID:           true,
+			body:            `{"dest_bucket":""}`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
-			wantErrorMap:    map[string]string{"id": "required"},
+			wantErrorMap:    map[string]string{"dest_bucket": "required"},
 		},
 		{
-			name:            "validation error: bad id",
-			ctxBucket:       "bucket1",
-			body:            `{"id":"not-a-uuid"}`,
+			name:            "validation error: invalid dest_bucket",
+			ctxID:           true,
+			body:            `{"dest_bucket":"not-a-bucket"}`,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
-			wantErrorMap:    map[string]string{"id": "uuid"},
+			wantBodyContain: "destination bucket \"not-a-bucket\" does not exist",
 		},
 		{
 			name:            "service error",
-			ctxBucket:       "bucket1",
-			body:            `{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}`,
+			ctxID:           true,
+			body:            `{"dest_bucket":"bucket1"}`,
 			svcErr:          errors.New("oops"),
 			wantStatus:      http.StatusInternalServerError,
 			wantContentType: "application/json",
@@ -80,24 +80,25 @@ func TestFinaliseUploadHandler(t *testing.T) {
 		},
 		{
 			name:            "happy path",
-			ctxBucket:       "mydest",
-			body:            `{"id":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}`,
+			ctxID:           true,
+			body:            `{"dest_bucket":"bucket1"}`,
 			wantStatus:      http.StatusNoContent,
 			wantContentType: "",
 		},
 	}
 
+	allowed := []string{"bucket1", "mydest"}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mockSvc := &mockFinaliser{err: tc.svcErr}
-			h := FinaliseUploadHandler(mockSvc)
+			h := FinaliseUploadHandler(mockSvc, allowed)
 
 			req := httptest.NewRequest(http.MethodPost, "/any", bytes.NewBufferString(tc.body))
-			if tc.ctxBucket != "" {
+			if tc.ctxID {
 				req = req.WithContext(context.WithValue(
 					req.Context(),
-					DestBucketKey,
-					tc.ctxBucket,
+					IDKey,
+					validID,
 				))
 			}
 			rec := httptest.NewRecorder()
@@ -132,17 +133,21 @@ func TestFinaliseUploadHandler(t *testing.T) {
 				}
 
 			} else {
-				// plain-text error
-				if !bytes.Contains(body, []byte(tc.wantBodyContain)) {
+				// JSON error message
+				var resp ErrorResponse
+				if err := json.Unmarshal(body, &resp); err != nil {
+					t.Fatalf("invalid JSON error body: %v; body=%s", err, body)
+				}
+				if !strings.Contains(resp.Error, tc.wantBodyContain) {
 					t.Errorf("body = %q; want to contain %q", body, tc.wantBodyContain)
 				}
 			}
 
 			// If the service was invoked, verify inputs
-			// Only invoked when ctxBucket non-empty AND JSON validation passed
-			if tc.ctxBucket != "" && tc.wantErrorMap == nil && tc.wantBodyContain == "" {
-				if mockSvc.in.DestBucket != tc.ctxBucket {
-					t.Errorf("service got DestBucket = %q; want %q", mockSvc.in.DestBucket, tc.ctxBucket)
+			// Only invoked when ctxID and JSON validation passed and no body error
+			if tc.ctxID && tc.wantErrorMap == nil && tc.wantBodyContain == "" {
+				if mockSvc.in.DestBucket != "bucket1" {
+					t.Errorf("service got DestBucket = %q; want bucket1", mockSvc.in.DestBucket)
 				}
 				if mockSvc.in.ID != validID {
 					t.Errorf("service got ID = %v; want %v", mockSvc.in.ID, validID)
