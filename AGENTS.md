@@ -16,7 +16,7 @@ This microservice is designed to:
 ### File Lifecycle
 - Upload Init: Generate a presigned URL (API: POST /medias/generate_upload_link)
 - Staging Upload: Upload to staging bucket using that URL
-- Finalization: Frontend calls POST /medias/finalise_upload/{destBucket} to validate and move file
+- Finalization: Frontend calls POST /medias/finalise_upload/{id} with body `{"destBucket":"<bucket>"}` to validate and move file
 
 ### Post-processing (async):
 - Optimize (WebP conversion, etc.)

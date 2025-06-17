@@ -39,9 +39,9 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
    - Returns ``201`` with ``{"id":"<uuid>","url":"<upload_url>"}``.
 2. **Upload the file** using the ``url`` from step 1 with a ``PUT`` request.
    - The file lands in the ``staging`` bucket.
-3. **Finalise the upload** – ``POST /medias/finalise_upload/{destBucket}``
-   - Path param ``destBucket`` must be one of the buckets defined in ``BUCKETS``.
-   - Body: ``{"id": "<uuid>"}``
+3. **Finalise the upload** – ``POST /medias/finalise_upload/{id}``
+   - ``id`` is the media ID returned in step 1.
+   - Body: ``{"destBucket": "<bucket>"}`` where ``destBucket`` must match one of the buckets from ``BUCKETS``.
    - Moves the file from ``staging`` to ``destBucket`` and stores metadata.
    - Returns ``204`` with no content.
 4. **Retrieve the media** – ``GET /medias/{id}``

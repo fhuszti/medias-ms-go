@@ -3,23 +3,26 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
-	"github.com/google/uuid"
 	"log"
 	"net/http"
 )
 
 type FinaliseUploadRequest struct {
-	ID string `json:"id" validate:"required,uuid"`
+	DestBucket string `json:"destBucket" validate:"required"`
 }
 
-func FinaliseUploadHandler(svc media.UploadFinaliser) http.HandlerFunc {
+func FinaliseUploadHandler(svc media.UploadFinaliser, allowed []string) http.HandlerFunc {
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, b := range allowed {
+		allowedSet[b] = struct{}{}
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		destBucket, ok := BucketFromContext(r.Context())
+		id, ok := IDFromContext(r.Context())
 		if !ok {
-			WriteError(w, http.StatusBadRequest, "destination bucket is required", nil)
+			WriteError(w, http.StatusBadRequest, "ID is required", nil)
 			return
 		}
 
@@ -40,15 +43,14 @@ func FinaliseUploadHandler(svc media.UploadFinaliser) http.HandlerFunc {
 			return
 		}
 
-		id, err := uuid.Parse(req.ID)
-		if err != nil {
-			WriteError(w, http.StatusBadRequest, "Invalid request", fmt.Errorf("invalid UUID: %w", err))
+		if _, ok := allowedSet[req.DestBucket]; !ok {
+			WriteError(w, http.StatusBadRequest, fmt.Sprintf("destination bucket %q does not exist", req.DestBucket), nil)
 			return
 		}
 
 		input := media.FinaliseUploadInput{
-			ID:         db.UUID(id),
-			DestBucket: destBucket,
+			ID:         id,
+			DestBucket: req.DestBucket,
 		}
 		if err := svc.FinaliseUpload(r.Context(), input); err != nil {
 			WriteError(w, http.StatusInternalServerError, fmt.Sprintf("could not finalise upload of media #%s", input.ID), err)
