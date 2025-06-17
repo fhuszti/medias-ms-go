@@ -6,7 +6,7 @@ All files uploaded are asynchronously optimised, while still being immediately a
 
 Currently accepts PNG | JPG | WEBP | PDF | MD.
 
-# ***STILL WIP, NOT READY FOR PROD USAGE***
+### ***This microservice has been fully tested and is working blazing fast for local dev, but was never tested in prod nor at scale.***
 
 ## Requirements
 - Go CLI
