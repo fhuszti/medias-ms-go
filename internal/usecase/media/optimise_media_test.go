@@ -177,7 +177,7 @@ func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 	if !strg.saveCalled || !strg.copyCalled || !strg.removeCalled || !strg.getCalled || !strg.statCalled {
 		t.Error("storage methods not fully called")
 	}
-	if !dispatcher.resizeCalled || dispatcher.resizeID != m.ID {
+	if !dispatcher.resizeCalled || len(dispatcher.resizeIDs) != 1 || dispatcher.resizeIDs[0] != m.ID {
 		t.Error("resize task not enqueued")
 	}
 }
@@ -204,7 +204,7 @@ func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	if !strg.saveCalled || !strg.copyCalled {
 		t.Error("expected save and copy calls")
 	}
-	if !dispatcher.resizeCalled || dispatcher.resizeID != m.ID {
+	if !dispatcher.resizeCalled || len(dispatcher.resizeIDs) != 1 || dispatcher.resizeIDs[0] != m.ID {
 		t.Error("resize task not enqueued")
 	}
 }

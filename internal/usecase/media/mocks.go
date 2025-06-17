@@ -20,6 +20,12 @@ type mockRepo struct {
 	listOut    []db.UUID
 	listBefore time.Time
 
+	listVariantsErr    error
+	listVariantsOut    []db.UUID
+	listVariantsBefore time.Time
+
+	listVariantsCalled bool
+
 	getCalled    bool
 	created      *model.Media
 	updated      *model.Media
@@ -57,6 +63,15 @@ func (m *mockRepo) ListUnoptimisedCompletedBefore(ctx context.Context, before ti
 		return nil, m.listErr
 	}
 	return m.listOut, nil
+}
+
+func (m *mockRepo) ListOptimisedImagesNoVariantsBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
+	m.listVariantsCalled = true
+	m.listVariantsBefore = before
+	if m.listVariantsErr != nil {
+		return nil, m.listVariantsErr
+	}
+	return m.listVariantsOut, nil
 }
 
 type nopRSC struct{ io.ReadSeeker }
@@ -211,7 +226,7 @@ type mockDispatcher struct {
 	optimiseErr    error
 
 	resizeCalled bool
-	resizeID     db.UUID
+	resizeIDs    []db.UUID
 	resizeErr    error
 }
 
@@ -223,6 +238,6 @@ func (m *mockDispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) e
 
 func (m *mockDispatcher) EnqueueResizeImage(ctx context.Context, id db.UUID) error {
 	m.resizeCalled = true
-	m.resizeID = id
+	m.resizeIDs = append(m.resizeIDs, id)
 	return m.resizeErr
 }
