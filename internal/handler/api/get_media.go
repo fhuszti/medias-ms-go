@@ -1,8 +1,11 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"hash/crc32"
 	"log"
 	"net/http"
 )
@@ -26,20 +29,20 @@ func GetMediaHandler(svc media.Getter) http.HandlerFunc {
 			return
 		}
 
-		isImage := media.IsImage(out.Metadata.MimeType)
-		hasVariants := len(out.Variants) > 0
-		isResized := !isImage || (isImage && hasVariants)
-		isBytesOptimised := out.Optimised
-		shouldCache := isBytesOptimised && isResized
-		if shouldCache {
-			// public cache for 20 minutes
-			w.Header().Set("Cache-Control", "public, max-age=1200")
-		} else {
-			// no caching when still unoptimised
-			w.Header().Set("Cache-Control", "no-store, max-age=0, must-revalidate")
+		raw, err := json.Marshal(out)
+		if err != nil {
+			WriteError(w, http.StatusInternalServerError, "Could not encode response", err)
+			return
+		}
+		etag := fmt.Sprintf("\"%08x\"", crc32.ChecksumIEEE(raw))
+		w.Header().Set("ETag", etag)
+		w.Header().Set("Cache-Control", "max-age=0")
+		if match := r.Header.Get("If-None-Match"); match == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
 		}
 
-		RespondJSON(w, http.StatusOK, out)
+		RespondRawJSON(w, http.StatusOK, raw)
 		log.Printf("✅  Successfully returned details for media #%s", in.ID)
 	}
 }
