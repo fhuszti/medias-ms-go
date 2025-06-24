@@ -32,7 +32,7 @@ func NewCache(addr, password string) *Cache {
 func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) (*media.GetMediaOutput, error) {
 	log.Printf("getting entry in cache for media #%s...", id)
 
-	val, err := c.client.Get(ctx, getCacheKey(id.String())).Result()
+	val, err := c.client.Get(ctx, getCacheKey(id.String(), false)).Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, nil // cache miss
 	}
@@ -56,7 +56,7 @@ func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.Get
 		log.Printf("WARNING: redis set marshal failed: %v", err)
 	}
 
-	if err := c.client.Set(ctx, getCacheKey(id.String()), data, time.Until(mOut.ValidUntil)).Err(); err != nil {
+	if err := c.client.Set(ctx, getCacheKey(id.String(), false), data, time.Until(mOut.ValidUntil)).Err(); err != nil {
 		log.Printf("WARNING: redis set failed: %v", err)
 	}
 }
@@ -64,12 +64,16 @@ func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.Get
 func (c *Cache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
 	log.Printf("deleting entry in cache for media #%s...", id)
 
-	if err := c.client.Del(ctx, getCacheKey(id.String())).Err(); err != nil {
+	if err := c.client.Del(ctx, getCacheKey(id.String(), false)).Err(); err != nil {
 		return fmt.Errorf("redis del failed: %w", err)
 	}
 	return nil
 }
 
-func getCacheKey(id string) string {
-	return "media:" + id
+func getCacheKey(id string, isEtag bool) string {
+	key := "media:" + id
+	if isEtag {
+		key = "etag:" + key
+	}
+	return key
 }
