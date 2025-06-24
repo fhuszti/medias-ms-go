@@ -58,7 +58,7 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	// 2) Set + Get
 	c.SetMediaDetails(ctx, id, out)
 	// check TTL in Redis ≈ 2m
-	if ttl := mr.TTL(getCacheKey(id.String())); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
+	if ttl := mr.TTL(getCacheKey(id.String(), false)); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
 		t.Errorf("redis TTL = %v; want ~2m", ttl)
 	}
 	got, err = c.GetMediaDetails(ctx, id)
@@ -90,7 +90,7 @@ func TestGetMediaDetails_BadJSON(t *testing.T) {
 	id := db.NewUUID()
 
 	// inject invalid JSON into Redis
-	if err := mr.Set(getCacheKey(id.String()), "{ not valid json }"); err != nil {
+	if err := mr.Set(getCacheKey(id.String(), false), "{ not valid json }"); err != nil {
 		t.Fatalf("Manually set cache: %v", err)
 	}
 
@@ -131,5 +131,15 @@ func TestDeleteMediaDetails_RedisError(t *testing.T) {
 	err := c.DeleteMediaDetails(ctx, id)
 	if err == nil || !strings.Contains(err.Error(), "redis del failed") {
 		t.Errorf("Expected redis del failed error, got %v", err)
+	}
+}
+
+func TestGetCacheKey_Etag(t *testing.T) {
+	id := db.NewUUID().String()
+	if got := getCacheKey(id, true); got != "etag:media:"+id {
+		t.Errorf("getCacheKey(true) = %q; want %q", got, "etag:media:"+id)
+	}
+	if got := getCacheKey(id, false); got != "media:"+id {
+		t.Errorf("getCacheKey() = %q; want %q", got, "media:"+id)
 	}
 }

@@ -8,6 +8,9 @@ import (
 
 type NoopCache struct{}
 
+// compile-time check: *NoopCache must satisfy media.Cache
+var _ media.Cache = (*NoopCache)(nil)
+
 func NewNoop() *NoopCache {
 	return &NoopCache{}
 }
