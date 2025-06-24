@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/google/uuid"
+	"hash/crc32"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -28,6 +30,15 @@ func (m *mockGetter) GetMedia(ctx context.Context, in mediaSvc.GetMediaInput) (*
 	return &m.out, m.err
 }
 
+func computeETag(t testing.TB, v any) string {
+	t.Helper()
+	raw, err := json.Marshal(v)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	return fmt.Sprintf("\"%08x\"", crc32.ChecksumIEEE(raw))
+}
+
 func TestGetMediaHandler(t *testing.T) {
 	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	nonEmptyVariants := model.VariantsOutput{
@@ -42,6 +53,7 @@ func TestGetMediaHandler(t *testing.T) {
 		wantStatus       int
 		wantContentType  string
 		wantCacheControl string
+		wantETag         bool
 
 		wantOutput       *mediaSvc.GetMediaOutput
 		wantBodyContains string
@@ -59,7 +71,8 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "public, max-age=1200",
+			wantCacheControl: "max-age=0",
+			wantETag:         true,
 			wantOutput:       &mediaSvc.GetMediaOutput{},
 		},
 		{
@@ -75,7 +88,8 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "no-store, max-age=0, must-revalidate",
+			wantCacheControl: "max-age=0",
+			wantETag:         true,
 			wantOutput:       &mediaSvc.GetMediaOutput{},
 		},
 		{
@@ -91,7 +105,8 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "no-store, max-age=0, must-revalidate",
+			wantCacheControl: "max-age=0",
+			wantETag:         true,
 			wantOutput:       &mediaSvc.GetMediaOutput{},
 		},
 		{
@@ -142,6 +157,12 @@ func TestGetMediaHandler(t *testing.T) {
 					t.Errorf("Cache-Control = %q; want %q", cc, tc.wantCacheControl)
 				}
 			}
+			if tc.wantETag {
+				wantETag := computeETag(t, tc.svcOut)
+				if et := rec.Header().Get("ETag"); et != wantETag {
+					t.Errorf("ETag = %q; want %q", et, wantETag)
+				}
+			}
 
 			switch {
 			case tc.wantOutput != nil:
@@ -167,5 +188,40 @@ func TestGetMediaHandler(t *testing.T) {
 				t.Fatal("test case has no assertion target!")
 			}
 		})
+	}
+}
+
+func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
+	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	mockSvc := &mockGetter{
+		out: mediaSvc.GetMediaOutput{
+			ValidUntil: time.Now(),
+			Optimised:  true,
+			URL:        "https://cdn.example.com/foo",
+			Metadata:   mediaSvc.MetadataOutput{},
+		},
+		err: nil,
+	}
+
+	handlerFn := GetMediaHandler(mockSvc)
+	etag := computeETag(t, mockSvc.out)
+	req := httptest.NewRequest(http.MethodGet, "/medias/"+validID.String(), nil)
+	req = req.WithContext(context.WithValue(req.Context(), IDKey, validID))
+	req.Header.Set("If-None-Match", etag)
+	rec := httptest.NewRecorder()
+
+	handlerFn(rec, req)
+
+	if rec.Code != http.StatusNotModified {
+		t.Fatalf("status = %d; want %d", rec.Code, http.StatusNotModified)
+	}
+	if et := rec.Header().Get("ETag"); et != etag {
+		t.Errorf("ETag = %q; want %q", et, etag)
+	}
+	if cc := rec.Header().Get("Cache-Control"); cc != "max-age=0" {
+		t.Errorf("Cache-Control = %q; want %q", cc, "max-age=0")
+	}
+	if rec.Body.Len() != 0 {
+		t.Errorf("expected empty body, got %q", rec.Body.String())
 	}
 }
