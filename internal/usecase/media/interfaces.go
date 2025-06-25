@@ -38,6 +38,7 @@ type StorageGetter func(bucket string) (Storage, error)
 
 type Cache interface {
 	GetMediaDetails(ctx context.Context, id db.UUID) (*GetMediaOutput, error)
+	GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error)
 	SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput)
 	DeleteMediaDetails(ctx context.Context, id db.UUID) error
 }

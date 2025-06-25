@@ -156,3 +156,33 @@ func TestGetCacheKey_Etag(t *testing.T) {
 		t.Errorf("getCacheKey() = %q; want %q", got, "media:"+id)
 	}
 }
+
+func TestGetEtagMediaDetails(t *testing.T) {
+	c, mr := makeTestCache(t)
+	ctx := context.Background()
+
+	id := db.NewUUID()
+	if got, err := c.GetEtagMediaDetails(ctx, id); err != nil {
+		t.Fatalf("initial miss err: %v", err)
+	} else if got != "" {
+		t.Errorf("expected empty string on miss, got %q", got)
+	}
+	out := &media.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
+
+	c.SetMediaDetails(ctx, id, out)
+	raw, _ := json.Marshal(out)
+	want := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
+
+	got, err := c.GetEtagMediaDetails(ctx, id)
+	if err != nil {
+		t.Fatalf("GetEtagMediaDetails: %v", err)
+	}
+	if got != want {
+		t.Errorf("GetEtagMediaDetails = %q; want %q", got, want)
+	}
+
+	mr.Close()
+	if _, err := c.GetEtagMediaDetails(ctx, id); err == nil || !strings.Contains(err.Error(), "redis get failed") {
+		t.Errorf("expected redis get failed error, got %v", err)
+	}
+}

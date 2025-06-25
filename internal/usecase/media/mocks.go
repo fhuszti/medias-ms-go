@@ -184,6 +184,10 @@ func (c *mockCache) GetMediaDetails(ctx context.Context, id db.UUID) (*GetMediaO
 	return c.out, nil
 }
 
+func (c *mockCache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error) {
+	return "", nil
+}
+
 func (c *mockCache) SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput) {
 	c.setMediaCalled = true
 	c.out = value
