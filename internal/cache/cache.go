@@ -8,6 +8,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/redis/go-redis/v9"
+	"hash/crc32"
 	"log"
 	"time"
 )
@@ -56,7 +57,14 @@ func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.Get
 		log.Printf("WARNING: redis set marshal failed: %v", err)
 	}
 
-	if err := c.client.Set(ctx, getCacheKey(id.String(), false), data, time.Until(mOut.ValidUntil)).Err(); err != nil {
+	exp := time.Until(mOut.ValidUntil)
+
+	if err := c.client.Set(ctx, getCacheKey(id.String(), false), data, exp).Err(); err != nil {
+		log.Printf("WARNING: redis set failed: %v", err)
+	}
+
+	etag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(data))
+	if err := c.client.Set(ctx, getCacheKey(id.String(), true), etag, exp).Err(); err != nil {
 		log.Printf("WARNING: redis set failed: %v", err)
 	}
 }
