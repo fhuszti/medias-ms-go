@@ -19,6 +19,10 @@ func (n *NoopCache) GetMediaDetails(ctx context.Context, id db.UUID) (*media.Get
 	return nil, nil // always cache miss
 }
 
+func (n *NoopCache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error) {
+	return "", nil
+}
+
 func (n *NoopCache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.GetMediaOutput) {}
 
 func (n *NoopCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error { return nil }

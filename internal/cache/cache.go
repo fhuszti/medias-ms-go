@@ -49,6 +49,20 @@ func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) (*media.GetMedi
 	return &mOut, nil
 }
 
+func (c *Cache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error) {
+	log.Printf("getting etag in cache for media #%s...", id)
+
+	val, err := c.client.Get(ctx, getCacheKey(id.String(), true)).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", nil // cache miss
+	}
+	if err != nil {
+		return "", fmt.Errorf("redis get failed: %w", err)
+	}
+
+	return val, nil
+}
+
 func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.GetMediaOutput) {
 	log.Printf("creating entry in cache for media #%s, valid until %s...", id, mOut.ValidUntil.Format(time.RFC1123))
 
