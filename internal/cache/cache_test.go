@@ -2,6 +2,9 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"hash/crc32"
 	"strings"
 	"testing"
 	"time"
@@ -60,6 +63,16 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	// check TTL in Redis ≈ 2m
 	if ttl := mr.TTL(getCacheKey(id.String(), false)); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
 		t.Errorf("redis TTL = %v; want ~2m", ttl)
+	}
+	if ttl := mr.TTL(getCacheKey(id.String(), true)); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
+		t.Errorf("etag TTL = %v; want ~2m", ttl)
+	}
+	raw, _ := json.Marshal(out)
+	wantETag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
+	if et, err := mr.Get(getCacheKey(id.String(), true)); err != nil {
+		t.Fatalf("etag get error: %v", err)
+	} else if et != wantETag {
+		t.Errorf("etag value = %q; want %q", et, wantETag)
 	}
 	got, err = c.GetMediaDetails(ctx, id)
 	if err != nil {
