@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
@@ -41,8 +40,7 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
-	ca := cache.NewNoop()
-	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, GlobalStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, GlobalStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
@@ -126,8 +124,7 @@ func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
-	ca := cache.NewNoop()
-	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, GlobalStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, GlobalStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
@@ -204,8 +201,7 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(testDB.DB)
-	ca := cache.NewNoop()
-	svc := mediaSvc.NewMediaGetter(mediaRepo, ca, GlobalStrg)
+	svc := mediaSvc.NewMediaGetter(mediaRepo, GlobalStrg)
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
@@ -323,8 +319,7 @@ func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 	defer bCleanup()
 
 	repo := mariadb.NewMediaRepository(testDB.DB)
-	ca := cache.NewNoop()
-	svc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
+	svc := mediaSvc.NewMediaGetter(repo, GlobalStrg)
 
 	r := chi.NewRouter()
 	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(svc))
@@ -357,7 +352,7 @@ func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 func TestGetMediaIntegration_ErrorInvalidID(t *testing.T) {
 	// no DB or bucket setup needed, middleware will reject
 	repo := mariadb.NewMediaRepository(nil)
-	svc := mediaSvc.NewMediaGetter(repo, nil, nil)
+	svc := mediaSvc.NewMediaGetter(repo, nil)
 
 	r := chi.NewRouter()
 	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(svc))

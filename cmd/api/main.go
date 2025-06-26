@@ -57,7 +57,7 @@ func main() {
 	r.With(api.WithID()).
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(uploadFinaliserSvc, cfg.Buckets))
 
-	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, ca, strg)
+	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, strg)
 	r.With(api.WithID()).
 		Get("/medias/{id}", api.GetMediaHandler(getMediaSvc))
 
