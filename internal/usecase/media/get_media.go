@@ -16,13 +16,12 @@ type Getter interface {
 }
 
 type mediaGetterSrv struct {
-	repo  Repository
-	cache Cache
-	strg  Storage
+	repo Repository
+	strg Storage
 }
 
-func NewMediaGetter(repo Repository, cache Cache, strg Storage) Getter {
-	return &mediaGetterSrv{repo, cache, strg}
+func NewMediaGetter(repo Repository, strg Storage) Getter {
+	return &mediaGetterSrv{repo: repo, strg: strg}
 }
 
 type GetMediaInput struct {
@@ -44,12 +43,6 @@ type GetMediaOutput struct {
 }
 
 func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error) {
-	// Try the cache first
-	cachedOut, err := s.cache.GetMediaDetails(ctx, in.ID)
-	if err == nil && cachedOut != nil {
-		return cachedOut, nil
-	}
-
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -95,9 +88,6 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMe
 		}
 		output.Variants = variants
 	}
-
-	// Store in cache for next time
-	s.cache.SetMediaDetails(ctx, media.ID, &output)
 
 	return &output, nil
 }

@@ -78,7 +78,7 @@ func setupServer(t *testing.T) *httptest.Server {
 	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
 	t.Cleanup(workerStop)
 	ca := cache.NewNoop()
-	getterSvc := mediaSvc.NewMediaGetter(repo, ca, GlobalStrg)
+	getterSvc := mediaSvc.NewMediaGetter(repo, GlobalStrg)
 	deleterSvc := mediaSvc.NewMediaDeleter(repo, ca, GlobalStrg)
 
 	// Setup HTTP handlers

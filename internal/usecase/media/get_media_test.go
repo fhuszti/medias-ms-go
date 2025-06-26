@@ -7,14 +7,12 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestGetMedia_RepoError(t *testing.T) {
 	repo := &mockRepo{getErr: errors.New("db fail")}
-	cache := &mockCache{}
 	strg := &mockStorage{}
-	svc := NewMediaGetter(repo, cache, strg)
+	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	if err == nil {
@@ -25,9 +23,8 @@ func TestGetMedia_RepoError(t *testing.T) {
 func TestGetMedia_WrongStatus(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending}
 	repo := &mockRepo{mediaRecord: mrec}
-	cache := &mockCache{}
 	strg := &mockStorage{}
-	svc := NewMediaGetter(repo, cache, strg)
+	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	want := "media status should be 'completed' to be returned"
@@ -40,67 +37,13 @@ func TestGetMedia_URLGenError(t *testing.T) {
 	mt := "image/png"
 	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
 	repo := &mockRepo{mediaRecord: mrec}
-	cache := &mockCache{}
 	strg := &mockStorage{generateDownloadLinkErr: errors.New("link generation failed")}
-	svc := NewMediaGetter(repo, cache, strg)
+	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	wantPrefix := "error generating presigned download URL"
 	if err == nil || !strings.HasPrefix(err.Error(), wantPrefix) {
 		t.Fatalf("expected error prefix %q, got %v", wantPrefix, err)
-	}
-}
-
-func TestGetMedia_CacheSuccess(t *testing.T) {
-	cacheOut := &GetMediaOutput{
-		ValidUntil: time.Now().Add(1 * time.Hour),
-		Optimised:  true,
-		URL:        "https://example.com/foo.png",
-		Metadata: MetadataOutput{
-			Metadata: model.Metadata{
-				Width:  1800,
-				Height: 1800,
-			},
-			SizeBytes: int64(1234),
-			MimeType:  "image/png",
-		},
-		Variants: model.VariantsOutput{
-			model.VariantOutput{
-				URL:       "https://example.com/variants/foo_200.png",
-				SizeBytes: 200,
-				Width:     200,
-				Height:    200,
-			},
-			model.VariantOutput{
-				URL:       "https://example.com/variants/foo_500.png",
-				SizeBytes: 500,
-				Width:     500,
-				Height:    500,
-			},
-		},
-	}
-	repo := &mockRepo{}
-	cache := &mockCache{out: cacheOut}
-	strg := &mockStorage{}
-	svc := NewMediaGetter(repo, cache, strg)
-
-	out, err := svc.GetMedia(context.Background(), GetMediaInput{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if repo.getCalled {
-		t.Errorf("repo GetById should not be called")
-	}
-	if strg.generateDownloadLinkCalled {
-		t.Errorf("storage GeneratePresignedDownloadURL should not be called")
-	}
-	if cache.setMediaCalled {
-		t.Errorf("cache SetMedia should not be called")
-	}
-
-	if !reflect.DeepEqual(out, cacheOut) {
-		t.Errorf("Output struct = %+v, want %+v", out, cacheOut)
 	}
 }
 
@@ -132,9 +75,8 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 		},
 	}
 	repo := &mockRepo{mediaRecord: mrec}
-	cache := &mockCache{}
 	strg := &mockStorage{}
-	svc := NewMediaGetter(repo, cache, strg)
+	svc := NewMediaGetter(repo, strg)
 
 	out, err := svc.GetMedia(context.Background(), GetMediaInput{})
 	if err != nil {
@@ -147,10 +89,6 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 	}
 	if strg.ttl != DownloadUrlTTL {
 		t.Errorf("GeneratePresignedDownloadURL got ttl %v, want %v", strg.ttl, DownloadUrlTTL)
-	}
-
-	if !cache.setMediaCalled {
-		t.Errorf("cache SetMedia should be called")
 	}
 
 	if out.URL != "https://example.com/upload" {
