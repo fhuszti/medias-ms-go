@@ -34,8 +34,6 @@ type Storage interface {
 	CopyFile(ctx context.Context, bucket, srcKey, destKey string) error
 }
 
-type StorageGetter func(bucket string) (Storage, error)
-
 type Cache interface {
 	GetMediaDetails(ctx context.Context, id db.UUID) (*GetMediaOutput, error)
 	GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error)
