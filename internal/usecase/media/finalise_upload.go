@@ -17,6 +17,7 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/ledongthuc/pdf"
 )
 
@@ -25,12 +26,12 @@ type UploadFinaliser interface {
 }
 
 type uploadFinaliserSrv struct {
-	repo  Repository
-	strg  Storage
-	tasks TaskDispatcher
+	repo  port.MediaRepository
+	strg  port.Storage
+	tasks port.TaskDispatcher
 }
 
-func NewUploadFinaliser(repo Repository, strg Storage, tasks TaskDispatcher) UploadFinaliser {
+func NewUploadFinaliser(repo port.MediaRepository, strg port.Storage, tasks port.TaskDispatcher) UploadFinaliser {
 	return &uploadFinaliserSrv{repo, strg, tasks}
 }
 

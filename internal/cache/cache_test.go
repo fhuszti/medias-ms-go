@@ -12,7 +12,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,11 +37,11 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 
 	// prepare a sample GetMediaOutput
 	id := db.NewUUID()
-	out := &media.GetMediaOutput{
+	out := &port.GetMediaOutput{
 		ValidUntil: time.Now().Add(2 * time.Minute),
 		Optimised:  false,
 		URL:        "https://example.com/download/" + id.String(),
-		Metadata: media.MetadataOutput{
+		Metadata: port.MetadataOutput{
 			Metadata:  model.Metadata{PageCount: 3},
 			SizeBytes: 12345,
 			MimeType:  "application/pdf",
@@ -167,7 +167,7 @@ func TestGetEtagMediaDetails(t *testing.T) {
 	} else if got != "" {
 		t.Errorf("expected empty string on miss, got %q", got)
 	}
-	out := &media.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
+	out := &port.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
 
 	c.SetMediaDetails(ctx, id, out)
 	raw, _ := json.Marshal(out)

@@ -2,7 +2,8 @@ package optimiser
 
 import (
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	media "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 	"image"
@@ -18,8 +19,8 @@ type FileOptimiser struct {
 	pdfOpt  PDFOptimizer
 }
 
-// compile-time check: *FileOptimiser must satisfy media.FileOptimiser
-var _ media.FileOptimiser = (*FileOptimiser)(nil)
+// compile-time check: *FileOptimiser must satisfy port.FileOptimiser
+var _ port.FileOptimiser = (*FileOptimiser)(nil)
 
 func NewFileOptimiser(webpEnc WebPEncoder, pdfOpt PDFOptimizer) *FileOptimiser {
 	log.Println("initialising file optimiser...")

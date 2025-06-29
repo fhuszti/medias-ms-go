@@ -5,22 +5,24 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/model"
 	"log"
 	"time"
+
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 type Getter interface {
-	GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error)
+	GetMedia(ctx context.Context, in GetMediaInput) (*port.GetMediaOutput, error)
 }
 
 type mediaGetterSrv struct {
-	repo Repository
-	strg Storage
+	repo port.MediaRepository
+	strg port.Storage
 }
 
-func NewMediaGetter(repo Repository, strg Storage) Getter {
+func NewMediaGetter(repo port.MediaRepository, strg port.Storage) Getter {
 	return &mediaGetterSrv{repo: repo, strg: strg}
 }
 
@@ -28,21 +30,7 @@ type GetMediaInput struct {
 	ID db.UUID
 }
 
-type MetadataOutput struct {
-	model.Metadata
-	SizeBytes int64  `json:"size_bytes"`
-	MimeType  string `json:"mime_type"`
-}
-
-type GetMediaOutput struct {
-	ValidUntil time.Time            `json:"valid_until"`
-	Optimised  bool                 `json:"optimised"`
-	URL        string               `json:"url"`
-	Metadata   MetadataOutput       `json:"metadata"`
-	Variants   model.VariantsOutput `json:"variants"`
-}
-
-func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error) {
+func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*port.GetMediaOutput, error) {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -59,12 +47,12 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMe
 		return nil, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
 	}
 
-	mt := MetadataOutput{
+	mt := port.MetadataOutput{
 		Metadata:  media.Metadata,
 		SizeBytes: *media.SizeBytes,
 		MimeType:  *media.MimeType,
 	}
-	output := GetMediaOutput{
+	output := port.GetMediaOutput{
 		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
 		Optimised:  media.Optimised,
 		URL:        url,

@@ -3,10 +3,12 @@ package media
 import (
 	"bytes"
 	"context"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/model"
 	"io"
 	"time"
+
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 type mockRepo struct {
@@ -80,7 +82,7 @@ func (nopRSC) Close() error { return nil }
 
 type mockStorage struct {
 	reader     io.ReadSeeker
-	statInfo   FileInfo
+	statInfo   port.FileInfo
 	objectKey  string
 	ttl        time.Duration
 	fileExists bool
@@ -128,10 +130,10 @@ func (m *mockStorage) GeneratePresignedUploadURL(ctx context.Context, bucket, fi
 	}
 	return "https://example.com/upload", nil
 }
-func (m *mockStorage) StatFile(ctx context.Context, bucket, fileKey string) (FileInfo, error) {
+func (m *mockStorage) StatFile(ctx context.Context, bucket, fileKey string) (port.FileInfo, error) {
 	m.statCalled = true
 	if m.statErr != nil {
-		return FileInfo{}, m.statErr
+		return port.FileInfo{}, m.statErr
 	}
 	return m.statInfo, nil
 }
@@ -166,7 +168,7 @@ func (m *mockStorage) FileExists(ctx context.Context, bucket, fileKey string) (b
 }
 
 type mockCache struct {
-	out *GetMediaOutput
+	out *port.GetMediaOutput
 
 	getMediaErr error
 	delMediaErr error
@@ -176,7 +178,7 @@ type mockCache struct {
 	delMediaCalled bool
 }
 
-func (c *mockCache) GetMediaDetails(ctx context.Context, id db.UUID) (*GetMediaOutput, error) {
+func (c *mockCache) GetMediaDetails(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
 	c.getMediaCalled = true
 	if c.getMediaErr != nil {
 		return nil, c.getMediaErr
@@ -188,7 +190,7 @@ func (c *mockCache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string
 	return "", nil
 }
 
-func (c *mockCache) SetMediaDetails(ctx context.Context, id db.UUID, value *GetMediaOutput) {
+func (c *mockCache) SetMediaDetails(ctx context.Context, id db.UUID, value *port.GetMediaOutput) {
 	c.setMediaCalled = true
 	c.out = value
 }

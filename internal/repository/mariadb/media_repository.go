@@ -3,19 +3,20 @@ package mariadb
 import (
 	"context"
 	"database/sql"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/model"
-	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"log"
 	"time"
+
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 type MediaRepository struct {
 	db *sql.DB
 }
 
-// compile-time check: *MediaRepository must satisfy media.Repository
-var _ mediaService.Repository = (*MediaRepository)(nil)
+// compile-time check: *MediaRepository must satisfy port.MediaRepository
+var _ port.MediaRepository = (*MediaRepository)(nil)
 
 func NewMediaRepository(db *sql.DB) *MediaRepository {
 	return &MediaRepository{db: db}

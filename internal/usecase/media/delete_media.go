@@ -7,6 +7,7 @@ import (
 	"log"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 // Deleter deletes a media and its file.
@@ -15,13 +16,13 @@ type Deleter interface {
 }
 
 type deleteMediaSrv struct {
-	repo  Repository
-	cache Cache
-	strg  Storage
+	repo  port.MediaRepository
+	cache port.Cache
+	strg  port.Storage
 }
 
 // NewMediaDeleter constructs a Deleter implementation.
-func NewMediaDeleter(repo Repository, cache Cache, strg Storage) Deleter {
+func NewMediaDeleter(repo port.MediaRepository, cache port.Cache, strg port.Storage) Deleter {
 	return &deleteMediaSrv{repo: repo, cache: cache, strg: strg}
 }
 

@@ -4,12 +4,12 @@ import (
 	"context"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	media "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 type NoopDispatcher struct{}
 
-var _ media.TaskDispatcher = (*NoopDispatcher)(nil)
+var _ port.TaskDispatcher = (*NoopDispatcher)(nil)
 
 func NewNoopDispatcher() *NoopDispatcher { return &NoopDispatcher{} }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/google/uuid"
 )
 
@@ -141,7 +142,7 @@ func TestOptimiseMedia_UpdateError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m, updateErr: errors.New("update fail")}
 	strg := &mockStorage{}
-	strg.statInfo = FileInfo{SizeBytes: 200}
+	strg.statInfo = port.FileInfo{SizeBytes: 200}
 	fo := &mockFileOptimiser{mimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, strg, &mockDispatcher{}, &mockCache{})
 
@@ -155,7 +156,7 @@ func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
-	strg.statInfo = FileInfo{SizeBytes: 456}
+	strg.statInfo = port.FileInfo{SizeBytes: 456}
 	fo := &mockFileOptimiser{mimeOut: *m.MimeType, compressOut: []byte("comp")}
 	dispatcher := &mockDispatcher{}
 	svc := NewMediaOptimiser(repo, fo, strg, dispatcher, &mockCache{})
@@ -186,7 +187,7 @@ func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mockRepo{mediaRecord: m}
 	strg := &mockStorage{}
-	strg.statInfo = FileInfo{SizeBytes: 789}
+	strg.statInfo = port.FileInfo{SizeBytes: 789}
 	fo := &mockFileOptimiser{mimeOut: "image/webp", compressOut: []byte("webp")}
 	dispatcher := &mockDispatcher{}
 	svc := NewMediaOptimiser(repo, fo, strg, dispatcher, &mockCache{})

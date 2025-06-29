@@ -6,6 +6,7 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
@@ -49,7 +50,7 @@ func initDb(cfg *config.Settings) *db.Database {
 	return database
 }
 
-func initDispatcher(cfg *config.Settings) mediaSvc.TaskDispatcher {
+func initDispatcher(cfg *config.Settings) port.TaskDispatcher {
 	if cfg.RedisAddr == "" {
 		log.Fatalf("❌  Redis not configured: this command requires a running Redis instance")
 	}

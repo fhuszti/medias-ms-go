@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	media "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/hibiken/asynq"
 )
 
@@ -13,7 +13,7 @@ type Dispatcher struct {
 }
 
 // compile-time check
-var _ media.TaskDispatcher = (*Dispatcher)(nil)
+var _ port.TaskDispatcher = (*Dispatcher)(nil)
 
 func NewDispatcher(addr, password string) *Dispatcher {
 	c := asynq.NewClient(asynq.RedisClientOpt{Addr: addr, Password: password})

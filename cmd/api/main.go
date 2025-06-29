@@ -15,6 +15,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/fhuszti/medias-ms-go/internal/task"
@@ -38,8 +39,8 @@ func main() {
 	initBuckets(strg, cfg.Buckets)
 
 	mediaRepo := mariadb.NewMediaRepository(database.DB)
-	var ca mediaSvc.Cache
-	var dispatcher mediaSvc.TaskDispatcher
+	var ca port.Cache
+	var dispatcher port.TaskDispatcher
 	if cfg.RedisAddr != "" {
 		ca = cache.NewCache(cfg.RedisAddr, cfg.RedisPassword)
 		dispatcher = task.NewDispatcher(cfg.RedisAddr, cfg.RedisPassword)
@@ -99,7 +100,7 @@ func initRouter() *chi.Mux {
 	return r
 }
 
-func initStorage(cfg *config.Settings) mediaSvc.Storage {
+func initStorage(cfg *config.Settings) port.Storage {
 	strg, err := storage.NewStorage(
 		cfg.MinioEndpoint,
 		cfg.MinioAccessKey,
@@ -113,7 +114,7 @@ func initStorage(cfg *config.Settings) mediaSvc.Storage {
 	return strg
 }
 
-func initBuckets(strg mediaSvc.Storage, buckets []string) {
+func initBuckets(strg port.Storage, buckets []string) {
 	for _, b := range buckets {
 		if err := strg.InitBucket(b); err != nil {
 			log.Fatalf("❌  Failed to initialize bucket %q: %v", b, err)
