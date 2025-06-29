@@ -5,20 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
-	"github.com/redis/go-redis/v9"
 	"hash/crc32"
 	"log"
 	"time"
+
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/redis/go-redis/v9"
 )
 
 type Cache struct {
 	client *redis.Client
 }
 
-// compile-time check: *Cache must satisfy media.Cache
-var _ media.Cache = (*Cache)(nil)
+// compile-time check: *Cache must satisfy port.Cache
+var _ port.Cache = (*Cache)(nil)
 
 func NewCache(addr, password string) *Cache {
 	rdb := redis.NewClient(&redis.Options{
@@ -30,7 +31,7 @@ func NewCache(addr, password string) *Cache {
 	return &Cache{client: rdb}
 }
 
-func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) (*media.GetMediaOutput, error) {
+func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
 	log.Printf("getting entry in cache for media #%s...", id)
 
 	val, err := c.client.Get(ctx, getCacheKey(id.String(), false)).Result()
@@ -41,7 +42,7 @@ func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) (*media.GetMedi
 		return nil, fmt.Errorf("redis get failed: %w", err)
 	}
 
-	var mOut media.GetMediaOutput
+	var mOut port.GetMediaOutput
 	if err := json.Unmarshal([]byte(val), &mOut); err != nil {
 		return nil, fmt.Errorf("unmarshal failed: %w", err)
 	}
@@ -63,7 +64,7 @@ func (c *Cache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, er
 	return val, nil
 }
 
-func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *media.GetMediaOutput) {
+func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *port.GetMediaOutput) {
 	log.Printf("creating entry in cache for media #%s, valid until %s...", id, mOut.ValidUntil.Format(time.RFC1123))
 
 	data, err := json.Marshal(mOut)

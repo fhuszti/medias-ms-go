@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/model"
 	"io"
 	"log"
 	"path"
 	"strings"
+
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 // ImageResizer resizes images and saves the generated variants.
@@ -19,14 +21,14 @@ type ImageResizer interface {
 }
 
 type imageResizerSrv struct {
-	repo  Repository
-	opt   FileOptimiser
-	strg  Storage
-	cache Cache
+	repo  port.MediaRepository
+	opt   port.FileOptimiser
+	strg  port.Storage
+	cache port.Cache
 }
 
 // NewImageResizer constructs an ImageResizer implementation.
-func NewImageResizer(repo Repository, opt FileOptimiser, strg Storage, cache Cache) ImageResizer {
+func NewImageResizer(repo port.MediaRepository, opt port.FileOptimiser, strg port.Storage, cache port.Cache) ImageResizer {
 	return &imageResizerSrv{repo, opt, strg, cache}
 }
 

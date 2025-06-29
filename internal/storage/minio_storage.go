@@ -8,7 +8,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	media "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -18,8 +19,8 @@ type Strg struct {
 	Client minioClient
 }
 
-// compile-time check: *Strg must satisfy media.Storage
-var _ media.Storage = (*Strg)(nil)
+// compile-time check: *Strg must satisfy port.Storage
+var _ port.Storage = (*Strg)(nil)
 
 func NewStorage(endpoint, accessKey, secretKey string, useSSL bool) (*Strg, error) {
 	log.Println("initialising minio client...")
@@ -82,14 +83,14 @@ func (s *Strg) FileExists(ctx context.Context, bucket, fileKey string) (bool, er
 	return true, nil
 }
 
-func (s *Strg) StatFile(ctx context.Context, bucket, fileKey string) (media.FileInfo, error) {
+func (s *Strg) StatFile(ctx context.Context, bucket, fileKey string) (port.FileInfo, error) {
 	log.Printf("getting stats on file %q in bucket %q...", fileKey, bucket)
 
 	info, err := s.Client.StatObject(ctx, bucket, fileKey, minio.StatObjectOptions{})
 	if err != nil {
-		return media.FileInfo{}, mapMinioErr(err)
+		return port.FileInfo{}, mapMinioErr(err)
 	}
-	return media.FileInfo{
+	return port.FileInfo{
 		SizeBytes:   info.Size,
 		ContentType: info.ContentType,
 	}, nil

@@ -13,6 +13,7 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 func TestFinaliseUpload_ErrGetByID(t *testing.T) {
@@ -74,7 +75,7 @@ func TestFinaliseUpload_SizeValidation(t *testing.T) {
 	}
 	for _, tc := range tests {
 		mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-		stg := &mockStorage{statInfo: FileInfo{SizeBytes: tc.size, ContentType: "image/png"}}
+		stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: tc.size, ContentType: "image/png"}}
 		repo := &mockRepo{mediaRecord: mrec}
 		svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 		err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
@@ -86,7 +87,7 @@ func TestFinaliseUpload_SizeValidation(t *testing.T) {
 
 func TestFinaliseUpload_UnsupportedMime(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "application/zip"}}
+	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "application/zip"}}
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
@@ -98,7 +99,7 @@ func TestFinaliseUpload_UnsupportedMime(t *testing.T) {
 
 func TestFinaliseUpload_MoveGetFileError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, getErr: errors.New("can't read file")}
+	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, getErr: errors.New("can't read file")}
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
@@ -110,7 +111,7 @@ func TestFinaliseUpload_MoveGetFileError(t *testing.T) {
 
 func TestFinaliseUpload_MoveExtensionError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "application/unknown"}}
+	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "application/unknown"}}
 	repo := &mockRepo{mediaRecord: mrec}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
@@ -123,7 +124,7 @@ func TestFinaliseUpload_MoveExtensionError(t *testing.T) {
 func TestFinaliseUpload_MoveMetadataError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
 	repo := &mockRepo{mediaRecord: mrec}
-	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: strings.NewReader("not-a-png")}
+	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: strings.NewReader("not-a-png")}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
@@ -135,7 +136,7 @@ func TestFinaliseUpload_MoveMetadataError(t *testing.T) {
 func TestFinaliseUpload_MoveSaveFileError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
 	repo := &mockRepo{mediaRecord: mrec}
-	stg := &mockStorage{saveErr: errors.New("save fail"), statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
+	stg := &mockStorage{saveErr: errors.New("save fail"), statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
@@ -147,7 +148,7 @@ func TestFinaliseUpload_MoveSaveFileError(t *testing.T) {
 func TestFinaliseUpload_MoveUpdateMediaError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
 	repo := &mockRepo{mediaRecord: mrec, updateErr: errors.New("update fail")}
-	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
+	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
 	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
@@ -159,7 +160,7 @@ func TestFinaliseUpload_MoveUpdateMediaError(t *testing.T) {
 func TestFinaliseUpload_Success(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "name"}
 	repo := &mockRepo{mediaRecord: mrec}
-	stg := &mockStorage{statInfo: FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
+	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
 	dispatcher := &mockDispatcher{}
 	svc := NewUploadFinaliser(repo, stg, dispatcher)
 

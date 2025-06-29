@@ -6,6 +6,7 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 type UUIDGen func() db.UUID
@@ -15,12 +16,12 @@ type UploadLinkGenerator interface {
 }
 
 type uploadLinkGeneratorSrv struct {
-	repo    Repository
-	strg    Storage
+	repo    port.MediaRepository
+	strg    port.Storage
 	genUUID UUIDGen
 }
 
-func NewUploadLinkGenerator(repo Repository, strg Storage, genUUID UUIDGen) UploadLinkGenerator {
+func NewUploadLinkGenerator(repo port.MediaRepository, strg port.Storage, genUUID UUIDGen) UploadLinkGenerator {
 	return &uploadLinkGeneratorSrv{repo, strg, genUUID}
 }
 

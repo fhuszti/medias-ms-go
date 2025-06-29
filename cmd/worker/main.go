@@ -13,6 +13,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	workerHandler "github.com/fhuszti/medias-ms-go/internal/handler/worker"
 	"github.com/fhuszti/medias-ms-go/internal/optimiser"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/fhuszti/medias-ms-go/internal/task"
@@ -82,7 +83,7 @@ func initDb(cfg *config.Settings) *db.Database {
 	return database
 }
 
-func initStorage(cfg *config.Settings) mediaSvc.Storage {
+func initStorage(cfg *config.Settings) port.Storage {
 	strg, err := storage.NewStorage(
 		cfg.MinioEndpoint,
 		cfg.MinioAccessKey,
@@ -96,7 +97,7 @@ func initStorage(cfg *config.Settings) mediaSvc.Storage {
 	return strg
 }
 
-func initBuckets(strg mediaSvc.Storage, buckets []string) {
+func initBuckets(strg port.Storage, buckets []string) {
 	for _, b := range buckets {
 		if err := strg.InitBucket(b); err != nil {
 			log.Fatalf("❌  Failed to initialize bucket %q: %v", b, err)
