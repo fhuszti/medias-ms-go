@@ -3,7 +3,7 @@ package optimiser
 import (
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/port"
-	media "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
 	"image"

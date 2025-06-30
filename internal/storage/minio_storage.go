@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/port"
-	media "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
