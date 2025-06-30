@@ -31,7 +31,7 @@ func NewCache(addr, password string) *Cache {
 	return &Cache{client: rdb}
 }
 
-func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
+func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) ([]byte, error) {
 	log.Printf("getting entry in cache for media #%s...", id)
 
 	val, err := c.client.Get(ctx, getCacheKey(id.String(), false)).Result()
@@ -41,13 +41,11 @@ func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) (*port.GetMedia
 	if err != nil {
 		return nil, fmt.Errorf("redis get failed: %w", err)
 	}
-
-	var mOut port.GetMediaOutput
-	if err := json.Unmarshal([]byte(val), &mOut); err != nil {
-		return nil, fmt.Errorf("unmarshal failed: %w", err)
+	data := []byte(val)
+	if !json.Valid(data) {
+		return nil, fmt.Errorf("unmarshal failed: invalid JSON")
 	}
-
-	return &mOut, nil
+	return data, nil
 }
 
 func (c *Cache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error) {
@@ -64,15 +62,9 @@ func (c *Cache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, er
 	return val, nil
 }
 
-func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *port.GetMediaOutput) {
-	log.Printf("creating entry in cache for media #%s, valid until %s...", id, mOut.ValidUntil.Format(time.RFC1123))
-
-	data, err := json.Marshal(mOut)
-	if err != nil {
-		log.Printf("WARNING: redis set marshal failed: %v", err)
-	}
-
-	exp := time.Until(mOut.ValidUntil)
+func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte, validUntil time.Time) {
+	log.Printf("creating entry in cache for media #%s, valid until %s...", id, validUntil.Format(time.RFC1123))
+	exp := time.Until(validUntil)
 
 	if err := c.client.Set(ctx, getCacheKey(id.String(), false), data, exp).Err(); err != nil {
 		log.Printf("WARNING: redis set failed: %v", err)

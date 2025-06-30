@@ -14,7 +14,7 @@ import (
 )
 
 type Getter interface {
-	GetMedia(ctx context.Context, in GetMediaInput) (*port.GetMediaOutput, error)
+	GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error)
 }
 
 type mediaGetterSrv struct {
@@ -30,7 +30,7 @@ type GetMediaInput struct {
 	ID db.UUID
 }
 
-func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*port.GetMediaOutput, error) {
+func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error) {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -47,12 +47,12 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*port.
 		return nil, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
 	}
 
-	mt := port.MetadataOutput{
+	mt := MetadataOutput{
 		Metadata:  media.Metadata,
 		SizeBytes: *media.SizeBytes,
 		MimeType:  *media.MimeType,
 	}
-	output := port.GetMediaOutput{
+	output := GetMediaOutput{
 		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
 		Optimised:  media.Optimised,
 		URL:        url,

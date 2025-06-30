@@ -15,7 +15,6 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
-	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
@@ -23,10 +22,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func waitOptimised(t *testing.T, url, id string, wantsVariants bool) port.GetMediaOutput {
+func waitOptimised(t *testing.T, url, id string, wantsVariants bool) mediaSvc.GetMediaOutput {
 	t.Helper()
 
-	var getOut port.GetMediaOutput
+	var getOut mediaSvc.GetMediaOutput
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		resp3, err := http.Get(url + "/medias/" + id)

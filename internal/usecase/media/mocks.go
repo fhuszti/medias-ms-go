@@ -3,6 +3,7 @@ package media
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"time"
 
@@ -168,7 +169,7 @@ func (m *mockStorage) FileExists(ctx context.Context, bucket, fileKey string) (b
 }
 
 type mockCache struct {
-	out *port.GetMediaOutput
+	out *GetMediaOutput
 
 	getMediaErr error
 	delMediaErr error
@@ -178,21 +179,24 @@ type mockCache struct {
 	delMediaCalled bool
 }
 
-func (c *mockCache) GetMediaDetails(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
+func (c *mockCache) GetMediaDetails(ctx context.Context, id db.UUID) ([]byte, error) {
 	c.getMediaCalled = true
 	if c.getMediaErr != nil {
 		return nil, c.getMediaErr
 	}
-	return c.out, nil
+	data, _ := json.Marshal(c.out)
+	return data, nil
 }
 
 func (c *mockCache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error) {
 	return "", nil
 }
 
-func (c *mockCache) SetMediaDetails(ctx context.Context, id db.UUID, value *port.GetMediaOutput) {
+func (c *mockCache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte, validUntil time.Time) {
 	c.setMediaCalled = true
-	c.out = value
+	var out GetMediaOutput
+	_ = json.Unmarshal(data, &out)
+	c.out = &out
 }
 
 func (c *mockCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {

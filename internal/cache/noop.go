@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/port"
@@ -16,7 +17,7 @@ func NewNoop() *NoopCache {
 	return &NoopCache{}
 }
 
-func (n *NoopCache) GetMediaDetails(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
+func (n *NoopCache) GetMediaDetails(ctx context.Context, id db.UUID) ([]byte, error) {
 	return nil, nil // always cache miss
 }
 
@@ -24,6 +25,7 @@ func (n *NoopCache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string
 	return "", nil
 }
 
-func (n *NoopCache) SetMediaDetails(ctx context.Context, id db.UUID, mOut *port.GetMediaOutput) {}
+func (n *NoopCache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte, validUntil time.Time) {
+}
 
 func (n *NoopCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error { return nil }
