@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/minio/minio-go/v7"
 )
@@ -61,7 +62,7 @@ func (m *mockMinio) CopyObject(ctx context.Context, dst minio.CopyDestOptions, s
 	return m.copyObjectFn(ctx, dst, src)
 }
 
-func makeStorage(mockClient *mockMinio) media.Storage {
+func makeStorage(mockClient *mockMinio) port.Storage {
 	return &Strg{
 		Client: mockClient,
 	}

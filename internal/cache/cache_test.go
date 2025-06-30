@@ -12,7 +12,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,11 +37,11 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 
 	// prepare a sample GetMediaOutput
 	id := db.NewUUID()
-	out := &media.GetMediaOutput{
+	out := &mediaSvc.GetMediaOutput{
 		ValidUntil: time.Now().Add(2 * time.Minute),
 		Optimised:  false,
 		URL:        "https://example.com/download/" + id.String(),
-		Metadata: media.MetadataOutput{
+		Metadata: mediaSvc.MetadataOutput{
 			Metadata:  model.Metadata{PageCount: 3},
 			SizeBytes: 12345,
 			MimeType:  "application/pdf",
@@ -50,16 +50,17 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	}
 
 	// 1) Cache miss
-	got, err := c.GetMediaDetails(ctx, id)
+	gotBytes, err := c.GetMediaDetails(ctx, id)
 	if err != nil {
 		t.Fatalf("GetMediaDetails miss: %v", err)
 	}
-	if got != nil {
-		t.Errorf("GetMediaDetails miss: got %v; want nil", got)
+	if gotBytes != nil {
+		t.Errorf("GetMediaDetails miss: got %v; want nil", gotBytes)
 	}
 
 	// 2) Set + Get
-	c.SetMediaDetails(ctx, id, out)
+	raw, _ := json.Marshal(out)
+	c.SetMediaDetails(ctx, id, raw, out.ValidUntil)
 	// check TTL in Redis ≈ 2m
 	if ttl := mr.TTL(getCacheKey(id.String(), false)); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
 		t.Errorf("redis TTL = %v; want ~2m", ttl)
@@ -67,21 +68,23 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	if ttl := mr.TTL(getCacheKey(id.String(), true)); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
 		t.Errorf("etag TTL = %v; want ~2m", ttl)
 	}
-	raw, _ := json.Marshal(out)
 	wantETag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
 	if et, err := mr.Get(getCacheKey(id.String(), true)); err != nil {
 		t.Fatalf("etag get error: %v", err)
 	} else if et != wantETag {
 		t.Errorf("etag value = %q; want %q", et, wantETag)
 	}
-	got, err = c.GetMediaDetails(ctx, id)
+	gotBytes, err = c.GetMediaDetails(ctx, id)
 	if err != nil {
 		t.Fatalf("GetMediaDetails hit: %v", err)
 	}
-	if got == nil {
+	if gotBytes == nil {
 		t.Fatal("GetMediaDetails hit: got nil; want non-nil")
 	}
-	// round-trip JSON check
+	var got mediaSvc.GetMediaOutput
+	if err := json.Unmarshal(gotBytes, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
 	if got.URL != out.URL || got.Optimised != out.Optimised ||
 		got.Metadata.SizeBytes != out.Metadata.SizeBytes ||
 		got.Metadata.MimeType != out.Metadata.MimeType {
@@ -92,8 +95,8 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	if err := c.DeleteMediaDetails(ctx, id); err != nil {
 		t.Fatalf("DeleteMediaDetails: %v", err)
 	}
-	if got, _ := c.GetMediaDetails(ctx, id); got != nil {
-		t.Errorf("after delete, GetMediaDetails = %v; want nil", got)
+	if gotBytes, _ := c.GetMediaDetails(ctx, id); gotBytes != nil {
+		t.Errorf("after delete, GetMediaDetails = %v; want nil", gotBytes)
 	}
 }
 
@@ -107,9 +110,9 @@ func TestGetMediaDetails_BadJSON(t *testing.T) {
 		t.Fatalf("Manually set cache: %v", err)
 	}
 
-	got, err := c.GetMediaDetails(ctx, id)
-	if got != nil {
-		t.Errorf("Expected nil on bad JSON, got %v", got)
+	gotBytes, err := c.GetMediaDetails(ctx, id)
+	if gotBytes != nil {
+		t.Errorf("Expected nil on bad JSON, got %v", gotBytes)
 	}
 	if err == nil || !strings.Contains(err.Error(), "unmarshal failed") {
 		t.Errorf("Expected unmarshal failed error, got %v", err)
@@ -124,9 +127,9 @@ func TestGetMediaDetails_RedisError(t *testing.T) {
 	// Simulate Redis unreachable
 	mr.Close()
 
-	got, err := c.GetMediaDetails(ctx, id)
-	if got != nil {
-		t.Errorf("Expected nil on Redis error, got %v", got)
+	gotBytes, err := c.GetMediaDetails(ctx, id)
+	if gotBytes != nil {
+		t.Errorf("Expected nil on Redis error, got %v", gotBytes)
 	}
 	if err == nil || !strings.Contains(err.Error(), "redis get failed") {
 		t.Errorf("Expected redis get failed error, got %v", err)
@@ -167,10 +170,10 @@ func TestGetEtagMediaDetails(t *testing.T) {
 	} else if got != "" {
 		t.Errorf("expected empty string on miss, got %q", got)
 	}
-	out := &media.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
+	out := &mediaSvc.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
 
-	c.SetMediaDetails(ctx, id, out)
 	raw, _ := json.Marshal(out)
+	c.SetMediaDetails(ctx, id, raw, out.ValidUntil)
 	want := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
 
 	got, err := c.GetEtagMediaDetails(ctx, id)

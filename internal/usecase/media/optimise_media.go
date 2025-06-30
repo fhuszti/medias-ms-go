@@ -4,13 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/model"
-	"golang.org/x/net/context"
 	"io"
 	"log"
 	"path/filepath"
 	"strings"
+
+	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	"golang.org/x/net/context"
 )
 
 type Optimiser interface {
@@ -18,14 +20,14 @@ type Optimiser interface {
 }
 
 type mediaOptimiserSrv struct {
-	repo  Repository
-	opt   FileOptimiser
-	strg  Storage
-	tasks TaskDispatcher
-	cache Cache
+	repo  port.MediaRepository
+	opt   port.FileOptimiser
+	strg  port.Storage
+	tasks port.TaskDispatcher
+	cache port.Cache
 }
 
-func NewMediaOptimiser(repo Repository, opt FileOptimiser, strg Storage, tasks TaskDispatcher, cache Cache) Optimiser {
+func NewMediaOptimiser(repo port.MediaRepository, opt port.FileOptimiser, strg port.Storage, tasks port.TaskDispatcher, cache port.Cache) Optimiser {
 	return &mediaOptimiserSrv{repo, opt, strg, tasks, cache}
 }
 

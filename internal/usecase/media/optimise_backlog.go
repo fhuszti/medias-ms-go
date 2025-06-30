@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"time"
+
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 // BacklogOptimiser triggers optimisation for stale medias.
@@ -12,12 +14,12 @@ type BacklogOptimiser interface {
 }
 
 type backlogOptimiserSrv struct {
-	repo  Repository
-	tasks TaskDispatcher
+	repo  port.MediaRepository
+	tasks port.TaskDispatcher
 }
 
 // NewBacklogOptimiser constructs a BacklogOptimiser implementation.
-func NewBacklogOptimiser(repo Repository, tasks TaskDispatcher) BacklogOptimiser {
+func NewBacklogOptimiser(repo port.MediaRepository, tasks port.TaskDispatcher) BacklogOptimiser {
 	return &backlogOptimiserSrv{repo, tasks}
 }
 

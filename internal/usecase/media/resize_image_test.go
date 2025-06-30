@@ -12,6 +12,7 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/google/uuid"
 )
 
@@ -147,7 +148,7 @@ func TestResizeImage_UpdateError(t *testing.T) {
 	mt := "image/png"
 	m := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt, Metadata: model.Metadata{Width: 100, Height: 50}}
 	repo := &mockRepo{mediaRecord: m, updateErr: errors.New("update fail")}
-	stg := &mockStorage{reader: bytes.NewReader([]byte("a")), statInfo: FileInfo{SizeBytes: 1}}
+	stg := &mockStorage{reader: bytes.NewReader([]byte("a")), statInfo: port.FileInfo{SizeBytes: 1}}
 	fo := &mockFileOptimiser{resizeOut: []byte("r")}
 	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
@@ -175,7 +176,7 @@ func TestResizeImage_Success(t *testing.T) {
 		SizeBytes: &size,
 	}
 	repo := &mockRepo{mediaRecord: m}
-	stg := &mockStorage{reader: bytes.NewReader([]byte("abc")), statInfo: FileInfo{SizeBytes: 123}}
+	stg := &mockStorage{reader: bytes.NewReader([]byte("abc")), statInfo: port.FileInfo{SizeBytes: 123}}
 	fo := &mockFileOptimiser{resizeOut: []byte("resized")}
 	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
@@ -217,7 +218,7 @@ func TestResizeImage_CopyWhenWidthTooLarge(t *testing.T) {
 		SizeBytes: &size,
 	}
 	repo := &mockRepo{mediaRecord: m}
-	stg := &mockStorage{reader: bytes.NewReader([]byte("abc")), statInfo: FileInfo{SizeBytes: 456}}
+	stg := &mockStorage{reader: bytes.NewReader([]byte("abc")), statInfo: port.FileInfo{SizeBytes: 456}}
 	fo := &mockFileOptimiser{resizeOut: []byte("resized")}
 	svc := NewImageResizer(repo, fo, stg, &mockCache{})
 
