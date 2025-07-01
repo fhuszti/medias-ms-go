@@ -61,6 +61,8 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	// 2) Set + Get
 	raw, _ := json.Marshal(out)
 	c.SetMediaDetails(ctx, id, raw, out.ValidUntil)
+	wantETag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
+	c.SetEtagMediaDetails(ctx, id, wantETag, out.ValidUntil)
 	// check TTL in Redis ≈ 2m
 	if ttl := mr.TTL(getCacheKey(id.String(), false)); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
 		t.Errorf("redis TTL = %v; want ~2m", ttl)
@@ -68,7 +70,6 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	if ttl := mr.TTL(getCacheKey(id.String(), true)); ttl < time.Minute*1 || ttl > time.Minute*2+time.Second {
 		t.Errorf("etag TTL = %v; want ~2m", ttl)
 	}
-	wantETag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
 	if et, err := mr.Get(getCacheKey(id.String(), true)); err != nil {
 		t.Fatalf("etag get error: %v", err)
 	} else if et != wantETag {
@@ -173,8 +174,9 @@ func TestGetEtagMediaDetails(t *testing.T) {
 	out := &mediaSvc.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
 
 	raw, _ := json.Marshal(out)
-	c.SetMediaDetails(ctx, id, raw, out.ValidUntil)
 	want := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
+	c.SetMediaDetails(ctx, id, raw, out.ValidUntil)
+	c.SetEtagMediaDetails(ctx, id, want, out.ValidUntil)
 
 	got, err := c.GetEtagMediaDetails(ctx, id)
 	if err != nil {

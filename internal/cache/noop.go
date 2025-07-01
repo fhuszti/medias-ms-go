@@ -28,4 +28,7 @@ func (n *NoopCache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string
 func (n *NoopCache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte, validUntil time.Time) {
 }
 
+func (n *NoopCache) SetEtagMediaDetails(ctx context.Context, id db.UUID, etag string, validUntil time.Time) {
+}
+
 func (n *NoopCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error { return nil }
