@@ -36,6 +36,9 @@ func (c *MockCache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte
 	c.Data = data
 }
 
+func (c *MockCache) SetEtagMediaDetails(ctx context.Context, id db.UUID, etag string, validUntil time.Time) {
+}
+
 func (c *MockCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
 	c.DelMediaCalled = true
 	return c.DelMediaErr

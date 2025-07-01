@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"log"
 	"time"
 
@@ -69,8 +68,12 @@ func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte, va
 	if err := c.client.Set(ctx, getCacheKey(id.String(), false), data, exp).Err(); err != nil {
 		log.Printf("WARNING: redis set failed: %v", err)
 	}
+}
 
-	etag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(data))
+func (c *Cache) SetEtagMediaDetails(ctx context.Context, id db.UUID, etag string, validUntil time.Time) {
+	log.Printf("creating etag in cache for media #%s, valid until %s...", id, validUntil.Format(time.RFC1123))
+	exp := time.Until(validUntil)
+
 	if err := c.client.Set(ctx, getCacheKey(id.String(), true), etag, exp).Err(); err != nil {
 		log.Printf("WARNING: redis set failed: %v", err)
 	}
