@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/google/uuid"
 	"image"
 	"image/png"
@@ -17,8 +18,8 @@ import (
 )
 
 func TestFinaliseUpload_ErrGetByID(t *testing.T) {
-	repo := &mockRepo{getErr: errors.New("db fail")}
-	svc := NewUploadFinaliser(repo, &mockStorage{}, &mockDispatcher{})
+	repo := &mock.MockMediaRepo{GetErr: errors.New("db fail")}
+	svc := NewUploadFinaliser(repo, &mock.MockStorage{}, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || err.Error() != "db fail" {
@@ -28,8 +29,8 @@ func TestFinaliseUpload_ErrGetByID(t *testing.T) {
 
 func TestFinaliseUpload_AlreadyCompleted(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusCompleted}
-	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewUploadFinaliser(repo, &mockStorage{}, &mockDispatcher{})
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	svc := NewUploadFinaliser(repo, &mock.MockStorage{}, &mock.MockDispatcher{})
 
 	if err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -38,8 +39,8 @@ func TestFinaliseUpload_AlreadyCompleted(t *testing.T) {
 
 func TestFinaliseUpload_WrongStatus(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusFailed}
-	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewUploadFinaliser(repo, &mockStorage{}, &mockDispatcher{})
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	svc := NewUploadFinaliser(repo, &mock.MockStorage{}, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "media status should be 'pending'") {
@@ -49,18 +50,18 @@ func TestFinaliseUpload_WrongStatus(t *testing.T) {
 
 func TestFinaliseUpload_StatNotFound(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	stg := &mockStorage{statErr: ErrObjectNotFound}
-	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
+	stg := &mock.MockStorage{StatErr: ErrObjectNotFound}
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	svc := NewUploadFinaliser(repo, stg, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "staging file \"k\" not found") {
 		t.Errorf("expected not found error, got %v", err)
 	}
-	if !stg.removeCalled {
+	if !stg.RemoveCalled {
 		t.Error("expected cleanupFile to be called")
 	}
-	if repo.updated == nil || repo.updated.Status != model.MediaStatusFailed {
+	if repo.Updated == nil || repo.Updated.Status != model.MediaStatusFailed {
 		t.Error("expected markAsFailed to update status to Failed")
 	}
 }
@@ -75,9 +76,9 @@ func TestFinaliseUpload_SizeValidation(t *testing.T) {
 	}
 	for _, tc := range tests {
 		mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-		stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: tc.size, ContentType: "image/png"}}
-		repo := &mockRepo{mediaRecord: mrec}
-		svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
+		stg := &mock.MockStorage{StatInfo: port.FileInfo{SizeBytes: tc.size, ContentType: "image/png"}}
+		repo := &mock.MockMediaRepo{MediaRecord: mrec}
+		svc := NewUploadFinaliser(repo, stg, &mock.MockDispatcher{})
 		err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 		if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 			t.Errorf("size %d: expected error containing %q, got %v", tc.size, tc.wantErr, err)
@@ -87,9 +88,9 @@ func TestFinaliseUpload_SizeValidation(t *testing.T) {
 
 func TestFinaliseUpload_UnsupportedMime(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "application/zip"}}
-	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
+	stg := &mock.MockStorage{StatInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "application/zip"}}
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	svc := NewUploadFinaliser(repo, stg, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "unsupported mime-type") {
@@ -99,9 +100,9 @@ func TestFinaliseUpload_UnsupportedMime(t *testing.T) {
 
 func TestFinaliseUpload_MoveGetFileError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, getErr: errors.New("can't read file")}
-	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
+	stg := &mock.MockStorage{StatInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, GetErr: errors.New("can't read file")}
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	svc := NewUploadFinaliser(repo, stg, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "can't read file") {
@@ -111,9 +112,9 @@ func TestFinaliseUpload_MoveGetFileError(t *testing.T) {
 
 func TestFinaliseUpload_MoveExtensionError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "application/unknown"}}
-	repo := &mockRepo{mediaRecord: mrec}
-	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
+	stg := &mock.MockStorage{StatInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "application/unknown"}}
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	svc := NewUploadFinaliser(repo, stg, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "unsupported mime-type") {
@@ -123,9 +124,9 @@ func TestFinaliseUpload_MoveExtensionError(t *testing.T) {
 
 func TestFinaliseUpload_MoveMetadataError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	repo := &mockRepo{mediaRecord: mrec}
-	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: strings.NewReader("not-a-png")}
-	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	stg := &mock.MockStorage{StatInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, Reader: strings.NewReader("not-a-png")}
+	svc := NewUploadFinaliser(repo, stg, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "error decoding") {
@@ -135,9 +136,9 @@ func TestFinaliseUpload_MoveMetadataError(t *testing.T) {
 
 func TestFinaliseUpload_MoveSaveFileError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	repo := &mockRepo{mediaRecord: mrec}
-	stg := &mockStorage{saveErr: errors.New("save fail"), statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
-	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	stg := &mock.MockStorage{SaveErr: errors.New("save fail"), StatInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, Reader: getPNGReader(t)}
+	svc := NewUploadFinaliser(repo, stg, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "save fail") {
@@ -147,9 +148,9 @@ func TestFinaliseUpload_MoveSaveFileError(t *testing.T) {
 
 func TestFinaliseUpload_MoveUpdateMediaError(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "k"}
-	repo := &mockRepo{mediaRecord: mrec, updateErr: errors.New("update fail")}
-	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
-	svc := NewUploadFinaliser(repo, stg, &mockDispatcher{})
+	repo := &mock.MockMediaRepo{MediaRecord: mrec, UpdateErr: errors.New("update fail")}
+	stg := &mock.MockStorage{StatInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, Reader: getPNGReader(t)}
+	svc := NewUploadFinaliser(repo, stg, &mock.MockDispatcher{})
 
 	err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"})
 	if err == nil || !strings.Contains(err.Error(), "update fail") {
@@ -159,9 +160,9 @@ func TestFinaliseUpload_MoveUpdateMediaError(t *testing.T) {
 
 func TestFinaliseUpload_Success(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending, ObjectKey: "name"}
-	repo := &mockRepo{mediaRecord: mrec}
-	stg := &mockStorage{statInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, reader: getPNGReader(t)}
-	dispatcher := &mockDispatcher{}
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	stg := &mock.MockStorage{StatInfo: port.FileInfo{SizeBytes: MinFileSize, ContentType: "image/png"}, Reader: getPNGReader(t)}
+	dispatcher := &mock.MockDispatcher{}
 	svc := NewUploadFinaliser(repo, stg, dispatcher)
 
 	if err := svc.FinaliseUpload(context.Background(), FinaliseUploadInput{ID: db.UUID(uuid.Nil), DestBucket: "images"}); err != nil {
@@ -173,16 +174,16 @@ func TestFinaliseUpload_Success(t *testing.T) {
 	if mrec.Status != model.MediaStatusCompleted {
 		t.Errorf("Status = %q; want Completed", mrec.Status)
 	}
-	if !stg.saveCalled {
+	if !stg.SaveCalled {
 		t.Error("expected SaveFile on destination to be called")
 	}
-	if !stg.removeCalled {
+	if !stg.RemoveCalled {
 		t.Error("expected RemoveFile on staging to be called")
 	}
-	if repo.updated == nil || repo.updated.Status != model.MediaStatusCompleted {
+	if repo.Updated == nil || repo.Updated.Status != model.MediaStatusCompleted {
 		t.Error("expected repo.Update to set status Completed")
 	}
-	if !dispatcher.optimiseCalled {
+	if !dispatcher.OptimiseCalled {
 		t.Error("expected optimise task to be enqueued")
 	}
 }

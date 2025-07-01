@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"reflect"
 	"testing"
 	"time"
@@ -15,8 +16,8 @@ import (
 func TestGenerateUploadLink_Success(t *testing.T) {
 	mockID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
-	repo := &mockRepo{}
-	strg := &mockStorage{}
+	repo := &mock.MockMediaRepo{}
+	strg := &mock.MockStorage{}
 	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
 
 	in := GenerateUploadLinkInput{Name: "my-file.webp"}
@@ -32,7 +33,7 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	}
 
 	// verify repo.Create was called with a valid Media
-	m := repo.created
+	m := repo.Created
 	if m == nil {
 		t.Fatal("expected repo.Create to be called")
 	}
@@ -40,7 +41,7 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 		t.Errorf("expected create to be called with ID %q, got %q", mockID, out.ID)
 	}
 	if m.ObjectKey != mockID.String() {
-		t.Errorf("objectKey %q does not match ID %q", m.ObjectKey, mockID.String())
+		t.Errorf("ObjectKey %q does not match ID %q", m.ObjectKey, mockID.String())
 	}
 	if m.Bucket != "staging" {
 		t.Errorf("bucket should be 'staging', got %q", m.Bucket)
@@ -59,22 +60,22 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	}
 
 	// verify strg call
-	if !strg.generateUploadLinkCalled {
+	if !strg.GenerateUploadLinkCalled {
 		t.Error("expected strg.GeneratePresignedUploadURL to be called")
 	}
-	if strg.objectKey != m.ObjectKey {
-		t.Errorf("strg called with key %q, want %q", strg.objectKey, m.ObjectKey)
+	if strg.ObjectKey != m.ObjectKey {
+		t.Errorf("strg called with key %q, want %q", strg.ObjectKey, m.ObjectKey)
 	}
-	if strg.ttl != 5*time.Minute {
-		t.Errorf("strg called with ttl %v, want %v", strg.ttl, 5*time.Minute)
+	if strg.TTL != 5*time.Minute {
+		t.Errorf("strg called with TTL %v, want %v", strg.TTL, 5*time.Minute)
 	}
 }
 
 func TestGenerateUploadLink_RepoError(t *testing.T) {
 	mockID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
-	repo := &mockRepo{createErr: errors.New("repo failure")}
-	strg := &mockStorage{}
+	repo := &mock.MockMediaRepo{CreateErr: errors.New("repo failure")}
+	strg := &mock.MockStorage{}
 	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
 
 	out, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo"})
@@ -88,7 +89,7 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 		t.Errorf("expected empty url, got %q", out.URL)
 	}
 
-	if strg.generateUploadLinkCalled {
+	if strg.GenerateUploadLinkCalled {
 		t.Error("did not expect strg.GeneratePresignedUploadURL to be called")
 	}
 }
@@ -96,8 +97,8 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 func TestGenerateUploadLink_StorageError(t *testing.T) {
 	mockID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
-	repo := &mockRepo{}
-	strg := &mockStorage{generateUploadLinkErr: errors.New("strg failure")}
+	repo := &mock.MockMediaRepo{}
+	strg := &mock.MockStorage{GenerateUploadLinkErr: errors.New("strg failure")}
 	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
 
 	out, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo"})
@@ -110,7 +111,7 @@ func TestGenerateUploadLink_StorageError(t *testing.T) {
 	if out.URL != "" {
 		t.Errorf("expected empty url, got %q", out.URL)
 	}
-	if !strg.generateUploadLinkCalled {
+	if !strg.GenerateUploadLinkCalled {
 		t.Error("expected strg.GeneratePresignedUploadURL to be called")
 	}
 }

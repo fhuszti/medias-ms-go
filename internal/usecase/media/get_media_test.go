@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"reflect"
 	"strings"
@@ -10,8 +11,8 @@ import (
 )
 
 func TestGetMedia_RepoError(t *testing.T) {
-	repo := &mockRepo{getErr: errors.New("db fail")}
-	strg := &mockStorage{}
+	repo := &mock.MockMediaRepo{GetErr: errors.New("db fail")}
+	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
@@ -22,8 +23,8 @@ func TestGetMedia_RepoError(t *testing.T) {
 
 func TestGetMedia_WrongStatus(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending}
-	repo := &mockRepo{mediaRecord: mrec}
-	strg := &mockStorage{}
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
@@ -36,8 +37,8 @@ func TestGetMedia_WrongStatus(t *testing.T) {
 func TestGetMedia_URLGenError(t *testing.T) {
 	mt := "image/png"
 	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
-	repo := &mockRepo{mediaRecord: mrec}
-	strg := &mockStorage{generateDownloadLinkErr: errors.New("link generation failed")}
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	strg := &mock.MockStorage{GenerateDownloadLinkErr: errors.New("link generation failed")}
 	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), GetMediaInput{})
@@ -74,8 +75,8 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 			},
 		},
 	}
-	repo := &mockRepo{mediaRecord: mrec}
-	strg := &mockStorage{}
+	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
 	out, err := svc.GetMedia(context.Background(), GetMediaInput{})
@@ -84,11 +85,11 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 	}
 
 	wantKey := "variants/foo_500.png"
-	if strg.objectKey != wantKey {
-		t.Errorf("Variant key should be %q, got %q", wantKey, strg.objectKey)
+	if strg.ObjectKey != wantKey {
+		t.Errorf("Variant key should be %q, got %q", wantKey, strg.ObjectKey)
 	}
-	if strg.ttl != DownloadUrlTTL {
-		t.Errorf("GeneratePresignedDownloadURL got ttl %v, want %v", strg.ttl, DownloadUrlTTL)
+	if strg.TTL != DownloadUrlTTL {
+		t.Errorf("GeneratePresignedDownloadURL got TTL %v, want %v", strg.TTL, DownloadUrlTTL)
 	}
 
 	if out.URL != "https://example.com/upload" {
