@@ -76,4 +76,7 @@ func TestDeleteMedia_Success(t *testing.T) {
 	if !cache.DelMediaCalled {
 		t.Error("expected cache delete to be called")
 	}
+	if !cache.DelEtagCalled {
+		t.Error("expected etag cache delete to be called")
+	}
 }
