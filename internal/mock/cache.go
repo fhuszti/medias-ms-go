@@ -17,6 +17,7 @@ type MockCache struct {
 	GetMediaCalled bool
 	SetMediaCalled bool
 	DelMediaCalled bool
+	DelEtagCalled  bool
 }
 
 func (c *MockCache) GetMediaDetails(ctx context.Context, id db.UUID) ([]byte, error) {
@@ -42,4 +43,9 @@ func (c *MockCache) SetEtagMediaDetails(ctx context.Context, id db.UUID, etag st
 func (c *MockCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
 	c.DelMediaCalled = true
 	return c.DelMediaErr
+}
+
+func (c *MockCache) DeleteEtagMediaDetails(ctx context.Context, id db.UUID) error {
+	c.DelEtagCalled = true
+	return nil
 }

@@ -14,4 +14,5 @@ type Cache interface {
 	SetMediaDetails(ctx context.Context, id db.UUID, data []byte, validUntil time.Time)
 	SetEtagMediaDetails(ctx context.Context, id db.UUID, etag string, validUntil time.Time)
 	DeleteMediaDetails(ctx context.Context, id db.UUID) error
+	DeleteEtagMediaDetails(ctx context.Context, id db.UUID) error
 }
