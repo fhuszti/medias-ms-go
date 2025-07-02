@@ -88,6 +88,15 @@ func (c *Cache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
 	return nil
 }
 
+func (c *Cache) DeleteEtagMediaDetails(ctx context.Context, id db.UUID) error {
+	log.Printf("deleting etag in cache for media #%s...", id)
+
+	if err := c.client.Del(ctx, getCacheKey(id.String(), true)).Err(); err != nil {
+		return fmt.Errorf("redis del failed: %w", err)
+	}
+	return nil
+}
+
 func getCacheKey(id string, isEtag bool) string {
 	key := "media:" + id
 	if isEtag {

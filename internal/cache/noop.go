@@ -32,3 +32,7 @@ func (n *NoopCache) SetEtagMediaDetails(ctx context.Context, id db.UUID, etag st
 }
 
 func (n *NoopCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error { return nil }
+
+func (n *NoopCache) DeleteEtagMediaDetails(ctx context.Context, id db.UUID) error {
+	return nil
+}

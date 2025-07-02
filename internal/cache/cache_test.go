@@ -151,6 +151,37 @@ func TestDeleteMediaDetails_RedisError(t *testing.T) {
 	}
 }
 
+func TestDeleteEtagMediaDetails(t *testing.T) {
+	c, _ := makeTestCache(t)
+	ctx := context.Background()
+
+	id := db.NewUUID()
+	out := &mediaSvc.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
+	raw, _ := json.Marshal(out)
+	etag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
+	c.SetMediaDetails(ctx, id, raw, out.ValidUntil)
+	c.SetEtagMediaDetails(ctx, id, etag, out.ValidUntil)
+
+	if err := c.DeleteEtagMediaDetails(ctx, id); err != nil {
+		t.Fatalf("DeleteEtagMediaDetails: %v", err)
+	}
+	if got, _ := c.GetEtagMediaDetails(ctx, id); got != "" {
+		t.Errorf("expected empty string after delete, got %q", got)
+	}
+}
+
+func TestDeleteEtagMediaDetails_RedisError(t *testing.T) {
+	c, mr := makeTestCache(t)
+	ctx := context.Background()
+	id := db.NewUUID()
+
+	mr.Close()
+	err := c.DeleteEtagMediaDetails(ctx, id)
+	if err == nil || !strings.Contains(err.Error(), "redis del failed") {
+		t.Errorf("Expected redis del failed error, got %v", err)
+	}
+}
+
 func TestGetCacheKey_Etag(t *testing.T) {
 	id := db.NewUUID().String()
 	if got := getCacheKey(id, true); got != "etag:media:"+id {
