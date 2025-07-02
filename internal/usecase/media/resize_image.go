@@ -125,5 +125,8 @@ func (s *imageResizerSrv) ResizeImage(ctx context.Context, in ResizeImageInput) 
 	if err := s.cache.DeleteMediaDetails(ctx, media.ID); err != nil {
 		log.Printf("failed deleting cache for media #%s: %v", media.ID, err)
 	}
+	if err := s.cache.DeleteEtagMediaDetails(ctx, media.ID); err != nil {
+		log.Printf("failed deleting etag cache for media #%s: %v", media.ID, err)
+	}
 	return nil
 }

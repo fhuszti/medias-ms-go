@@ -130,6 +130,9 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaI
 	if err := m.cache.DeleteMediaDetails(ctx, media.ID); err != nil {
 		log.Printf("failed deleting cache for media #%s: %v", media.ID, err)
 	}
+	if err := m.cache.DeleteEtagMediaDetails(ctx, media.ID); err != nil {
+		log.Printf("failed deleting etag cache for media #%s: %v", media.ID, err)
+	}
 
 	return nil
 }
