@@ -1,8 +1,10 @@
-package media
+package port
 
 import (
+	"context"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 )
 
@@ -20,4 +22,14 @@ type GetMediaOutput struct {
 	URL        string               `json:"url"`
 	Metadata   MetadataOutput       `json:"metadata"`
 	Variants   model.VariantsOutput `json:"variants"`
+}
+
+// GetMediaInput specifies the ID of the media to retrieve.
+type GetMediaInput struct {
+	ID db.UUID
+}
+
+// MediaGetter retrieves media information from the repository and storage.
+type MediaGetter interface {
+	GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error)
 }

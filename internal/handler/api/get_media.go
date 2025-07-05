@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"hash/crc32"
 	"log"
 	"net/http"
+
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	media "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 )
 
-func GetMediaHandler(svc media.Getter) http.HandlerFunc {
+func GetMediaHandler(svc port.MediaGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := IDFromContext(r.Context())
 		if !ok {
@@ -18,7 +20,7 @@ func GetMediaHandler(svc media.Getter) http.HandlerFunc {
 			return
 		}
 
-		in := media.GetMediaInput{ID: id}
+		in := port.GetMediaInput{ID: id}
 		out, err := svc.GetMedia(r.Context(), in)
 		if err != nil {
 			if errors.Is(err, media.ErrObjectNotFound) {
