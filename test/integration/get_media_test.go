@@ -8,7 +8,6 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
-	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
@@ -68,7 +67,7 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 		t.Fatalf("upload to %q bucket: %v", bucket, err)
 	}
 
-	out, err := svc.GetMedia(ctx, port.GetMediaInput{ID: id})
+	out, err := svc.GetMedia(ctx, id)
 	if err != nil {
 		t.Fatalf("GetMedia returned error: %v", err)
 	}
@@ -152,7 +151,7 @@ func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 		t.Fatalf("upload to %q bucket: %v", bucket, err)
 	}
 
-	out, err := svc.GetMedia(ctx, port.GetMediaInput{ID: id})
+	out, err := svc.GetMedia(ctx, id)
 	if err != nil {
 		t.Fatalf("GetMedia returned error: %v", err)
 	}
@@ -251,7 +250,7 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 		t.Fatalf("insert media: %v", err)
 	}
 
-	out, err := svc.GetMedia(ctx, port.GetMediaInput{ID: id})
+	out, err := svc.GetMedia(ctx, id)
 	if err != nil {
 		t.Fatalf("GetMedia returned error: %v", err)
 	}

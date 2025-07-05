@@ -31,7 +31,7 @@ func (r *httpRenderer) RenderGetMedia(ctx context.Context, getter port.MediaGett
 		return raw, etag, nil
 	}
 
-	out, err := getter.GetMedia(ctx, port.GetMediaInput{ID: id})
+	out, err := getter.GetMedia(ctx, id)
 	if err != nil {
 		return nil, "", err
 	}

@@ -20,8 +20,7 @@ func GetMediaHandler(svc port.MediaGetter) http.HandlerFunc {
 			return
 		}
 
-		in := port.GetMediaInput{ID: id}
-		out, err := svc.GetMedia(r.Context(), in)
+		out, err := svc.GetMedia(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, media.ErrObjectNotFound) {
 				WriteError(w, http.StatusNotFound, "Media not found", nil)
@@ -45,6 +44,6 @@ func GetMediaHandler(svc port.MediaGetter) http.HandlerFunc {
 		}
 
 		RespondRawJSON(w, http.StatusOK, raw)
-		log.Printf("✅  Successfully returned details for media #%s", in.ID)
+		log.Printf("✅  Successfully returned details for media #%s", id)
 	}
 }

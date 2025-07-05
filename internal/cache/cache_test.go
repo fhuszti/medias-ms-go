@@ -12,7 +12,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
-	"github.com/fhuszti/medias-ms-go/internal/port"
+	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -37,11 +37,11 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 
 	// prepare a sample GetMediaOutput
 	id := db.NewUUID()
-	out := &port.GetMediaOutput{
+	out := &mediaSvc.GetMediaOutput{
 		ValidUntil: time.Now().Add(2 * time.Minute),
 		Optimised:  false,
 		URL:        "https://example.com/download/" + id.String(),
-		Metadata: port.MetadataOutput{
+		Metadata: mediaSvc.MetadataOutput{
 			Metadata:  model.Metadata{PageCount: 3},
 			SizeBytes: 12345,
 			MimeType:  "application/pdf",
@@ -82,7 +82,7 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	if gotBytes == nil {
 		t.Fatal("GetMediaDetails hit: got nil; want non-nil")
 	}
-	var got port.GetMediaOutput
+	var got mediaSvc.GetMediaOutput
 	if err := json.Unmarshal(gotBytes, &got); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestDeleteEtagMediaDetails(t *testing.T) {
 	ctx := context.Background()
 
 	id := db.NewUUID()
-	out := &port.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
+	out := &mediaSvc.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
 	raw, _ := json.Marshal(out)
 	etag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
 	c.SetMediaDetails(ctx, id, raw, out.ValidUntil)
@@ -202,7 +202,7 @@ func TestGetEtagMediaDetails(t *testing.T) {
 	} else if got != "" {
 		t.Errorf("expected empty string on miss, got %q", got)
 	}
-	out := &port.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
+	out := &mediaSvc.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
 
 	raw, _ := json.Marshal(out)
 	want := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))

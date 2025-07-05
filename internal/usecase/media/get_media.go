@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
@@ -21,8 +22,8 @@ func NewMediaGetter(repo port.MediaRepository, strg port.Storage) port.MediaGett
 	return &mediaGetterSrv{repo: repo, strg: strg}
 }
 
-func (s *mediaGetterSrv) GetMedia(ctx context.Context, in port.GetMediaInput) (*port.GetMediaOutput, error) {
-	media, err := s.repo.GetByID(ctx, in.ID)
+func (s *mediaGetterSrv) GetMedia(ctx context.Context, id db.UUID) (*GetMediaOutput, error) {
+	media, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrObjectNotFound
@@ -38,12 +39,12 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in port.GetMediaInput) (*
 		return nil, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
 	}
 
-	mt := port.MetadataOutput{
+	mt := MetadataOutput{
 		Metadata:  media.Metadata,
 		SizeBytes: *media.SizeBytes,
 		MimeType:  *media.MimeType,
 	}
-	output := port.GetMediaOutput{
+	output := GetMediaOutput{
 		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
 		Optimised:  media.Optimised,
 		URL:        url,
