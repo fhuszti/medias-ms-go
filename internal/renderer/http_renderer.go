@@ -17,7 +17,7 @@ import (
 type HTTPRenderer interface {
 	// RenderGetMedia returns the cached JSON result and its ETag if available or
 	// executes the underlying use case and caches the output otherwise.
-	RenderGetMedia(ctx context.Context, getter media.Getter, id db.UUID) ([]byte, string, error)
+	RenderGetMedia(ctx context.Context, handler media.Getter, id db.UUID) ([]byte, string, error)
 }
 
 type httpRenderer struct {
@@ -34,14 +34,14 @@ func NewHTTPRenderer(cache port.Cache) HTTPRenderer {
 
 // RenderGetMedia fetches media details either from cache or from the wrapped use
 // case. It returns the JSON encoded output and a quoted ETag string.
-func (r *httpRenderer) RenderGetMedia(ctx context.Context, getter media.Getter, id db.UUID) ([]byte, string, error) {
+func (r *httpRenderer) RenderGetMedia(ctx context.Context, handler media.Getter, id db.UUID) ([]byte, string, error) {
 	raw, err := r.cache.GetMediaDetails(ctx, id)
 	etag, errEtag := r.cache.GetEtagMediaDetails(ctx, id)
 	if err == nil && errEtag == nil && raw != nil && etag != "" {
 		return raw, etag, nil
 	}
 
-	out, err := getter.GetMedia(ctx, media.GetMediaInput{ID: id})
+	out, err := handler.GetMedia(ctx, media.GetMediaInput{ID: id})
 	if err != nil {
 		return nil, "", err
 	}
