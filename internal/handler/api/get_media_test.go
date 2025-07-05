@@ -16,17 +16,17 @@ import (
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/model"
-	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
 type mockGetter struct {
-	out mediaSvc.GetMediaOutput
+	out port.GetMediaOutput
 	err error
-	in  mediaSvc.GetMediaInput
+	id  db.UUID
 }
 
-func (m *mockGetter) GetMedia(ctx context.Context, in mediaSvc.GetMediaInput) (*mediaSvc.GetMediaOutput, error) {
-	m.in = in
+func (m *mockGetter) GetMedia(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
+	m.id = id
 	return &m.out, m.err
 }
 
@@ -48,24 +48,24 @@ func TestGetMediaHandler(t *testing.T) {
 	tests := []struct {
 		name             string
 		ctxID            *db.UUID
-		svcOut           mediaSvc.GetMediaOutput
+		svcOut           port.GetMediaOutput
 		svcErr           error
 		wantStatus       int
 		wantContentType  string
 		wantCacheControl string
 		wantETag         bool
 
-		wantOutput       *mediaSvc.GetMediaOutput
+		wantOutput       *port.GetMediaOutput
 		wantBodyContains string
 	}{
 		{
 			name:  "happy path uses cache",
 			ctxID: &validID,
-			svcOut: mediaSvc.GetMediaOutput{
+			svcOut: port.GetMediaOutput{
 				ValidUntil: time.Now(),
 				Optimised:  true,
 				URL:        "https://cdn.example.com/foo",
-				Metadata:   mediaSvc.MetadataOutput{},
+				Metadata:   port.MetadataOutput{},
 				Variants:   nonEmptyVariants,
 			},
 			svcErr:           nil,
@@ -73,16 +73,16 @@ func TestGetMediaHandler(t *testing.T) {
 			wantContentType:  "application/json",
 			wantCacheControl: "max-age=0",
 			wantETag:         true,
-			wantOutput:       &mediaSvc.GetMediaOutput{},
+			wantOutput:       &port.GetMediaOutput{},
 		},
 		{
 			name:  "optimised true for image but no variants → no cache",
 			ctxID: &validID,
-			svcOut: mediaSvc.GetMediaOutput{
+			svcOut: port.GetMediaOutput{
 				ValidUntil: time.Now(),
 				Optimised:  true,
 				URL:        "https://cdn.example.com/presigned",
-				Metadata:   mediaSvc.MetadataOutput{MimeType: "image/png"},
+				Metadata:   port.MetadataOutput{MimeType: "image/png"},
 				Variants:   model.VariantsOutput{}, // no variants
 			},
 			svcErr:           nil,
@@ -90,16 +90,16 @@ func TestGetMediaHandler(t *testing.T) {
 			wantContentType:  "application/json",
 			wantCacheControl: "max-age=0",
 			wantETag:         true,
-			wantOutput:       &mediaSvc.GetMediaOutput{},
+			wantOutput:       &port.GetMediaOutput{},
 		},
 		{
 			name:  "optimised false for image but has variants → no cache",
 			ctxID: &validID,
-			svcOut: mediaSvc.GetMediaOutput{
+			svcOut: port.GetMediaOutput{
 				ValidUntil: time.Now(),
 				Optimised:  false,
 				URL:        "https://cdn.example.com/presigned",
-				Metadata:   mediaSvc.MetadataOutput{MimeType: "image/png"},
+				Metadata:   port.MetadataOutput{MimeType: "image/png"},
 				Variants:   nonEmptyVariants, // variants present
 			},
 			svcErr:           nil,
@@ -107,12 +107,12 @@ func TestGetMediaHandler(t *testing.T) {
 			wantContentType:  "application/json",
 			wantCacheControl: "max-age=0",
 			wantETag:         true,
-			wantOutput:       &mediaSvc.GetMediaOutput{},
+			wantOutput:       &port.GetMediaOutput{},
 		},
 		{
 			name:             "service error",
 			ctxID:            &validID,
-			svcOut:           mediaSvc.GetMediaOutput{},
+			svcOut:           port.GetMediaOutput{},
 			svcErr:           errors.New("boom"),
 			wantStatus:       http.StatusInternalServerError,
 			wantContentType:  "application/json",
@@ -122,7 +122,7 @@ func TestGetMediaHandler(t *testing.T) {
 		{
 			name:             "missing ID",
 			ctxID:            nil,
-			svcOut:           mediaSvc.GetMediaOutput{},
+			svcOut:           port.GetMediaOutput{},
 			svcErr:           nil,
 			wantStatus:       http.StatusBadRequest,
 			wantContentType:  "application/json",
@@ -173,8 +173,8 @@ func TestGetMediaHandler(t *testing.T) {
 					t.Fatalf("JSON decode = %v (body=%q)", err, rec.Body.String())
 				}
 				// verify service was called with the correct ID
-				if mockSvc.in.ID != *tc.ctxID {
-					t.Errorf("service got ID = %s; want %s", mockSvc.in.ID, *tc.ctxID)
+				if mockSvc.id != *tc.ctxID {
+					t.Errorf("service got ID = %s; want %s", mockSvc.id, *tc.ctxID)
 				}
 				// verify URL field
 				if got, want := tc.wantOutput.URL, tc.svcOut.URL; got != want {
@@ -194,11 +194,11 @@ func TestGetMediaHandler(t *testing.T) {
 func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
 	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	mockSvc := &mockGetter{
-		out: mediaSvc.GetMediaOutput{
+		out: port.GetMediaOutput{
 			ValidUntil: time.Now(),
 			Optimised:  true,
 			URL:        "https://cdn.example.com/foo",
-			Metadata:   mediaSvc.MetadataOutput{},
+			Metadata:   port.MetadataOutput{},
 		},
 		err: nil,
 	}

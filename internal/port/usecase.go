@@ -1,10 +1,17 @@
-package media
+package port
 
 import (
+	"context"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 )
+
+// MediaGetter retrieves media information from the repository and storage.
+type MediaGetter interface {
+	GetMedia(ctx context.Context, id db.UUID) (*GetMediaOutput, error)
+}
 
 // MetadataOutput represents a subset of media metadata returned to clients.
 type MetadataOutput struct {
