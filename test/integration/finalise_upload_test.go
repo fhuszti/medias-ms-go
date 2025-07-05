@@ -21,16 +21,15 @@ import (
 	"testing"
 )
 
-func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
-	ctx := context.Background()
+func setupUploadFinaliser(t *testing.T) (*mariadb.MediaRepository, mediaSvc.UploadFinaliser, func()) {
+	t.Helper()
 
 	testDB, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("setup DB: %v", err)
 	}
-	defer testDB.Cleanup()
-	database := testDB.DB
-	if err := migration.MigrateUp(database); err != nil {
+	dbConn := testDB.DB
+	if err := migration.MigrateUp(dbConn); err != nil {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
@@ -38,10 +37,23 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer bCleanup()
 
-	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
+	repo := mariadb.NewMediaRepository(dbConn)
+	svc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewNoopDispatcher())
+
+	cleanup := func() {
+		_ = bCleanup()
+		_ = testDB.Cleanup()
+	}
+
+	return repo, svc, cleanup
+}
+
+func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
+	ctx := context.Background()
+
+	mediaRepo, svc, cleanup := setupUploadFinaliser(t)
+	defer cleanup()
 
 	// Prepare media record and staging file
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
@@ -126,27 +138,8 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup database
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	database := testDB.DB
-	if err := migration.MigrateUp(database); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-
-	// Setup buckets
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	// Initialise service
-	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
+	mediaRepo, svc, cleanup := setupUploadFinaliser(t)
+	defer cleanup()
 
 	// Prepare a media record and staging file (PNG)
 	id := db.UUID(uuid.MustParse("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"))
@@ -245,27 +238,8 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup database
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	database := testDB.DB
-	if err := migration.MigrateUp(database); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-
-	// Setup buckets
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	// Initialise service
-	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
+	mediaRepo, svc, cleanup := setupUploadFinaliser(t)
+	defer cleanup()
 
 	// Prepare media record and a staging file (PDF)
 	id := db.UUID(uuid.MustParse("cccccccc-dddd-eeee-ffff-000000000000"))
@@ -360,27 +334,8 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup database
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	database := testDB.DB
-	if err := migration.MigrateUp(database); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-
-	// Setup buckets
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	// Initialise service
-	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
+	mediaRepo, svc, cleanup := setupUploadFinaliser(t)
+	defer cleanup()
 
 	// Prepare a Markdown payload in staging
 	id := db.UUID(uuid.MustParse("dddddddd-eeee-ffff-0000-111111111111"))
@@ -469,27 +424,8 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup database
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-
-	// Setup buckets
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	// Initialise service
-	mediaRepo := mariadb.NewMediaRepository(dbConn)
-	svc := mediaSvc.NewUploadFinaliser(mediaRepo, GlobalStrg, task.NewNoopDispatcher())
+	mediaRepo, svc, cleanup := setupUploadFinaliser(t)
+	defer cleanup()
 
 	// Prepare an undersized Markdown file
 	id := db.UUID(uuid.MustParse("eeeeeeee-ffff-0000-1111-222222222222"))
@@ -520,7 +456,7 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	}
 
 	// Attempt finalisation: expect "too small" error
-	err = svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
+	err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
 	if err == nil {
 		t.Fatalf("expected error for too small file, got nil")
 	}
