@@ -10,12 +10,16 @@ import (
 // MockCache implements cache behaviour for tests.
 type MockCache struct {
 	Data []byte
+	Etag string
 
 	GetMediaErr error
+	GetEtagErr  error
 	DelMediaErr error
 
 	GetMediaCalled bool
+	GetEtagCalled  bool
 	SetMediaCalled bool
+	SetEtagCalled  bool
 	DelMediaCalled bool
 	DelEtagCalled  bool
 }
@@ -29,7 +33,11 @@ func (c *MockCache) GetMediaDetails(ctx context.Context, id db.UUID) ([]byte, er
 }
 
 func (c *MockCache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error) {
-	return "", nil
+	c.GetEtagCalled = true
+	if c.GetEtagErr != nil {
+		return "", c.GetEtagErr
+	}
+	return c.Etag, nil
 }
 
 func (c *MockCache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte, validUntil time.Time) {
@@ -38,6 +46,8 @@ func (c *MockCache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte
 }
 
 func (c *MockCache) SetEtagMediaDetails(ctx context.Context, id db.UUID, etag string, validUntil time.Time) {
+	c.SetEtagCalled = true
+	c.Etag = etag
 }
 
 func (c *MockCache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
