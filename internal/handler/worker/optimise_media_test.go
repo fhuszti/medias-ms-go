@@ -12,7 +12,7 @@ import (
 )
 
 func TestOptimiseMediaHandler_InvalidID(t *testing.T) {
-	svc := &mock.MockMediaOptimiser{}
+	svc := &mock.MediaOptimiser{}
 	err := OptimiseMediaHandler(context.Background(), task.OptimiseMediaPayload{ID: "invalid"}, svc)
 	if err == nil {
 		t.Fatal("expected error for invalid UUID")
@@ -25,7 +25,7 @@ func TestOptimiseMediaHandler_InvalidID(t *testing.T) {
 func TestOptimiseMediaHandler_ServiceError(t *testing.T) {
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	svcErr := errors.New("svc fail")
-	svc := &mock.MockMediaOptimiser{Err: svcErr}
+	svc := &mock.MediaOptimiser{Err: svcErr}
 
 	err := OptimiseMediaHandler(context.Background(), task.OptimiseMediaPayload{ID: id.String()}, svc)
 	if !errors.Is(err, svcErr) {
@@ -41,7 +41,7 @@ func TestOptimiseMediaHandler_ServiceError(t *testing.T) {
 
 func TestOptimiseMediaHandler_Success(t *testing.T) {
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	svc := &mock.MockMediaOptimiser{}
+	svc := &mock.MediaOptimiser{}
 
 	err := OptimiseMediaHandler(context.Background(), task.OptimiseMediaPayload{ID: id.String()}, svc)
 	if err != nil {

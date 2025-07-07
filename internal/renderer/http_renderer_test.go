@@ -21,7 +21,7 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 	t.Run("cache hit", func(t *testing.T) {
 		c := &mock.MockCache{Data: []byte(`{"ok":true}`), Etag: "\"1234\""}
 		r := NewHTTPRenderer(c)
-		getter := &mock.MockMediaGetter{}
+		getter := &mock.MediaGetter{}
 
 		out, etag, err := r.RenderGetMedia(ctx, getter, id)
 		if err != nil {
@@ -45,7 +45,7 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 		c := &mock.MockCache{}
 		now := time.Now().Add(time.Hour)
 		resp := &port.GetMediaOutput{ValidUntil: now}
-		getter := &mock.MockMediaGetter{Out: resp}
+		getter := &mock.MediaGetter{Out: resp}
 		r := NewHTTPRenderer(c)
 
 		out, etag, err := r.RenderGetMedia(ctx, getter, id)
@@ -76,7 +76,7 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 
 	t.Run("getter error", func(t *testing.T) {
 		c := &mock.MockCache{}
-		g := &mock.MockMediaGetter{Err: errors.New("fail")}
+		g := &mock.MediaGetter{Err: errors.New("fail")}
 		r := NewHTTPRenderer(c)
 
 		_, _, err := r.RenderGetMedia(ctx, g, id)
@@ -95,7 +95,7 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 		c := &mock.MockCache{GetMediaErr: errors.New("boom")}
 		now := time.Now().Add(time.Hour)
 		resp := &port.GetMediaOutput{ValidUntil: now}
-		g := &mock.MockMediaGetter{Out: resp}
+		g := &mock.MediaGetter{Out: resp}
 		r := NewHTTPRenderer(c)
 
 		_, _, err := r.RenderGetMedia(ctx, g, id)

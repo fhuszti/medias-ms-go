@@ -54,7 +54,7 @@ func TestDeleteMediaHandler(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mock.MockMediaDeleter{Err: tc.svcErr}
+			mockSvc := &mock.MediaDeleter{Err: tc.svcErr}
 			h := DeleteMediaHandler(mockSvc)
 
 			req := httptest.NewRequest(http.MethodDelete, "/medias/"+validID.String(), nil)

@@ -122,7 +122,7 @@ func TestGetMediaHandler(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mock.MockMediaGetter{
+			mockSvc := &mock.MediaGetter{
 				Out: &tc.svcOut,
 				Err: tc.svcErr,
 			}
@@ -183,7 +183,7 @@ func TestGetMediaHandler(t *testing.T) {
 
 func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
 	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	mockSvc := &mock.MockMediaGetter{
+	mockSvc := &mock.MediaGetter{
 		Out: &port.GetMediaOutput{
 			ValidUntil: time.Now(),
 			Optimised:  true,

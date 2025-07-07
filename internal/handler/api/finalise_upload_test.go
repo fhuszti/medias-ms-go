@@ -80,7 +80,7 @@ func TestFinaliseUploadHandler(t *testing.T) {
 	allowed := []string{"bucket1", "mydest"}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mock.MockUploadFinaliser{Err: tc.svcErr}
+			mockSvc := &mock.UploadFinaliser{Err: tc.svcErr}
 			h := FinaliseUploadHandler(mockSvc, allowed)
 
 			req := httptest.NewRequest(http.MethodPost, "/any", bytes.NewBufferString(tc.body))

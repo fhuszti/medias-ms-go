@@ -6,69 +6,69 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
-type MockMediaGetter struct {
+type MediaGetter struct {
 	Out    *port.GetMediaOutput
 	Id     db.UUID
 	Err    error
 	Called bool
 }
 
-func (m *MockMediaGetter) GetMedia(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
+func (m *MediaGetter) GetMedia(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
 	m.Id = id
 	m.Called = true
 	return m.Out, m.Err
 }
 
-type MockMediaDeleter struct {
+type MediaDeleter struct {
 	In  port.DeleteMediaInput
 	Err error
 }
 
-func (m *MockMediaDeleter) DeleteMedia(ctx context.Context, in port.DeleteMediaInput) error {
+func (m *MediaDeleter) DeleteMedia(ctx context.Context, in port.DeleteMediaInput) error {
 	m.In = in
 	return m.Err
 }
 
-type MockUploadLinkGenerator struct {
+type UploadLinkGenerator struct {
 	Out port.GenerateUploadLinkOutput
 	Err error
 	In  port.GenerateUploadLinkInput
 }
 
-func (m *MockUploadLinkGenerator) GenerateUploadLink(ctx context.Context, in port.GenerateUploadLinkInput) (port.GenerateUploadLinkOutput, error) {
+func (m *UploadLinkGenerator) GenerateUploadLink(ctx context.Context, in port.GenerateUploadLinkInput) (port.GenerateUploadLinkOutput, error) {
 	m.In = in
 	return m.Out, m.Err
 }
 
-type MockUploadFinaliser struct {
+type UploadFinaliser struct {
 	In  port.FinaliseUploadInput
 	Err error
 }
 
-func (m *MockUploadFinaliser) FinaliseUpload(ctx context.Context, in port.FinaliseUploadInput) error {
+func (m *UploadFinaliser) FinaliseUpload(ctx context.Context, in port.FinaliseUploadInput) error {
 	m.In = in
 	return m.Err
 }
 
-type MockMediaOptimiser struct {
+type MediaOptimiser struct {
 	In     port.OptimiseMediaInput
 	Called bool
 	Err    error
 }
 
-func (m *MockMediaOptimiser) OptimiseMedia(ctx context.Context, in port.OptimiseMediaInput) error {
+func (m *MediaOptimiser) OptimiseMedia(ctx context.Context, in port.OptimiseMediaInput) error {
 	m.Called = true
 	m.In = in
 	return m.Err
 }
 
-type MockImageResizer struct {
+type ImageResizer struct {
 	In     port.ResizeImageInput
 	Called bool
 	Err    error
 }
 
-func (m *MockImageResizer) ResizeImage(ctx context.Context, in port.ResizeImageInput) error {
+func (m *ImageResizer) ResizeImage(ctx context.Context, in port.ResizeImageInput) error {
 	m.Called = true
 	m.In = in
 	return m.Err

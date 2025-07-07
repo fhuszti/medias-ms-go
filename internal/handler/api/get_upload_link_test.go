@@ -78,7 +78,7 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mock.MockUploadLinkGenerator{
+			mockSvc := &mock.UploadLinkGenerator{
 				Out: tc.svcOut,
 				Err: tc.svcErr,
 			}
