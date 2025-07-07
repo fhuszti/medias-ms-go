@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/fhuszti/medias-ms-go/internal/mock"
-	"github.com/fhuszti/medias-ms-go/internal/port"
 	"testing"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
@@ -18,7 +17,7 @@ func TestDeleteMedia_NotFound(t *testing.T) {
 	svc := NewMediaDeleter(repo, &mock.MockCache{}, &mock.MockStorage{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	err := svc.DeleteMedia(context.Background(), port.DeleteMediaInput{ID: id})
+	err := svc.DeleteMedia(context.Background(), id)
 	if !errors.Is(err, ErrObjectNotFound) {
 		t.Fatalf("expected ErrObjectNotFound, got %v", err)
 	}
@@ -29,7 +28,7 @@ func TestDeleteMedia_GetByIDError(t *testing.T) {
 	svc := NewMediaDeleter(repo, &mock.MockCache{}, &mock.MockStorage{})
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	if err := svc.DeleteMedia(context.Background(), port.DeleteMediaInput{ID: id}); err == nil || err.Error() != "db fail" {
+	if err := svc.DeleteMedia(context.Background(), id); err == nil || err.Error() != "db fail" {
 		t.Fatalf("expected db fail, got %v", err)
 	}
 }
@@ -40,7 +39,7 @@ func TestDeleteMedia_RemoveError(t *testing.T) {
 	strg := &mock.MockStorage{RemoveErr: errors.New("remove fail")}
 	svc := NewMediaDeleter(repo, &mock.MockCache{}, strg)
 
-	err := svc.DeleteMedia(context.Background(), port.DeleteMediaInput{ID: m.ID})
+	err := svc.DeleteMedia(context.Background(), m.ID)
 	if err == nil || err.Error() != "remove fail" {
 		t.Fatalf("expected remove fail, got %v", err)
 	}
@@ -52,7 +51,7 @@ func TestDeleteMedia_DeleteError(t *testing.T) {
 	strg := &mock.MockStorage{}
 	svc := NewMediaDeleter(repo, &mock.MockCache{}, strg)
 
-	err := svc.DeleteMedia(context.Background(), port.DeleteMediaInput{ID: m.ID})
+	err := svc.DeleteMedia(context.Background(), m.ID)
 	if err == nil || err.Error() != "delete fail" {
 		t.Fatalf("expected delete fail, got %v", err)
 	}
@@ -65,7 +64,7 @@ func TestDeleteMedia_Success(t *testing.T) {
 	cache := &mock.MockCache{}
 	svc := NewMediaDeleter(repo, cache, strg)
 
-	if err := svc.DeleteMedia(context.Background(), port.DeleteMediaInput{ID: m.ID}); err != nil {
+	if err := svc.DeleteMedia(context.Background(), m.ID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strg.RemoveCalled {

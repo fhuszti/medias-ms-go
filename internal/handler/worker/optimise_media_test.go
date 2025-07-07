@@ -34,8 +34,8 @@ func TestOptimiseMediaHandler_ServiceError(t *testing.T) {
 	if !svc.Called {
 		t.Error("service not called")
 	}
-	if svc.In.ID != id {
-		t.Errorf("service got id %s; want %s", svc.In.ID, id)
+	if svc.ID != id {
+		t.Errorf("service got id %s; want %s", svc.ID, id)
 	}
 }
 
@@ -50,7 +50,7 @@ func TestOptimiseMediaHandler_Success(t *testing.T) {
 	if !svc.Called {
 		t.Error("service not called")
 	}
-	if svc.In.ID != id {
-		t.Errorf("service got id %s; want %s", svc.In.ID, id)
+	if svc.ID != id {
+		t.Errorf("service got id %s; want %s", svc.ID, id)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
@@ -21,8 +22,8 @@ func NewMediaDeleter(repo port.MediaRepository, cache port.Cache, strg port.Stor
 }
 
 // DeleteMedia removes the file from storage, deletes DB record and clears the cache.
-func (s *deleteMediaSrv) DeleteMedia(ctx context.Context, in port.DeleteMediaInput) error {
-	media, err := s.repo.GetByID(ctx, in.ID)
+func (s *deleteMediaSrv) DeleteMedia(ctx context.Context, id db.UUID) error {
+	media, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrObjectNotFound

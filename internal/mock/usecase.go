@@ -20,12 +20,12 @@ func (m *MediaGetter) GetMedia(ctx context.Context, id db.UUID) (*port.GetMediaO
 }
 
 type MediaDeleter struct {
-	In  port.DeleteMediaInput
+	ID  db.UUID
 	Err error
 }
 
-func (m *MediaDeleter) DeleteMedia(ctx context.Context, in port.DeleteMediaInput) error {
-	m.In = in
+func (m *MediaDeleter) DeleteMedia(ctx context.Context, id db.UUID) error {
+	m.ID = id
 	return m.Err
 }
 
@@ -51,14 +51,14 @@ func (m *UploadFinaliser) FinaliseUpload(ctx context.Context, in port.FinaliseUp
 }
 
 type MediaOptimiser struct {
-	In     port.OptimiseMediaInput
+	ID     db.UUID
 	Called bool
 	Err    error
 }
 
-func (m *MediaOptimiser) OptimiseMedia(ctx context.Context, in port.OptimiseMediaInput) error {
+func (m *MediaOptimiser) OptimiseMedia(ctx context.Context, id db.UUID) error {
 	m.Called = true
-	m.In = in
+	m.ID = id
 	return m.Err
 }
 

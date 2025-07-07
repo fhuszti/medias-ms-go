@@ -99,7 +99,7 @@ func TestDeleteMediaIntegration_Success(t *testing.T) {
 		t.Fatalf("insert media: %v", err)
 	}
 
-	if err := svc.DeleteMedia(ctx, port.DeleteMediaInput{ID: id}); err != nil {
+	if err := svc.DeleteMedia(ctx, id); err != nil {
 		t.Fatalf("DeleteMedia returned error: %v", err)
 	}
 
