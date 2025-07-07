@@ -13,25 +13,17 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
-type Getter interface {
-	GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error)
-}
-
 type mediaGetterSrv struct {
 	repo port.MediaRepository
 	strg port.Storage
 }
 
-func NewMediaGetter(repo port.MediaRepository, strg port.Storage) Getter {
+func NewMediaGetter(repo port.MediaRepository, strg port.Storage) port.MediaGetter {
 	return &mediaGetterSrv{repo: repo, strg: strg}
 }
 
-type GetMediaInput struct {
-	ID db.UUID
-}
-
-func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMediaOutput, error) {
-	media, err := s.repo.GetByID(ctx, in.ID)
+func (s *mediaGetterSrv) GetMedia(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
+	media, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrObjectNotFound
@@ -47,12 +39,12 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, in GetMediaInput) (*GetMe
 		return nil, fmt.Errorf("error generating presigned download URL for file %q: %w", media.ObjectKey, err)
 	}
 
-	mt := MetadataOutput{
+	mt := port.MetadataOutput{
 		Metadata:  media.Metadata,
 		SizeBytes: *media.SizeBytes,
 		MimeType:  *media.MimeType,
 	}
-	output := GetMediaOutput{
+	output := port.GetMediaOutput{
 		ValidUntil: time.Now().Add(DownloadUrlTTL - 5*time.Minute),
 		Optimised:  media.Optimised,
 		URL:        url,
