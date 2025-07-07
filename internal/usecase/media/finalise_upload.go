@@ -15,15 +15,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/ledongthuc/pdf"
 )
-
-type UploadFinaliser interface {
-	FinaliseUpload(ctx context.Context, in FinaliseUploadInput) error
-}
 
 type uploadFinaliserSrv struct {
 	repo  port.MediaRepository
@@ -31,16 +26,11 @@ type uploadFinaliserSrv struct {
 	tasks port.TaskDispatcher
 }
 
-func NewUploadFinaliser(repo port.MediaRepository, strg port.Storage, tasks port.TaskDispatcher) UploadFinaliser {
+func NewUploadFinaliser(repo port.MediaRepository, strg port.Storage, tasks port.TaskDispatcher) port.UploadFinaliser {
 	return &uploadFinaliserSrv{repo, strg, tasks}
 }
 
-type FinaliseUploadInput struct {
-	ID         db.UUID
-	DestBucket string
-}
-
-func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in FinaliseUploadInput) error {
+func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in port.FinaliseUploadInput) error {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

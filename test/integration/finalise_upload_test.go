@@ -8,6 +8,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
@@ -21,7 +22,7 @@ import (
 	"testing"
 )
 
-func setupUploadFinaliser(t *testing.T) (*mariadb.MediaRepository, mediaSvc.UploadFinaliser, func()) {
+func setupUploadFinaliser(t *testing.T) (*mariadb.MediaRepository, port.UploadFinaliser, func()) {
 	t.Helper()
 
 	testDB, err := testutil.SetupTestDB()
@@ -84,7 +85,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 		t.Fatalf("upload to staging: %v", err)
 	}
 
-	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
+	if err := svc.FinaliseUpload(ctx, port.FinaliseUploadInput{
 		ID:         id,
 		DestBucket: "docs",
 	}); err != nil {
@@ -171,7 +172,7 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	}
 
 	// Execute finalisation
-	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
+	if err := svc.FinaliseUpload(ctx, port.FinaliseUploadInput{
 		ID:         id,
 		DestBucket: "images",
 	}); err != nil {
@@ -270,7 +271,7 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	}
 
 	// Execute finalisation
-	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{
+	if err := svc.FinaliseUpload(ctx, port.FinaliseUploadInput{
 		ID:         id,
 		DestBucket: "docs",
 	}); err != nil {
@@ -357,7 +358,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 
 	// First call: expect success
-	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"}); err != nil {
+	if err := svc.FinaliseUpload(ctx, port.FinaliseUploadInput{ID: id, DestBucket: "docs"}); err != nil {
 		t.Fatalf("first FinaliseUpload error: %v", err)
 	}
 
@@ -370,7 +371,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	}
 
 	// Second call: should be no-op, return existing
-	if err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"}); err != nil {
+	if err := svc.FinaliseUpload(ctx, port.FinaliseUploadInput{ID: id, DestBucket: "docs"}); err != nil {
 		t.Fatalf("second FinaliseUpload error: %v", err)
 	}
 
@@ -456,7 +457,7 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	}
 
 	// Attempt finalisation: expect "too small" error
-	err := svc.FinaliseUpload(ctx, mediaSvc.FinaliseUploadInput{ID: id, DestBucket: "docs"})
+	err := svc.FinaliseUpload(ctx, port.FinaliseUploadInput{ID: id, DestBucket: "docs"})
 	if err == nil {
 		t.Fatalf("expected error for too small file, got nil")
 	}

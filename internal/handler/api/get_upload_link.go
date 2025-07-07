@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
 	"log"
 	"net/http"
@@ -13,7 +13,7 @@ type GenerateUploadLinkRequest struct {
 	Name string `json:"name" validate:"required,max=80"`
 }
 
-func GenerateUploadLinkHandler(svc media.UploadLinkGenerator) http.HandlerFunc {
+func GenerateUploadLinkHandler(svc port.UploadLinkGenerator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req GenerateUploadLinkRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -34,7 +34,7 @@ func GenerateUploadLinkHandler(svc media.UploadLinkGenerator) http.HandlerFunc {
 			return
 		}
 
-		in := media.GenerateUploadLinkInput(req)
+		in := port.GenerateUploadLinkInput(req)
 		out, err := svc.GenerateUploadLink(r.Context(), in)
 		if err != nil {
 			WriteError(w, http.StatusInternalServerError, "Could not generate upload link", err)

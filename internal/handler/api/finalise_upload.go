@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
 	"log"
@@ -14,7 +15,7 @@ type FinaliseUploadRequest struct {
 	DestBucket string `json:"dest_bucket" validate:"required"`
 }
 
-func FinaliseUploadHandler(svc media.UploadFinaliser, allowedBuckets []string) http.HandlerFunc {
+func FinaliseUploadHandler(svc port.UploadFinaliser, allowedBuckets []string) http.HandlerFunc {
 	allowedSet := make(map[string]struct{}, len(allowedBuckets))
 	for _, b := range allowedBuckets {
 		allowedSet[b] = struct{}{}
@@ -49,7 +50,7 @@ func FinaliseUploadHandler(svc media.UploadFinaliser, allowedBuckets []string) h
 			return
 		}
 
-		input := media.FinaliseUploadInput{
+		input := port.FinaliseUploadInput{
 			ID:         id,
 			DestBucket: req.DestBucket,
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/fhuszti/medias-ms-go/internal/mock"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"reflect"
 	"testing"
 	"time"
@@ -20,7 +21,7 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	strg := &mock.MockStorage{}
 	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
 
-	in := GenerateUploadLinkInput{Name: "my-file.webp"}
+	in := port.GenerateUploadLinkInput{Name: "my-file.webp"}
 	out, err := svc.GenerateUploadLink(context.Background(), in)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -78,7 +79,7 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 	strg := &mock.MockStorage{}
 	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
 
-	out, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo"})
+	out, err := svc.GenerateUploadLink(context.Background(), port.GenerateUploadLinkInput{Name: "foo"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -101,7 +102,7 @@ func TestGenerateUploadLink_StorageError(t *testing.T) {
 	strg := &mock.MockStorage{GenerateUploadLinkErr: errors.New("strg failure")}
 	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
 
-	out, err := svc.GenerateUploadLink(context.Background(), GenerateUploadLinkInput{Name: "foo"})
+	out, err := svc.GenerateUploadLink(context.Background(), port.GenerateUploadLinkInput{Name: "foo"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

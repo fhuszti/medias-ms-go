@@ -7,6 +7,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
@@ -41,7 +42,7 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 	mediaRepo := mariadb.NewMediaRepository(database)
 	svc := mediaService.NewUploadLinkGenerator(mediaRepo, GlobalStrg, db.NewUUID)
 
-	in := mediaService.GenerateUploadLinkInput{
+	in := port.GenerateUploadLinkInput{
 		Name: "file_example.png",
 	}
 

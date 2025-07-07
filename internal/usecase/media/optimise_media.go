@@ -9,15 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"golang.org/x/net/context"
 )
-
-type Optimiser interface {
-	OptimiseMedia(ctx context.Context, in OptimiseMediaInput) error
-}
 
 type mediaOptimiserSrv struct {
 	repo  port.MediaRepository
@@ -27,15 +22,11 @@ type mediaOptimiserSrv struct {
 	cache port.Cache
 }
 
-func NewMediaOptimiser(repo port.MediaRepository, opt port.FileOptimiser, strg port.Storage, tasks port.TaskDispatcher, cache port.Cache) Optimiser {
+func NewMediaOptimiser(repo port.MediaRepository, opt port.FileOptimiser, strg port.Storage, tasks port.TaskDispatcher, cache port.Cache) port.MediaOptimiser {
 	return &mediaOptimiserSrv{repo, opt, strg, tasks, cache}
 }
 
-type OptimiseMediaInput struct {
-	ID db.UUID
-}
-
-func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in OptimiseMediaInput) error {
+func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in port.OptimiseMediaInput) error {
 	media, err := m.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

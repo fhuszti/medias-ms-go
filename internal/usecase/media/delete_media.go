@@ -6,14 +6,8 @@ import (
 	"errors"
 	"log"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
-
-// Deleter deletes a media and its file.
-type Deleter interface {
-	DeleteMedia(ctx context.Context, in DeleteMediaInput) error
-}
 
 type deleteMediaSrv struct {
 	repo  port.MediaRepository
@@ -21,18 +15,13 @@ type deleteMediaSrv struct {
 	strg  port.Storage
 }
 
-// NewMediaDeleter constructs a Deleter implementation.
-func NewMediaDeleter(repo port.MediaRepository, cache port.Cache, strg port.Storage) Deleter {
+// NewMediaDeleter constructs a MediaDeleter implementation.
+func NewMediaDeleter(repo port.MediaRepository, cache port.Cache, strg port.Storage) port.MediaDeleter {
 	return &deleteMediaSrv{repo: repo, cache: cache, strg: strg}
 }
 
-// DeleteMediaInput represents the input for deleting a media.
-type DeleteMediaInput struct {
-	ID db.UUID
-}
-
-// DeleteMedia removes the file from storage, deletes DB record and clears cache.
-func (s *deleteMediaSrv) DeleteMedia(ctx context.Context, in DeleteMediaInput) error {
+// DeleteMedia removes the file from storage, deletes DB record and clears the cache.
+func (s *deleteMediaSrv) DeleteMedia(ctx context.Context, in port.DeleteMediaInput) error {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

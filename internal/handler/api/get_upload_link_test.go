@@ -2,57 +2,46 @@ package api
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/google/uuid"
 )
-
-type mockUploadLinkGenerator struct {
-	out mediaSvc.GenerateUploadLinkOutput
-	err error
-	in  mediaSvc.GenerateUploadLinkInput
-}
-
-func (m *mockUploadLinkGenerator) GenerateUploadLink(ctx context.Context, in mediaSvc.GenerateUploadLinkInput) (mediaSvc.GenerateUploadLinkOutput, error) {
-	m.in = in
-	return m.out, m.err
-}
 
 func TestGenerateUploadLinkHandler(t *testing.T) {
 	tests := []struct {
 		name            string
 		body            string
-		svcOut          mediaSvc.GenerateUploadLinkOutput
+		svcOut          port.GenerateUploadLinkOutput
 		svcErr          error
 		wantStatus      int
 		wantContentType string
 
-		wantOutput       *mediaSvc.GenerateUploadLinkOutput
+		wantOutput       *port.GenerateUploadLinkOutput
 		wantErrorMap     map[string]string
 		wantBodyContains string
 	}{
 		{
 			name:            "happy path",
 			body:            `{"name":"my-file.png"}`,
-			svcOut:          mediaSvc.GenerateUploadLinkOutput{ID: db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), URL: "https://cdn.example.com/presigned"},
+			svcOut:          port.GenerateUploadLinkOutput{ID: db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), URL: "https://cdn.example.com/presigned"},
 			svcErr:          nil,
 			wantStatus:      http.StatusCreated,
 			wantContentType: "application/json",
-			wantOutput:      &mediaSvc.GenerateUploadLinkOutput{},
+			wantOutput:      &port.GenerateUploadLinkOutput{},
 		},
 		{
 			name:             "invalid JSON",
 			body:             `{"name":`, // malformed
-			svcOut:           mediaSvc.GenerateUploadLinkOutput{},
+			svcOut:           port.GenerateUploadLinkOutput{},
 			svcErr:           nil,
 			wantStatus:       http.StatusBadRequest,
 			wantContentType:  "application/json",
@@ -61,7 +50,7 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 		{
 			name:            "validation error: empty name",
 			body:            `{"name":""}`,
-			svcOut:          mediaSvc.GenerateUploadLinkOutput{},
+			svcOut:          port.GenerateUploadLinkOutput{},
 			svcErr:          nil,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
@@ -70,7 +59,7 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 		{
 			name:            "validation error: name too long",
 			body:            fmt.Sprintf(`{"name":"%s"}`, strings.Repeat("a", 81)),
-			svcOut:          mediaSvc.GenerateUploadLinkOutput{},
+			svcOut:          port.GenerateUploadLinkOutput{},
 			svcErr:          nil,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
@@ -79,7 +68,7 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 		{
 			name:             "service error",
 			body:             `{"name":"ok.png"}`,
-			svcOut:           mediaSvc.GenerateUploadLinkOutput{},
+			svcOut:           port.GenerateUploadLinkOutput{},
 			svcErr:           errors.New("boom"),
 			wantStatus:       http.StatusInternalServerError,
 			wantContentType:  "application/json",
@@ -89,9 +78,9 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mockUploadLinkGenerator{
-				out: tc.svcOut,
-				err: tc.svcErr,
+			mockSvc := &mock.MockUploadLinkGenerator{
+				Out: tc.svcOut,
+				Err: tc.svcErr,
 			}
 			handlerFn := GenerateUploadLinkHandler(mockSvc)
 

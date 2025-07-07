@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,19 +12,8 @@ import (
 
 	"context"
 	"github.com/fhuszti/medias-ms-go/internal/db"
-	mediaUC "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/google/uuid"
 )
-
-type mockFinaliser struct {
-	in  mediaUC.FinaliseUploadInput
-	err error
-}
-
-func (m *mockFinaliser) FinaliseUpload(ctx context.Context, in mediaUC.FinaliseUploadInput) error {
-	m.in = in
-	return m.err
-}
 
 func TestFinaliseUploadHandler(t *testing.T) {
 	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
@@ -90,7 +80,7 @@ func TestFinaliseUploadHandler(t *testing.T) {
 	allowed := []string{"bucket1", "mydest"}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mockFinaliser{err: tc.svcErr}
+			mockSvc := &mock.MockUploadFinaliser{Err: tc.svcErr}
 			h := FinaliseUploadHandler(mockSvc, allowed)
 
 			req := httptest.NewRequest(http.MethodPost, "/any", bytes.NewBufferString(tc.body))
@@ -146,11 +136,11 @@ func TestFinaliseUploadHandler(t *testing.T) {
 			// If the service was invoked, verify inputs
 			// Only invoked when ctxID and JSON validation passed and no body error
 			if tc.ctxID && tc.wantErrorMap == nil && tc.wantBodyContain == "" {
-				if mockSvc.in.DestBucket != "bucket1" {
-					t.Errorf("service got DestBucket = %q; want bucket1", mockSvc.in.DestBucket)
+				if mockSvc.In.DestBucket != "bucket1" {
+					t.Errorf("service got DestBucket = %q; want bucket1", mockSvc.In.DestBucket)
 				}
-				if mockSvc.in.ID != validID {
-					t.Errorf("service got ID = %v; want %v", mockSvc.in.ID, validID)
+				if mockSvc.In.ID != validID {
+					t.Errorf("service got ID = %v; want %v", mockSvc.In.ID, validID)
 				}
 			}
 		})

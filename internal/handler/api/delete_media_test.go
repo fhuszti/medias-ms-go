@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,16 +13,6 @@ import (
 	mediaUC "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/google/uuid"
 )
-
-type mockDeleter struct {
-	in  mediaUC.DeleteMediaInput
-	err error
-}
-
-func (m *mockDeleter) DeleteMedia(ctx context.Context, in mediaUC.DeleteMediaInput) error {
-	m.in = in
-	return m.err
-}
 
 func TestDeleteMediaHandler(t *testing.T) {
 	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
@@ -63,7 +54,7 @@ func TestDeleteMediaHandler(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mockDeleter{err: tc.svcErr}
+			mockSvc := &mock.MockMediaDeleter{Err: tc.svcErr}
 			h := DeleteMediaHandler(mockSvc)
 
 			req := httptest.NewRequest(http.MethodDelete, "/medias/"+validID.String(), nil)
@@ -82,13 +73,13 @@ func TestDeleteMediaHandler(t *testing.T) {
 				if rec.Body.Len() != 0 {
 					t.Errorf("expected empty body, got %q", rec.Body.String())
 				}
-				if mockSvc.in.ID != validID {
-					t.Errorf("service got ID = %s; want %s", mockSvc.in.ID, validID)
+				if mockSvc.In.ID != validID {
+					t.Errorf("service got ID = %s; want %s", mockSvc.In.ID, validID)
 				}
 			} else {
 				if !errors.Is(tc.svcErr, mediaUC.ErrObjectNotFound) && tc.ctxID != nil {
-					if mockSvc.in.ID != validID {
-						t.Errorf("service got ID = %s; want %s", mockSvc.in.ID, validID)
+					if mockSvc.In.ID != validID {
+						t.Errorf("service got ID = %s; want %s", mockSvc.In.ID, validID)
 					}
 				}
 				if !contains(rec.Body.String(), tc.wantBodySubstr) {

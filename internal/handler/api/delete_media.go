@@ -2,13 +2,14 @@ package api
 
 import (
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"log"
 	"net/http"
 )
 
 // DeleteMediaHandler deletes a media by ID.
-func DeleteMediaHandler(svc media.Deleter) http.HandlerFunc {
+func DeleteMediaHandler(svc port.MediaDeleter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := IDFromContext(r.Context())
 		if !ok {
@@ -16,7 +17,7 @@ func DeleteMediaHandler(svc media.Deleter) http.HandlerFunc {
 			return
 		}
 
-		in := media.DeleteMediaInput{ID: id}
+		in := port.DeleteMediaInput{ID: id}
 		if err := svc.DeleteMedia(r.Context(), in); err != nil {
 			if errors.Is(err, media.ErrObjectNotFound) {
 				WriteError(w, http.StatusNotFound, "Media not found", nil)

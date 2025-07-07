@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,7 +25,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func setupMediaDeleter(t *testing.T) (*mariadb.MediaRepository, mediaSvc.Deleter, func()) {
+func setupMediaDeleter(t *testing.T) (*mariadb.MediaRepository, port.MediaDeleter, func()) {
 	t.Helper()
 
 	testDB, err := testutil.SetupTestDB()
@@ -98,7 +99,7 @@ func TestDeleteMediaIntegration_Success(t *testing.T) {
 		t.Fatalf("insert media: %v", err)
 	}
 
-	if err := svc.DeleteMedia(ctx, mediaSvc.DeleteMediaInput{ID: id}); err != nil {
+	if err := svc.DeleteMedia(ctx, port.DeleteMediaInput{ID: id}); err != nil {
 		t.Fatalf("DeleteMedia returned error: %v", err)
 	}
 

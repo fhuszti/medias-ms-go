@@ -3,33 +3,21 @@ package worker
 import (
 	"context"
 	"errors"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"testing"
 
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/task"
-	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/google/uuid"
 )
 
-type mockResizer struct {
-	in     mediaSvc.ResizeImageInput
-	called bool
-	err    error
-}
-
-func (m *mockResizer) ResizeImage(ctx context.Context, in mediaSvc.ResizeImageInput) error {
-	m.called = true
-	m.in = in
-	return m.err
-}
-
 func TestResizeImageHandler_InvalidID(t *testing.T) {
-	svc := &mockResizer{}
+	svc := &mock.MockImageResizer{}
 	err := ResizeImageHandler(context.Background(), task.ResizeImagePayload{ID: "invalid"}, nil, svc)
 	if err == nil {
 		t.Fatal("expected error for invalid UUID")
 	}
-	if svc.called {
+	if svc.Called {
 		t.Error("service should not be called on invalid id")
 	}
 }
@@ -37,40 +25,40 @@ func TestResizeImageHandler_InvalidID(t *testing.T) {
 func TestResizeImageHandler_ServiceError(t *testing.T) {
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	svcErr := errors.New("svc fail")
-	svc := &mockResizer{err: svcErr}
+	svc := &mock.MockImageResizer{Err: svcErr}
 
 	sizes := []int{100, 200}
 	err := ResizeImageHandler(context.Background(), task.ResizeImagePayload{ID: id.String()}, sizes, svc)
 	if !errors.Is(err, svcErr) {
 		t.Fatalf("got error %v; want %v", err, svcErr)
 	}
-	if !svc.called {
+	if !svc.Called {
 		t.Error("service not called")
 	}
-	if svc.in.ID != id {
-		t.Errorf("service got id %s; want %s", svc.in.ID, id)
+	if svc.In.ID != id {
+		t.Errorf("service got id %s; want %s", svc.In.ID, id)
 	}
-	if len(svc.in.Sizes) != len(sizes) {
-		t.Errorf("service got sizes %v; want %v", svc.in.Sizes, sizes)
+	if len(svc.In.Sizes) != len(sizes) {
+		t.Errorf("service got sizes %v; want %v", svc.In.Sizes, sizes)
 	}
 }
 
 func TestResizeImageHandler_Success(t *testing.T) {
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	svc := &mockResizer{}
+	svc := &mock.MockImageResizer{}
 	sizes := []int{100, 200}
 
 	err := ResizeImageHandler(context.Background(), task.ResizeImagePayload{ID: id.String()}, sizes, svc)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !svc.called {
+	if !svc.Called {
 		t.Error("service not called")
 	}
-	if svc.in.ID != id {
-		t.Errorf("service got id %s; want %s", svc.in.ID, id)
+	if svc.In.ID != id {
+		t.Errorf("service got id %s; want %s", svc.In.ID, id)
 	}
-	if len(svc.in.Sizes) != len(sizes) {
-		t.Errorf("service got sizes %v; want %v", svc.in.Sizes, sizes)
+	if len(svc.In.Sizes) != len(sizes) {
+		t.Errorf("service got sizes %v; want %v", svc.In.Sizes, sizes)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/google/uuid"
 	"hash/crc32"
 	"net/http"
@@ -18,17 +19,6 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
-
-type mockGetter struct {
-	out port.GetMediaOutput
-	err error
-	id  db.UUID
-}
-
-func (m *mockGetter) GetMedia(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
-	m.id = id
-	return &m.out, m.err
-}
 
 func computeETag(t testing.TB, v any) string {
 	t.Helper()
@@ -132,9 +122,9 @@ func TestGetMediaHandler(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mockGetter{
-				out: tc.svcOut,
-				err: tc.svcErr,
+			mockSvc := &mock.MockMediaGetter{
+				Out: &tc.svcOut,
+				Err: tc.svcErr,
 			}
 			handlerFn := GetMediaHandler(mockSvc)
 
@@ -173,8 +163,8 @@ func TestGetMediaHandler(t *testing.T) {
 					t.Fatalf("JSON decode = %v (body=%q)", err, rec.Body.String())
 				}
 				// verify service was called with the correct ID
-				if mockSvc.id != *tc.ctxID {
-					t.Errorf("service got ID = %s; want %s", mockSvc.id, *tc.ctxID)
+				if mockSvc.Id != *tc.ctxID {
+					t.Errorf("service got ID = %s; want %s", mockSvc.Id, *tc.ctxID)
 				}
 				// verify URL field
 				if got, want := tc.wantOutput.URL, tc.svcOut.URL; got != want {
@@ -193,18 +183,18 @@ func TestGetMediaHandler(t *testing.T) {
 
 func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
 	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	mockSvc := &mockGetter{
-		out: port.GetMediaOutput{
+	mockSvc := &mock.MockMediaGetter{
+		Out: &port.GetMediaOutput{
 			ValidUntil: time.Now(),
 			Optimised:  true,
 			URL:        "https://cdn.example.com/foo",
 			Metadata:   port.MetadataOutput{},
 		},
-		err: nil,
+		Err: nil,
 	}
 
 	handlerFn := GetMediaHandler(mockSvc)
-	etag := computeETag(t, mockSvc.out)
+	etag := computeETag(t, mockSvc.Out)
 	req := httptest.NewRequest(http.MethodGet, "/medias/"+validID.String(), nil)
 	req = req.WithContext(context.WithValue(req.Context(), IDKey, validID))
 	req.Header.Set("If-None-Match", etag)

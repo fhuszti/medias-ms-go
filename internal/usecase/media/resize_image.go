@@ -10,15 +10,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
-
-// ImageResizer resizes images and saves the generated variants.
-type ImageResizer interface {
-	ResizeImage(ctx context.Context, in ResizeImageInput) error
-}
 
 type imageResizerSrv struct {
 	repo  port.MediaRepository
@@ -28,18 +22,12 @@ type imageResizerSrv struct {
 }
 
 // NewImageResizer constructs an ImageResizer implementation.
-func NewImageResizer(repo port.MediaRepository, opt port.FileOptimiser, strg port.Storage, cache port.Cache) ImageResizer {
+func NewImageResizer(repo port.MediaRepository, opt port.FileOptimiser, strg port.Storage, cache port.Cache) port.ImageResizer {
 	return &imageResizerSrv{repo, opt, strg, cache}
 }
 
-// ResizeImageInput represents the input for creating resized variants.
-type ResizeImageInput struct {
-	ID    db.UUID
-	Sizes []int
-}
-
 // ResizeImage fetches the media by ID and generates resized variants for the given sizes.
-func (s *imageResizerSrv) ResizeImage(ctx context.Context, in ResizeImageInput) error {
+func (s *imageResizerSrv) ResizeImage(ctx context.Context, in port.ResizeImageInput) error {
 	media, err := s.repo.GetByID(ctx, in.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
