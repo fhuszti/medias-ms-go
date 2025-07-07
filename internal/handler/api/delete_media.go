@@ -17,8 +17,7 @@ func DeleteMediaHandler(svc port.MediaDeleter) http.HandlerFunc {
 			return
 		}
 
-		in := port.DeleteMediaInput{ID: id}
-		if err := svc.DeleteMedia(r.Context(), in); err != nil {
+		if err := svc.DeleteMedia(r.Context(), id); err != nil {
 			if errors.Is(err, media.ErrObjectNotFound) {
 				WriteError(w, http.StatusNotFound, "Media not found", nil)
 				return

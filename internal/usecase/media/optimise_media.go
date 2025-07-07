@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"golang.org/x/net/context"
@@ -26,8 +27,8 @@ func NewMediaOptimiser(repo port.MediaRepository, opt port.FileOptimiser, strg p
 	return &mediaOptimiserSrv{repo, opt, strg, tasks, cache}
 }
 
-func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, in port.OptimiseMediaInput) error {
-	media, err := m.repo.GetByID(ctx, in.ID)
+func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, id db.UUID) error {
+	media, err := m.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrObjectNotFound

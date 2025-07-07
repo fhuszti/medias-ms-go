@@ -22,8 +22,7 @@ func OptimiseMediaHandler(ctx context.Context, p task.OptimiseMediaPayload, svc 
 
 	id := uuid.MustParse(p.ID)
 
-	in := port.OptimiseMediaInput{ID: db.UUID(id)}
-	if err := svc.OptimiseMedia(ctx, in); err != nil {
+	if err := svc.OptimiseMedia(ctx, db.UUID(id)); err != nil {
 		log.Printf("❌  Failed to optimise media #%s: %v", id, err)
 		return err
 	}

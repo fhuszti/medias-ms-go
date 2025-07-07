@@ -73,13 +73,13 @@ func TestDeleteMediaHandler(t *testing.T) {
 				if rec.Body.Len() != 0 {
 					t.Errorf("expected empty body, got %q", rec.Body.String())
 				}
-				if mockSvc.In.ID != validID {
-					t.Errorf("service got ID = %s; want %s", mockSvc.In.ID, validID)
+				if mockSvc.ID != validID {
+					t.Errorf("service got ID = %s; want %s", mockSvc.ID, validID)
 				}
 			} else {
 				if !errors.Is(tc.svcErr, mediaUC.ErrObjectNotFound) && tc.ctxID != nil {
-					if mockSvc.In.ID != validID {
-						t.Errorf("service got ID = %s; want %s", mockSvc.In.ID, validID)
+					if mockSvc.ID != validID {
+						t.Errorf("service got ID = %s; want %s", mockSvc.ID, validID)
 					}
 				}
 				if !contains(rec.Body.String(), tc.wantBodySubstr) {

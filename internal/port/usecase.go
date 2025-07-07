@@ -29,10 +29,7 @@ type GetMediaOutput struct {
 
 // MediaDeleter deletes a media and its file.
 type MediaDeleter interface {
-	DeleteMedia(ctx context.Context, in DeleteMediaInput) error
-}
-type DeleteMediaInput struct {
-	ID db.UUID
+	DeleteMedia(ctx context.Context, id db.UUID) error
 }
 
 // UploadLinkGenerator returns a presigned link to upload a file.
@@ -58,10 +55,7 @@ type FinaliseUploadInput struct {
 
 // MediaOptimiser reduces the file size with different techniques.
 type MediaOptimiser interface {
-	OptimiseMedia(ctx context.Context, in OptimiseMediaInput) error
-}
-type OptimiseMediaInput struct {
-	ID db.UUID
+	OptimiseMedia(ctx context.Context, id db.UUID) error
 }
 
 // ImageResizer resizes images and saves the generated variants.
