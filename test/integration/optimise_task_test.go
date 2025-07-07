@@ -16,6 +16,35 @@ import (
 	"github.com/google/uuid"
 )
 
+func setupWorker(t *testing.T) (*mariadb.MediaRepository, func()) {
+	t.Helper()
+
+	testDB, err := testutil.SetupTestDB()
+	if err != nil {
+		t.Fatalf("setup DB: %v", err)
+	}
+	dbConn := testDB.DB
+	if err := migration.MigrateUp(dbConn); err != nil {
+		t.Fatalf("could not run migrations: %v", err)
+	}
+
+	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
+	if err != nil {
+		t.Fatalf("setup buckets: %v", err)
+	}
+
+	repo := mariadb.NewMediaRepository(dbConn)
+	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
+
+	cleanup := func() {
+		workerStop()
+		_ = bCleanup()
+		_ = testDB.Cleanup()
+	}
+
+	return repo, cleanup
+}
+
 func waitOptimised(t *testing.T, repo *mariadb.MediaRepository, id db.UUID, wantVariants bool) *model.Media {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
@@ -37,25 +66,8 @@ func waitOptimised(t *testing.T, repo *mariadb.MediaRepository, id db.UUID, want
 func TestOptimiseTaskIntegration_SuccessPNG(t *testing.T) {
 	ctx := context.Background()
 
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	repo := mariadb.NewMediaRepository(dbConn)
-	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
+	repo, cleanup := setupWorker(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("11111111-1111-1111-1111-111111111111"))
 	objectKey := id.String() + ".png"
@@ -140,23 +152,9 @@ func TestOptimiseTaskIntegration_SuccessPNG(t *testing.T) {
 
 func TestOptimiseTaskIntegration_SuccessWEBP(t *testing.T) {
 	ctx := context.Background()
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-	repo := mariadb.NewMediaRepository(dbConn)
-	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
+
+	repo, cleanup := setupWorker(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("22222222-2222-2222-2222-222222222222"))
 	objectKey := id.String() + ".webp"
@@ -221,23 +219,9 @@ func TestOptimiseTaskIntegration_SuccessWEBP(t *testing.T) {
 
 func TestOptimiseTaskIntegration_SuccessPDF(t *testing.T) {
 	ctx := context.Background()
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-	repo := mariadb.NewMediaRepository(dbConn)
-	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
+
+	repo, cleanup := setupWorker(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("33333333-3333-3333-3333-333333333333"))
 	objectKey := id.String() + ".pdf"
@@ -271,23 +255,9 @@ func TestOptimiseTaskIntegration_SuccessPDF(t *testing.T) {
 
 func TestOptimiseTaskIntegration_SuccessMarkdown(t *testing.T) {
 	ctx := context.Background()
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-	repo := mariadb.NewMediaRepository(dbConn)
-	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
+
+	repo, cleanup := setupWorker(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("44444444-4444-4444-4444-444444444444"))
 	objectKey := id.String() + ".md"
@@ -321,23 +291,9 @@ func TestOptimiseTaskIntegration_SuccessMarkdown(t *testing.T) {
 
 func TestOptimiseTaskIntegration_ErrorWrongStatus(t *testing.T) {
 	ctx := context.Background()
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-	repo := mariadb.NewMediaRepository(dbConn)
-	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
+
+	repo, cleanup := setupWorker(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("55555555-5555-5555-5555-555555555555"))
 	objectKey := id.String() + ".png"
@@ -370,23 +326,9 @@ func TestOptimiseTaskIntegration_ErrorWrongStatus(t *testing.T) {
 
 func TestOptimiseTaskIntegration_ErrorMissingFile(t *testing.T) {
 	ctx := context.Background()
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	dbConn := testDB.DB
-	if err := migration.MigrateUp(dbConn); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-	repo := mariadb.NewMediaRepository(dbConn)
-	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
-	defer workerStop()
+
+	repo, cleanup := setupWorker(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("66666666-6666-6666-6666-666666666666"))
 	objectKey := id.String() + ".png"

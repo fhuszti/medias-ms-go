@@ -24,14 +24,13 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestDeleteMediaIntegration_Success(t *testing.T) {
-	ctx := context.Background()
+func setupMediaDeleter(t *testing.T) (*mariadb.MediaRepository, mediaSvc.Deleter, func()) {
+	t.Helper()
 
 	testDB, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("setup DB: %v", err)
 	}
-	defer testDB.Cleanup()
 	if err := migration.MigrateUp(testDB.DB); err != nil {
 		t.Fatalf("could not run migrations: %v", err)
 	}
@@ -40,10 +39,23 @@ func TestDeleteMediaIntegration_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer bCleanup()
 
 	repo := mariadb.NewMediaRepository(testDB.DB)
 	svc := mediaSvc.NewMediaDeleter(repo, cache.NewNoop(), GlobalStrg)
+
+	cleanup := func() {
+		_ = bCleanup()
+		_ = testDB.Cleanup()
+	}
+
+	return repo, svc, cleanup
+}
+
+func TestDeleteMediaIntegration_Success(t *testing.T) {
+	ctx := context.Background()
+
+	repo, svc, cleanup := setupMediaDeleter(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
@@ -113,23 +125,8 @@ func TestDeleteMediaIntegration_Success(t *testing.T) {
 }
 
 func TestDeleteMediaIntegration_ErrorNotFound(t *testing.T) {
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	if err := migration.MigrateUp(testDB.DB); err != nil {
-		t.Fatalf("migrate DB: %v", err)
-	}
-
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	repo := mariadb.NewMediaRepository(testDB.DB)
-	svc := mediaSvc.NewMediaDeleter(repo, cache.NewNoop(), GlobalStrg)
+	_, svc, cleanup := setupMediaDeleter(t)
+	defer cleanup()
 
 	r := chi.NewRouter()
 	r.With(api.WithID()).Delete("/medias/{id}", api.DeleteMediaHandler(svc))

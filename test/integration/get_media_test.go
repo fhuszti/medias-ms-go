@@ -8,6 +8,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
@@ -20,16 +21,15 @@ import (
 	"time"
 )
 
-func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
-	ctx := context.Background()
+func setupMediaGetter(t *testing.T) (*mariadb.MediaRepository, port.MediaGetter, func()) {
+	t.Helper()
 
 	testDB, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("setup DB: %v", err)
 	}
-	defer testDB.Cleanup()
-	database := testDB.DB
-	if err := migration.MigrateUp(database); err != nil {
+	dbConn := testDB.DB
+	if err := migration.MigrateUp(dbConn); err != nil {
 		t.Fatalf("could not run migrations: %v", err)
 	}
 
@@ -37,10 +37,23 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("setup buckets: %v", err)
 	}
-	defer bCleanup()
 
-	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewMediaGetter(mediaRepo, GlobalStrg)
+	repo := mariadb.NewMediaRepository(dbConn)
+	svc := mediaSvc.NewMediaGetter(repo, GlobalStrg)
+
+	cleanup := func() {
+		_ = bCleanup()
+		_ = testDB.Cleanup()
+	}
+
+	return repo, svc, cleanup
+}
+
+func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
+	ctx := context.Background()
+
+	mediaRepo, svc, cleanup := setupMediaGetter(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
@@ -107,24 +120,8 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 	ctx := context.Background()
 
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	database := testDB.DB
-	if err := migration.MigrateUp(database); err != nil {
-		t.Fatalf("could not run migrations: %v", err)
-	}
-
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaSvc.NewMediaGetter(mediaRepo, GlobalStrg)
+	mediaRepo, svc, cleanup := setupMediaGetter(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
@@ -185,23 +182,8 @@ func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 	ctx := context.Background()
 
-	testDB, err := testutil.SetupTestDB()
-	if err != nil {
-		t.Fatalf("setup DB: %v", err)
-	}
-	defer testDB.Cleanup()
-	if err := migration.MigrateUp(testDB.DB); err != nil {
-		t.Fatalf("migrate DB: %v", err)
-	}
-
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	mediaRepo := mariadb.NewMediaRepository(testDB.DB)
-	svc := mediaSvc.NewMediaGetter(mediaRepo, GlobalStrg)
+	mediaRepo, svc, cleanup := setupMediaGetter(t)
+	defer cleanup()
 
 	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
@@ -306,20 +288,8 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 }
 
 func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
-	testDB, _ := testutil.SetupTestDB()
-	defer testDB.Cleanup()
-	if err := migration.MigrateUp(testDB.DB); err != nil {
-		t.Fatalf("migrate DB: %v", err)
-	}
-
-	bCleanup, err := testutil.SetupTestBuckets(GlobalStrg)
-	if err != nil {
-		t.Fatalf("setup buckets: %v", err)
-	}
-	defer bCleanup()
-
-	repo := mariadb.NewMediaRepository(testDB.DB)
-	svc := mediaSvc.NewMediaGetter(repo, GlobalStrg)
+	_, svc, cleanup := setupMediaGetter(t)
+	defer cleanup()
 
 	r := chi.NewRouter()
 	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(svc))
