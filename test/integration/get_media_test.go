@@ -8,6 +8,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
@@ -20,7 +21,7 @@ import (
 	"time"
 )
 
-func setupMediaGetter(t *testing.T) (*mariadb.MediaRepository, mediaSvc.Getter, func()) {
+func setupMediaGetter(t *testing.T) (*mariadb.MediaRepository, port.MediaGetter, func()) {
 	t.Helper()
 
 	testDB, err := testutil.SetupTestDB()
