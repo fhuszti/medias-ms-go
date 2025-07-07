@@ -20,11 +20,7 @@ import (
 	"time"
 )
 
-type getMediaService interface {
-	GetMedia(context.Context, mediaSvc.GetMediaInput) (*mediaSvc.GetMediaOutput, error)
-}
-
-func setupMediaGetter(t *testing.T) (*mariadb.MediaRepository, getMediaService, func()) {
+func setupMediaGetter(t *testing.T) (*mariadb.MediaRepository, mediaSvc.Getter, func()) {
 	t.Helper()
 
 	testDB, err := testutil.SetupTestDB()
