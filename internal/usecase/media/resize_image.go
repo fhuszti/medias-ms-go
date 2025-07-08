@@ -21,6 +21,9 @@ type imageResizerSrv struct {
 	cache port.Cache
 }
 
+// compile-time check: *imageResizerSrv must satisfy port.ImageResizer
+var _ port.ImageResizer = (*imageResizerSrv)(nil)
+
 // NewImageResizer constructs an ImageResizer implementation.
 func NewImageResizer(repo port.MediaRepository, opt port.FileOptimiser, strg port.Storage, cache port.Cache) port.ImageResizer {
 	return &imageResizerSrv{repo, opt, strg, cache}
