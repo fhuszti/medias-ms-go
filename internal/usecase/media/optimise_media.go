@@ -23,6 +23,9 @@ type mediaOptimiserSrv struct {
 	cache port.Cache
 }
 
+// compile-time check: *mediaOptimiserSrv must satisfy port.MediaOptimiser
+var _ port.MediaOptimiser = (*mediaOptimiserSrv)(nil)
+
 func NewMediaOptimiser(repo port.MediaRepository, opt port.FileOptimiser, strg port.Storage, tasks port.TaskDispatcher, cache port.Cache) port.MediaOptimiser {
 	return &mediaOptimiserSrv{repo, opt, strg, tasks, cache}
 }

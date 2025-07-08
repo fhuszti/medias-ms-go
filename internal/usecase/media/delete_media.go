@@ -16,6 +16,9 @@ type deleteMediaSrv struct {
 	strg  port.Storage
 }
 
+// compile-time check: *deleteMediaSrv must satisfy port.MediaDeleter
+var _ port.MediaDeleter = (*deleteMediaSrv)(nil)
+
 // NewMediaDeleter constructs a MediaDeleter implementation.
 func NewMediaDeleter(repo port.MediaRepository, cache port.Cache, strg port.Storage) port.MediaDeleter {
 	return &deleteMediaSrv{repo: repo, cache: cache, strg: strg}

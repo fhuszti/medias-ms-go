@@ -13,6 +13,9 @@ type backlogOptimiserSrv struct {
 	tasks port.TaskDispatcher
 }
 
+// compile-time check: *backlogOptimiserSrv must satisfy port.BacklogOptimiser
+var _ port.BacklogOptimiser = (*backlogOptimiserSrv)(nil)
+
 // NewBacklogOptimiser constructs a BacklogOptimiser implementation.
 func NewBacklogOptimiser(repo port.MediaRepository, tasks port.TaskDispatcher) port.BacklogOptimiser {
 	return &backlogOptimiserSrv{repo, tasks}

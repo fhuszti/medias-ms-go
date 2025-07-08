@@ -26,6 +26,9 @@ type uploadFinaliserSrv struct {
 	tasks port.TaskDispatcher
 }
 
+// compile-time check: *uploadFinaliserSrv must satisfy port.UploadFinaliser
+var _ port.UploadFinaliser = (*uploadFinaliserSrv)(nil)
+
 func NewUploadFinaliser(repo port.MediaRepository, strg port.Storage, tasks port.TaskDispatcher) port.UploadFinaliser {
 	return &uploadFinaliserSrv{repo, strg, tasks}
 }

@@ -18,6 +18,9 @@ type mediaGetterSrv struct {
 	strg port.Storage
 }
 
+// compile-time check: *mediaGetterSrv must satisfy port.MediaGetter
+var _ port.MediaGetter = (*mediaGetterSrv)(nil)
+
 func NewMediaGetter(repo port.MediaRepository, strg port.Storage) port.MediaGetter {
 	return &mediaGetterSrv{repo: repo, strg: strg}
 }

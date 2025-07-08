@@ -14,6 +14,9 @@ type uploadLinkGeneratorSrv struct {
 	genUUID port.UUIDGen
 }
 
+// compile-time check: *uploadLinkGeneratorSrv must satisfy port.UploadLinkGenerator
+var _ port.UploadLinkGenerator = (*uploadLinkGeneratorSrv)(nil)
+
 func NewUploadLinkGenerator(repo port.MediaRepository, strg port.Storage, genUUID port.UUIDGen) port.UploadLinkGenerator {
 	return &uploadLinkGeneratorSrv{repo, strg, genUUID}
 }
