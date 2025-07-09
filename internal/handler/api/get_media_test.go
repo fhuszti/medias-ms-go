@@ -61,7 +61,7 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "max-age=0",
+			wantCacheControl: "max-age=300",
 			wantETag:         true,
 			wantOutput:       &port.GetMediaOutput{},
 		},
@@ -78,7 +78,7 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "max-age=0",
+			wantCacheControl: "max-age=300",
 			wantETag:         true,
 			wantOutput:       &port.GetMediaOutput{},
 		},
@@ -95,7 +95,7 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "max-age=0",
+			wantCacheControl: "max-age=300",
 			wantETag:         true,
 			wantOutput:       &port.GetMediaOutput{},
 		},
@@ -126,7 +126,9 @@ func TestGetMediaHandler(t *testing.T) {
 				Out: &tc.svcOut,
 				Err: tc.svcErr,
 			}
-			handlerFn := GetMediaHandler(mockSvc)
+			raw, _ := json.Marshal(tc.svcOut)
+			renderer := &mock.MockHTTPRenderer{Data: raw, Etag: computeETag(t, tc.svcOut), Err: tc.svcErr}
+			handlerFn := GetMediaHandler(renderer, mockSvc)
 
 			req := httptest.NewRequest(http.MethodPost, "/medias/"+validID.String(), nil)
 			if tc.ctxID != nil {
@@ -162,17 +164,19 @@ func TestGetMediaHandler(t *testing.T) {
 				if err := dec.Decode(tc.wantOutput); err != nil {
 					t.Fatalf("JSON decode = %v (body=%q)", err, rec.Body.String())
 				}
-				// verify service was called with the correct ID
-				if mockSvc.Id != *tc.ctxID {
-					t.Errorf("service got ID = %s; want %s", mockSvc.Id, *tc.ctxID)
+				// verify renderer was called with the correct ID
+				if !renderer.Called {
+					t.Error("renderer was not called")
 				}
-				// verify URL field
-				if got, want := tc.wantOutput.URL, tc.svcOut.URL; got != want {
-					t.Errorf("URL = %q; want %q", got, want)
+				if renderer.ID != *tc.ctxID {
+					t.Errorf("renderer got ID = %s; want %s", renderer.ID, *tc.ctxID)
 				}
 			case tc.wantBodyContains != "":
 				if !strings.Contains(rec.Body.String(), tc.wantBodyContains) {
 					t.Errorf("body = %q; want to contain %q", rec.Body.String(), tc.wantBodyContains)
+				}
+				if tc.ctxID == nil && renderer.Called {
+					t.Error("renderer should not be called when ID missing")
 				}
 			default:
 				t.Fatal("test case has no assertion target!")
@@ -193,8 +197,10 @@ func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
 		Err: nil,
 	}
 
-	handlerFn := GetMediaHandler(mockSvc)
-	etag := computeETag(t, mockSvc.Out)
+	raw, _ := json.Marshal(mockSvc.Out)
+	renderer := &mock.MockHTTPRenderer{Data: raw, Etag: computeETag(t, mockSvc.Out)}
+	handlerFn := GetMediaHandler(renderer, mockSvc)
+	etag := renderer.Etag
 	req := httptest.NewRequest(http.MethodGet, "/medias/"+validID.String(), nil)
 	req = req.WithContext(context.WithValue(req.Context(), IDKey, validID))
 	req.Header.Set("If-None-Match", etag)
@@ -208,8 +214,8 @@ func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
 	if et := rec.Header().Get("ETag"); et != etag {
 		t.Errorf("ETag = %q; want %q", et, etag)
 	}
-	if cc := rec.Header().Get("Cache-Control"); cc != "max-age=0" {
-		t.Errorf("Cache-Control = %q; want %q", cc, "max-age=0")
+	if cc := rec.Header().Get("Cache-Control"); cc != "max-age=300" {
+		t.Errorf("Cache-Control = %q; want %q", cc, "max-age=300")
 	}
 	if rec.Body.Len() != 0 {
 		t.Errorf("expected empty body, got %q", rec.Body.String())

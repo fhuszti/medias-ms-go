@@ -16,6 +16,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/renderer"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
@@ -82,6 +83,7 @@ func setupServer(t *testing.T) *httptest.Server {
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, GlobalStrg)
 	deleterSvc := mediaSvc.NewMediaDeleter(repo, ca, GlobalStrg)
+	rendererSvc := renderer.NewHTTPRenderer(ca)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
@@ -89,7 +91,7 @@ func setupServer(t *testing.T) *httptest.Server {
 	r.With(api.WithID()).
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(finaliserSvc, []string{"staging", "images", "docs"}))
 	r.With(api.WithID()).
-		Get("/medias/{id}", api.GetMediaHandler(getterSvc))
+		Get("/medias/{id}", api.GetMediaHandler(rendererSvc, getterSvc))
 	r.With(api.WithID()).
 		Delete("/medias/{id}", api.DeleteMediaHandler(deleterSvc))
 

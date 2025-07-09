@@ -16,6 +16,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/renderer"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/fhuszti/medias-ms-go/internal/task"
@@ -60,8 +61,9 @@ func main() {
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(uploadFinaliserSvc, cfg.Buckets))
 
 	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, strg)
+	rendererSvc := renderer.NewHTTPRenderer(ca)
 	r.With(api.WithID()).
-		Get("/medias/{id}", api.GetMediaHandler(getMediaSvc))
+		Get("/medias/{id}", api.GetMediaHandler(rendererSvc, getMediaSvc))
 
 	deleteMediaSvc := mediaSvc.NewMediaDeleter(mediaRepo, ca, strg)
 	r.With(api.WithID()).
