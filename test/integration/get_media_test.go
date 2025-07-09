@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/renderer"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
@@ -292,7 +294,8 @@ func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 	defer cleanup()
 
 	r := chi.NewRouter()
-	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(svc))
+	rendererSvc := renderer.NewHTTPRenderer(cache.NewNoop())
+	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(rendererSvc, svc))
 
 	// Make request for a non-existent UUID
 	id := uuid.NewString()
@@ -325,7 +328,8 @@ func TestGetMediaIntegration_ErrorInvalidID(t *testing.T) {
 	svc := mediaSvc.NewMediaGetter(repo, nil)
 
 	r := chi.NewRouter()
-	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(svc))
+	rendererSvc := renderer.NewHTTPRenderer(cache.NewNoop())
+	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(rendererSvc, svc))
 
 	// Invalid UUID
 	req := httptest.NewRequest(http.MethodGet, "/medias/not-a-uuid", nil)
