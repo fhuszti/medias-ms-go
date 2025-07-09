@@ -2,29 +2,30 @@ package mock
 
 import (
 	"context"
-	"github.com/fhuszti/medias-ms-go/internal/db"
+
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 type MediaGetter struct {
 	Out    *port.GetMediaOutput
-	Id     db.UUID
+	Id     uuid.UUID
 	Err    error
 	Called bool
 }
 
-func (m *MediaGetter) GetMedia(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
+func (m *MediaGetter) GetMedia(ctx context.Context, id uuid.UUID) (*port.GetMediaOutput, error) {
 	m.Id = id
 	m.Called = true
 	return m.Out, m.Err
 }
 
 type MediaDeleter struct {
-	ID  db.UUID
+	ID  uuid.UUID
 	Err error
 }
 
-func (m *MediaDeleter) DeleteMedia(ctx context.Context, id db.UUID) error {
+func (m *MediaDeleter) DeleteMedia(ctx context.Context, id uuid.UUID) error {
 	m.ID = id
 	return m.Err
 }
@@ -51,12 +52,12 @@ func (m *UploadFinaliser) FinaliseUpload(ctx context.Context, in port.FinaliseUp
 }
 
 type MediaOptimiser struct {
-	ID     db.UUID
+	ID     uuid.UUID
 	Called bool
 	Err    error
 }
 
-func (m *MediaOptimiser) OptimiseMedia(ctx context.Context, id db.UUID) error {
+func (m *MediaOptimiser) OptimiseMedia(ctx context.Context, id uuid.UUID) error {
 	m.Called = true
 	m.ID = id
 	return m.Err

@@ -3,23 +3,23 @@ package media
 import (
 	"context"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/mock"
-	"github.com/fhuszti/medias-ms-go/internal/port"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/google/uuid"
 )
 
 func TestGenerateUploadLink_Success(t *testing.T) {
-	mockID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MockMediaRepo{}
 	strg := &mock.MockStorage{}
-	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
+	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 
 	in := port.GenerateUploadLinkInput{Name: "my-file.webp"}
 	out, err := svc.GenerateUploadLink(context.Background(), in)
@@ -73,17 +73,17 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 }
 
 func TestGenerateUploadLink_RepoError(t *testing.T) {
-	mockID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MockMediaRepo{CreateErr: errors.New("repo failure")}
 	strg := &mock.MockStorage{}
-	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
+	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 
 	out, err := svc.GenerateUploadLink(context.Background(), port.GenerateUploadLinkInput{Name: "foo"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if out.ID != db.UUID(uuid.Nil) {
+	if out.ID != msuuid.UUID(uuid.Nil) {
 		t.Errorf("expected zero UUID, got %q", out.ID)
 	}
 	if out.URL != "" {
@@ -96,17 +96,17 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 }
 
 func TestGenerateUploadLink_StorageError(t *testing.T) {
-	mockID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MockMediaRepo{}
 	strg := &mock.MockStorage{GenerateUploadLinkErr: errors.New("strg failure")}
-	svc := NewUploadLinkGenerator(repo, strg, func() db.UUID { return mockID })
+	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 
 	out, err := svc.GenerateUploadLink(context.Background(), port.GenerateUploadLinkInput{Name: "foo"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if out.ID != db.UUID(uuid.Nil) {
+	if out.ID != msuuid.UUID(uuid.Nil) {
 		t.Errorf("expected zero UUID, got %q", out.ID)
 	}
 	if out.URL != "" {

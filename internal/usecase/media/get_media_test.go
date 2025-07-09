@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 func TestGetMedia_RepoError(t *testing.T) {
@@ -17,7 +17,7 @@ func TestGetMedia_RepoError(t *testing.T) {
 	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
-	_, err := svc.GetMedia(context.Background(), db.UUID{})
+	_, err := svc.GetMedia(context.Background(), msuuid.UUID{})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -29,7 +29,7 @@ func TestGetMedia_WrongStatus(t *testing.T) {
 	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
-	_, err := svc.GetMedia(context.Background(), db.UUID{})
+	_, err := svc.GetMedia(context.Background(), msuuid.UUID{})
 	want := "media status should be 'completed' to be returned"
 	if err == nil || err.Error() != want {
 		t.Fatalf("expected %q, got %v", want, err)
@@ -43,7 +43,7 @@ func TestGetMedia_URLGenError(t *testing.T) {
 	strg := &mock.MockStorage{GenerateDownloadLinkErr: errors.New("link generation failed")}
 	svc := NewMediaGetter(repo, strg)
 
-	_, err := svc.GetMedia(context.Background(), db.UUID{})
+	_, err := svc.GetMedia(context.Background(), msuuid.UUID{})
 	wantPrefix := "error generating presigned download URL"
 	if err == nil || !strings.HasPrefix(err.Error(), wantPrefix) {
 		t.Fatalf("expected error prefix %q, got %v", wantPrefix, err)
@@ -81,7 +81,7 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
-	out, err := svc.GetMedia(context.Background(), db.UUID{})
+	out, err := svc.GetMedia(context.Background(), msuuid.UUID{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

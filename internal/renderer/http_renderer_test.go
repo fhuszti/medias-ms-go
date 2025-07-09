@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 func TestRenderGetMedia_Cases(t *testing.T) {
 	ctx := context.Background()
-	id := db.NewUUID()
+	id := uuid.NewUUID()
 
 	t.Run("cache hit", func(t *testing.T) {
 		c := &mock.MockCache{Data: []byte(`{"ok":true}`), Etag: "\"1234\""}

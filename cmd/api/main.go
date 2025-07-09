@@ -20,6 +20,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -51,7 +52,7 @@ func main() {
 		log.Println("⚠️  Redis not configured — caching is disabled")
 	}
 
-	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, strg, db.NewUUID)
+	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, strg, msuuid.NewUUID)
 	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
 	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, strg, dispatcher)

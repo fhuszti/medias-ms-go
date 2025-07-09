@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/google/uuid"
+	guuid "github.com/google/uuid"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -21,14 +21,14 @@ func WithID() func(http.Handler) http.Handler {
 				WriteError(w, http.StatusBadRequest, "ID is required", nil)
 				return
 			}
-			parsedID, err := uuid.Parse(id)
+			parsedID, err := guuid.Parse(id)
 			if err != nil {
 				WriteError(w, http.StatusBadRequest, fmt.Sprintf("ID %q is not a valid UUID", id), nil)
 				return
 			}
 
 			// stash it in context and call the real handler
-			ctx := context.WithValue(r.Context(), IDKey, db.UUID(parsedID))
+			ctx := context.WithValue(r.Context(), IDKey, msuuid.UUID(parsedID))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

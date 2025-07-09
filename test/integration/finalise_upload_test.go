@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
@@ -12,6 +11,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -57,7 +57,7 @@ func TestFinaliseUploadIntegration_SuccessMarkdown(t *testing.T) {
 	defer cleanup()
 
 	// Prepare media record and staging file
-	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".md"
 	content := testutil.GenerateMarkdown()
@@ -143,7 +143,7 @@ func TestFinaliseUploadIntegration_SuccessImage(t *testing.T) {
 	defer cleanup()
 
 	// Prepare a media record and staging file (PNG)
-	id := db.UUID(uuid.MustParse("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"))
+	id := msuuid.UUID(uuid.MustParse("bbbbbbbb-cccc-dddd-eeee-ffffffffffff"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".png"
 
@@ -243,7 +243,7 @@ func TestFinaliseUploadIntegration_SuccessPDF(t *testing.T) {
 	defer cleanup()
 
 	// Prepare media record and a staging file (PDF)
-	id := db.UUID(uuid.MustParse("cccccccc-dddd-eeee-ffff-000000000000"))
+	id := msuuid.UUID(uuid.MustParse("cccccccc-dddd-eeee-ffff-000000000000"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".pdf"
 
@@ -339,7 +339,7 @@ func TestFinaliseUploadIntegration_Idempotency(t *testing.T) {
 	defer cleanup()
 
 	// Prepare a Markdown payload in staging
-	id := db.UUID(uuid.MustParse("dddddddd-eeee-ffff-0000-111111111111"))
+	id := msuuid.UUID(uuid.MustParse("dddddddd-eeee-ffff-0000-111111111111"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".md"
 	content := testutil.GenerateMarkdown()
@@ -429,7 +429,7 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 	defer cleanup()
 
 	// Prepare an undersized Markdown file
-	id := db.UUID(uuid.MustParse("eeeeeeee-ffff-0000-1111-222222222222"))
+	id := msuuid.UUID(uuid.MustParse("eeeeeeee-ffff-0000-1111-222222222222"))
 	objectKey := id.String()
 	destObjectKey := objectKey + ".md"
 	// content length = MinFileSize - 1

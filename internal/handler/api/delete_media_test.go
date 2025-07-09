@@ -3,22 +3,22 @@ package api
 import (
 	"context"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	mediaUC "github.com/fhuszti/medias-ms-go/internal/usecase/media"
-	"github.com/google/uuid"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	guuid "github.com/google/uuid"
 )
 
 func TestDeleteMediaHandler(t *testing.T) {
-	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	validID := msuuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	tests := []struct {
 		name           string
-		ctxID          *db.UUID
+		ctxID          *msuuid.UUID
 		svcErr         error
 		wantStatus     int
 		wantBodySubstr string

@@ -3,13 +3,13 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaService "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -40,7 +40,7 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaService.NewUploadLinkGenerator(mediaRepo, GlobalStrg, db.NewUUID)
+	svc := mediaService.NewUploadLinkGenerator(mediaRepo, GlobalStrg, msuuid.NewUUID)
 
 	in := port.GenerateUploadLinkInput{
 		Name: "file_example.png",
@@ -51,7 +51,7 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 		t.Fatalf("GenerateUploadLink returned error: %v", err)
 	}
 
-	if out.ID == db.UUID(uuid.Nil) {
+	if out.ID == msuuid.UUID(uuid.Nil) {
 		t.Fatal("expected non-empty ID")
 	}
 
@@ -75,7 +75,7 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 	}
 
 	var (
-		id               db.UUID
+		id               msuuid.UUID
 		bucket           string
 		originalFilename string
 		status           model.MediaStatus

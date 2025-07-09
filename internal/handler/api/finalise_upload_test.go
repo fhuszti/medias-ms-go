@@ -2,21 +2,21 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"context"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/google/uuid"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	guuid "github.com/google/uuid"
 )
 
 func TestFinaliseUploadHandler(t *testing.T) {
-	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	validID := msuuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	tests := []struct {
 		name            string
 		ctxID           bool
