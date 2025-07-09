@@ -2,11 +2,12 @@ package validation
 
 import (
 	"encoding/json"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
-	"github.com/google/uuid"
 	"reflect"
 	"strings"
+
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	guuid "github.com/google/uuid"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -27,14 +28,14 @@ func init() {
 		return name
 	})
 
-	// Validate db.UUID as string
+	// Validate uuid.UUID as string
 	validate.RegisterCustomTypeFunc(func(field reflect.Value) interface{} {
-		if v, ok := field.Interface().(db.UUID); ok {
-			u := uuid.UUID(v)
+		if v, ok := field.Interface().(msuuid.UUID); ok {
+			u := guuid.UUID(v)
 			return u.String()
 		}
 		return nil
-	}, db.UUID{})
+	}, msuuid.UUID{})
 
 	// Validate mime types
 	err := validate.RegisterValidation("mimetype", func(fl validator.FieldLevel) bool {

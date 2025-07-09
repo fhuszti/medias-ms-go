@@ -2,9 +2,10 @@ package validation
 
 import (
 	"encoding/json"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/google/uuid"
 	"testing"
+
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	guuid "github.com/google/uuid"
 )
 
 func TestValidateStructAndErrorsToJson(t *testing.T) {
@@ -73,8 +74,8 @@ func TestValidateStructAndErrorsToJson(t *testing.T) {
 
 func TestCustomTypeValidation(t *testing.T) {
 	type Input struct {
-		ID   db.UUID `validate:"required,uuid4" json:"id"`
-		Type string  `validate:"required,mimetype" json:"type"`
+		ID   msuuid.UUID `validate:"required,uuid4" json:"id"`
+		Type string      `validate:"required,mimetype" json:"type"`
 	}
 
 	tests := []struct {
@@ -85,12 +86,12 @@ func TestCustomTypeValidation(t *testing.T) {
 	}{
 		{
 			name:    "all good",
-			in:      Input{ID: db.UUID(uuid.New()), Type: "text/markdown"},
+			in:      Input{ID: msuuid.UUID(guuid.New()), Type: "text/markdown"},
 			wantErr: false,
 		},
 		{
 			name:    "bad uuid, bad mimetype",
-			in:      Input{ID: db.UUID(uuid.Nil), Type: "application/x-foo"},
+			in:      Input{ID: msuuid.UUID(guuid.Nil), Type: "application/x-foo"},
 			wantErr: true,
 			wantErrMap: map[string]string{
 				"id":   "uuid4",

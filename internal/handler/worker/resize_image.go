@@ -2,11 +2,11 @@ package worker
 
 import (
 	"context"
-	"github.com/fhuszti/medias-ms-go/internal/port"
 	"log"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/task"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
 	"github.com/google/uuid"
 )
@@ -20,7 +20,7 @@ func ResizeImageHandler(ctx context.Context, p task.ResizeImagePayload, sizes []
 	}
 
 	id := uuid.MustParse(p.ID)
-	in := port.ResizeImageInput{ID: db.UUID(id), Sizes: sizes}
+	in := port.ResizeImageInput{ID: msuuid.UUID(id), Sizes: sizes}
 	if err := svc.ResizeImage(ctx, in); err != nil {
 		log.Printf("❌  Failed to resize image #%s: %v", id, err)
 		return err

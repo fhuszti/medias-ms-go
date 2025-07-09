@@ -6,9 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/fhuszti/medias-ms-go/internal/mock"
-	"github.com/google/uuid"
 	"hash/crc32"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +13,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	guuid "github.com/google/uuid"
 )
 
 func computeETag(t testing.TB, v any) string {
@@ -30,14 +30,14 @@ func computeETag(t testing.TB, v any) string {
 }
 
 func TestGetMediaHandler(t *testing.T) {
-	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	validID := msuuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	nonEmptyVariants := model.VariantsOutput{
 		model.VariantOutput{Width: 100, Height: 50, SizeBytes: 1234, URL: "https://cdn.example.com/foo_100"},
 	}
 
 	tests := []struct {
 		name             string
-		ctxID            *db.UUID
+		ctxID            *msuuid.UUID
 		svcOut           port.GetMediaOutput
 		svcErr           error
 		wantStatus       int
@@ -182,7 +182,7 @@ func TestGetMediaHandler(t *testing.T) {
 }
 
 func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
-	validID := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	validID := msuuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	mockSvc := &mock.MediaGetter{
 		Out: &port.GetMediaOutput{
 			ValidUntil: time.Now(),

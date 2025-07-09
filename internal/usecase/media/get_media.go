@@ -8,9 +8,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 type mediaGetterSrv struct {
@@ -25,7 +25,7 @@ func NewMediaGetter(repo port.MediaRepository, strg port.Storage) port.MediaGett
 	return &mediaGetterSrv{repo: repo, strg: strg}
 }
 
-func (s *mediaGetterSrv) GetMedia(ctx context.Context, id db.UUID) (*port.GetMediaOutput, error) {
+func (s *mediaGetterSrv) GetMedia(ctx context.Context, id msuuid.UUID) (*port.GetMediaOutput, error) {
 	media, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

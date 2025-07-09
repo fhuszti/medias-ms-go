@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 // MockMediaRepo implements repository operations for tests.
@@ -17,11 +17,11 @@ type MockMediaRepo struct {
 	UpdateErr  error
 	DeleteErr  error
 	ListErr    error
-	ListOut    []db.UUID
+	ListOut    []uuid.UUID
 	ListBefore time.Time
 
 	ListVariantsErr    error
-	ListVariantsOut    []db.UUID
+	ListVariantsOut    []uuid.UUID
 	ListVariantsBefore time.Time
 
 	ListVariantsCalled bool
@@ -30,11 +30,11 @@ type MockMediaRepo struct {
 	Created      *model.Media
 	Updated      *model.Media
 	DeleteCalled bool
-	DeletedID    db.UUID
+	DeletedID    uuid.UUID
 	ListCalled   bool
 }
 
-func (m *MockMediaRepo) GetByID(ctx context.Context, id db.UUID) (*model.Media, error) {
+func (m *MockMediaRepo) GetByID(ctx context.Context, id uuid.UUID) (*model.Media, error) {
 	m.GetCalled = true
 	if m.GetErr != nil {
 		return nil, m.GetErr
@@ -52,13 +52,13 @@ func (m *MockMediaRepo) Create(ctx context.Context, media *model.Media) error {
 	return m.CreateErr
 }
 
-func (m *MockMediaRepo) Delete(ctx context.Context, id db.UUID) error {
+func (m *MockMediaRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	m.DeleteCalled = true
 	m.DeletedID = id
 	return m.DeleteErr
 }
 
-func (m *MockMediaRepo) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
+func (m *MockMediaRepo) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]uuid.UUID, error) {
 	m.ListCalled = true
 	m.ListBefore = before
 	if m.ListErr != nil {
@@ -67,7 +67,7 @@ func (m *MockMediaRepo) ListUnoptimisedCompletedBefore(ctx context.Context, befo
 	return m.ListOut, nil
 }
 
-func (m *MockMediaRepo) ListOptimisedImagesNoVariantsBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
+func (m *MockMediaRepo) ListOptimisedImagesNoVariantsBefore(ctx context.Context, before time.Time) ([]uuid.UUID, error) {
 	m.ListVariantsCalled = true
 	m.ListVariantsBefore = before
 	if m.ListVariantsErr != nil {

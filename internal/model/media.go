@@ -1,8 +1,9 @@
 package model
 
 import (
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"time"
+
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 type MediaStatus string
@@ -14,7 +15,7 @@ const (
 )
 
 type Media struct {
-	ID               db.UUID     `json:"id"`
+	ID               uuid.UUID   `json:"id"`
 	ObjectKey        string      `json:"object_key"`
 	Bucket           string      `json:"bucket"`
 	OriginalFilename string      `json:"original_filename"`

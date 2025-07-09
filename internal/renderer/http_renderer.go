@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"hash/crc32"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 type httpRenderer struct {
@@ -24,7 +24,7 @@ func NewHTTPRenderer(cache port.Cache) port.HTTPRenderer {
 
 // RenderGetMedia fetches media details either from cache or from the wrapped use
 // case. It returns the JSON encoded output and a quoted ETag string.
-func (r *httpRenderer) RenderGetMedia(ctx context.Context, getter port.MediaGetter, id db.UUID) ([]byte, string, error) {
+func (r *httpRenderer) RenderGetMedia(ctx context.Context, getter port.MediaGetter, id uuid.UUID) ([]byte, string, error) {
 	raw, err := r.cache.GetMediaDetails(ctx, id)
 	etag, errEtag := r.cache.GetEtagMediaDetails(ctx, id)
 	if err == nil && errEtag == nil && raw != nil && etag != "" {

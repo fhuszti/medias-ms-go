@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 // HTTPRenderer mediates between HTTP handlers and the media getter use case.
@@ -12,5 +12,5 @@ import (
 type HTTPRenderer interface {
 	// RenderGetMedia returns the cached JSON result and its ETag if available or
 	// executes the underlying use case and caches the output otherwise.
-	RenderGetMedia(ctx context.Context, getter MediaGetter, id db.UUID) ([]byte, string, error)
+	RenderGetMedia(ctx context.Context, getter MediaGetter, id uuid.UUID) ([]byte, string, error)
 }

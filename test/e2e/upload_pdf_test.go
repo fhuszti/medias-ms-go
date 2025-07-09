@@ -19,6 +19,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
 )
@@ -74,7 +75,7 @@ func setupServer(t *testing.T) *httptest.Server {
 
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
-	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, db.NewUUID)
+	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, msuuid.NewUUID)
 	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
 	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
 	t.Cleanup(workerStop)

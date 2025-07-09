@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/mock"
-	"github.com/fhuszti/medias-ms-go/internal/port"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
-	"github.com/google/uuid"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	guuid "github.com/google/uuid"
 )
 
 func TestGenerateUploadLinkHandler(t *testing.T) {
@@ -32,7 +32,7 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 		{
 			name:            "happy path",
 			body:            `{"name":"my-file.png"}`,
-			svcOut:          port.GenerateUploadLinkOutput{ID: db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), URL: "https://cdn.example.com/presigned"},
+			svcOut:          port.GenerateUploadLinkOutput{ID: msuuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), URL: "https://cdn.example.com/presigned"},
 			svcErr:          nil,
 			wantStatus:      http.StatusCreated,
 			wantContentType: "application/json",

@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
 type MediaRepository struct {
@@ -79,7 +79,7 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
 	return nil
 }
 
-func (r *MediaRepository) GetByID(ctx context.Context, ID db.UUID) (*model.Media, error) {
+func (r *MediaRepository) GetByID(ctx context.Context, ID msuuid.UUID) (*model.Media, error) {
 	log.Printf("fetching media #%s from the database...", ID)
 
 	const query = `
@@ -102,7 +102,7 @@ func (r *MediaRepository) GetByID(ctx context.Context, ID db.UUID) (*model.Media
 	return &media, nil
 }
 
-func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
+func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]msuuid.UUID, error) {
 	log.Printf("fetching medias to reoptimise before %s...", before)
 
 	const query = `
@@ -119,9 +119,9 @@ func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, be
 		}
 	}()
 
-	var ids []db.UUID
+	var ids []msuuid.UUID
 	for rows.Next() {
-		var id db.UUID
+		var id msuuid.UUID
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
@@ -133,7 +133,7 @@ func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, be
 	return ids, nil
 }
 
-func (r *MediaRepository) Delete(ctx context.Context, ID db.UUID) error {
+func (r *MediaRepository) Delete(ctx context.Context, ID msuuid.UUID) error {
 	log.Printf("deleting media #%s from the database...", ID)
 
 	const query = `DELETE FROM medias WHERE id = ?`
@@ -141,7 +141,7 @@ func (r *MediaRepository) Delete(ctx context.Context, ID db.UUID) error {
 	return err
 }
 
-func (r *MediaRepository) ListOptimisedImagesNoVariantsBefore(ctx context.Context, before time.Time) ([]db.UUID, error) {
+func (r *MediaRepository) ListOptimisedImagesNoVariantsBefore(ctx context.Context, before time.Time) ([]msuuid.UUID, error) {
 	log.Printf("fetching images to resize before %s...", before)
 
 	const query = `
@@ -162,9 +162,9 @@ func (r *MediaRepository) ListOptimisedImagesNoVariantsBefore(ctx context.Contex
 		}
 	}()
 
-	var ids []db.UUID
+	var ids []msuuid.UUID
 	for rows.Next() {
-		var id db.UUID
+		var id msuuid.UUID
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}

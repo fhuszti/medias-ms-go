@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -36,7 +36,7 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 	ctx := context.Background()
 
 	// prepare a sample GetMediaOutput
-	id := db.NewUUID()
+	id := msuuid.NewUUID()
 	out := &port.GetMediaOutput{
 		ValidUntil: time.Now().Add(2 * time.Minute),
 		Optimised:  false,
@@ -104,7 +104,7 @@ func TestGetSetDeleteMediaDetails(t *testing.T) {
 func TestGetMediaDetails_BadJSON(t *testing.T) {
 	c, mr := makeTestCache(t)
 	ctx := context.Background()
-	id := db.NewUUID()
+	id := msuuid.NewUUID()
 
 	// inject invalid JSON into Redis
 	if err := mr.Set(getCacheKey(id.String(), false), "{ not valid json }"); err != nil {
@@ -123,7 +123,7 @@ func TestGetMediaDetails_BadJSON(t *testing.T) {
 func TestGetMediaDetails_RedisError(t *testing.T) {
 	c, mr := makeTestCache(t)
 	ctx := context.Background()
-	id := db.NewUUID()
+	id := msuuid.NewUUID()
 
 	// Simulate Redis unreachable
 	mr.Close()
@@ -140,7 +140,7 @@ func TestGetMediaDetails_RedisError(t *testing.T) {
 func TestDeleteMediaDetails_RedisError(t *testing.T) {
 	c, mr := makeTestCache(t)
 	ctx := context.Background()
-	id := db.NewUUID()
+	id := msuuid.NewUUID()
 
 	// Simulate Redis unreachable before Delete
 	mr.Close()
@@ -155,7 +155,7 @@ func TestDeleteEtagMediaDetails(t *testing.T) {
 	c, _ := makeTestCache(t)
 	ctx := context.Background()
 
-	id := db.NewUUID()
+	id := msuuid.NewUUID()
 	out := &port.GetMediaOutput{ValidUntil: time.Now().Add(2 * time.Minute)}
 	raw, _ := json.Marshal(out)
 	etag := fmt.Sprintf("%08x", crc32.ChecksumIEEE(raw))
@@ -173,7 +173,7 @@ func TestDeleteEtagMediaDetails(t *testing.T) {
 func TestDeleteEtagMediaDetails_RedisError(t *testing.T) {
 	c, mr := makeTestCache(t)
 	ctx := context.Background()
-	id := db.NewUUID()
+	id := msuuid.NewUUID()
 
 	mr.Close()
 	err := c.DeleteEtagMediaDetails(ctx, id)
@@ -183,7 +183,7 @@ func TestDeleteEtagMediaDetails_RedisError(t *testing.T) {
 }
 
 func TestGetCacheKey_Etag(t *testing.T) {
-	id := db.NewUUID().String()
+	id := msuuid.NewUUID().String()
 	if got := getCacheKey(id, true); got != "etag:media:"+id {
 		t.Errorf("getCacheKey(true) = %q; want %q", got, "etag:media:"+id)
 	}
@@ -196,7 +196,7 @@ func TestGetEtagMediaDetails(t *testing.T) {
 	c, mr := makeTestCache(t)
 	ctx := context.Background()
 
-	id := db.NewUUID()
+	id := msuuid.NewUUID()
 	if got, err := c.GetEtagMediaDetails(ctx, id); err != nil {
 		t.Fatalf("initial miss err: %v", err)
 	} else if got != "" {
