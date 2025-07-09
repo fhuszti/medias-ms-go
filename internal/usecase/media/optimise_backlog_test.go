@@ -3,10 +3,10 @@ package media
 import (
 	"context"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"testing"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/google/uuid"
 )
 
@@ -25,11 +25,11 @@ func TestBacklogOptimiser_RepoError(t *testing.T) {
 }
 
 func TestBacklogOptimiser_Success(t *testing.T) {
-	id1 := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	id2 := db.UUID(uuid.MustParse("ffffffff-1111-2222-3333-444444444444"))
-	resize1 := db.UUID(uuid.MustParse("11111111-2222-3333-4444-555555555555"))
-	resize2 := db.UUID(uuid.MustParse("66666666-7777-8888-9999-000000000000"))
-	repo := &mock.MockMediaRepo{ListOut: []db.UUID{id1, id2}, ListVariantsOut: []db.UUID{resize1, resize2}}
+	id1 := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id2 := msuuid.UUID(uuid.MustParse("ffffffff-1111-2222-3333-444444444444"))
+	resize1 := msuuid.UUID(uuid.MustParse("11111111-2222-3333-4444-555555555555"))
+	resize2 := msuuid.UUID(uuid.MustParse("66666666-7777-8888-9999-000000000000"))
+	repo := &mock.MockMediaRepo{ListOut: []msuuid.UUID{id1, id2}, ListVariantsOut: []msuuid.UUID{resize1, resize2}}
 	dispatcher := &mock.MockDispatcher{}
 	svc := NewBacklogOptimiser(repo, dispatcher)
 
@@ -54,9 +54,9 @@ func TestBacklogOptimiser_Success(t *testing.T) {
 }
 
 func TestBacklogOptimiser_DispatcherError(t *testing.T) {
-	id1 := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
-	id2 := db.UUID(uuid.MustParse("ffffffff-1111-2222-3333-444444444444"))
-	repo := &mock.MockMediaRepo{ListOut: []db.UUID{id1, id2}}
+	id1 := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id2 := msuuid.UUID(uuid.MustParse("ffffffff-1111-2222-3333-444444444444"))
+	repo := &mock.MockMediaRepo{ListOut: []msuuid.UUID{id1, id2}}
 	dispatcher := &mock.MockDispatcher{OptimiseErr: errors.New("queue fail")}
 	svc := NewBacklogOptimiser(repo, dispatcher)
 
@@ -83,8 +83,8 @@ func TestBacklogOptimiser_ListVariantsError(t *testing.T) {
 }
 
 func TestBacklogOptimiser_ResizeDispatcherError(t *testing.T) {
-	resize1 := db.UUID(uuid.MustParse("11111111-2222-3333-4444-555555555555"))
-	repo := &mock.MockMediaRepo{ListVariantsOut: []db.UUID{resize1}}
+	resize1 := msuuid.UUID(uuid.MustParse("11111111-2222-3333-4444-555555555555"))
+	repo := &mock.MockMediaRepo{ListVariantsOut: []msuuid.UUID{resize1}}
 	dispatcher := &mock.MockDispatcher{ResizeErr: errors.New("queue fail")}
 	svc := NewBacklogOptimiser(repo, dispatcher)
 

@@ -3,8 +3,8 @@ package task
 import (
 	"context"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/hibiken/asynq"
 )
 
@@ -20,7 +20,7 @@ func NewDispatcher(addr, password string) *Dispatcher {
 	return &Dispatcher{client: c}
 }
 
-func (d *Dispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error {
+func (d *Dispatcher) EnqueueOptimiseMedia(ctx context.Context, id uuid.UUID) error {
 	t, err := NewOptimiseMediaTask(id.String())
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func (d *Dispatcher) EnqueueOptimiseMedia(ctx context.Context, id db.UUID) error
 	return nil
 }
 
-func (d *Dispatcher) EnqueueResizeImage(ctx context.Context, id db.UUID) error {
+func (d *Dispatcher) EnqueueResizeImage(ctx context.Context, id uuid.UUID) error {
 	t, err := NewResizeImageTask(id.String())
 	if err != nil {
 		return err

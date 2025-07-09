@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"strings"
 	"testing"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/google/uuid"
 )
 
@@ -18,7 +18,7 @@ func newCompletedMedia() *model.Media {
 	mt := "image/png"
 	size := int64(123)
 	return &model.Media{
-		ID:        db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")),
+		ID:        msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")),
 		ObjectKey: "foo.png",
 		Bucket:    "images",
 		MimeType:  &mt,
@@ -32,7 +32,7 @@ func TestOptimiseMedia_GetByIDNotFound(t *testing.T) {
 	strg := &mock.MockStorage{}
 	svc := NewMediaOptimiser(repo, &mock.MockFileOptimiser{}, strg, &mock.MockDispatcher{}, &mock.MockCache{})
 
-	err := svc.OptimiseMedia(context.Background(), db.NewUUID())
+	err := svc.OptimiseMedia(context.Background(), msuuid.NewUUID())
 	if !errors.Is(err, ErrObjectNotFound) {
 		t.Fatalf("expected ErrObjectNotFound, got %v", err)
 	}
@@ -43,7 +43,7 @@ func TestOptimiseMedia_GetByIDError(t *testing.T) {
 	strg := &mock.MockStorage{}
 	svc := NewMediaOptimiser(repo, &mock.MockFileOptimiser{}, strg, &mock.MockDispatcher{}, &mock.MockCache{})
 
-	err := svc.OptimiseMedia(context.Background(), db.NewUUID())
+	err := svc.OptimiseMedia(context.Background(), msuuid.NewUUID())
 	if err == nil || err.Error() != "db fail" {
 		t.Fatalf("expected db error, got %v", err)
 	}

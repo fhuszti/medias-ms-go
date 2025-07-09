@@ -8,8 +8,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -30,7 +30,7 @@ func NewCache(addr, password string) *Cache {
 	return &Cache{client: rdb}
 }
 
-func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) ([]byte, error) {
+func (c *Cache) GetMediaDetails(ctx context.Context, id uuid.UUID) ([]byte, error) {
 	log.Printf("getting entry in cache for media #%s...", id)
 
 	val, err := c.client.Get(ctx, getCacheKey(id.String(), false)).Result()
@@ -47,7 +47,7 @@ func (c *Cache) GetMediaDetails(ctx context.Context, id db.UUID) ([]byte, error)
 	return data, nil
 }
 
-func (c *Cache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, error) {
+func (c *Cache) GetEtagMediaDetails(ctx context.Context, id uuid.UUID) (string, error) {
 	log.Printf("getting etag in cache for media #%s...", id)
 
 	val, err := c.client.Get(ctx, getCacheKey(id.String(), true)).Result()
@@ -61,7 +61,7 @@ func (c *Cache) GetEtagMediaDetails(ctx context.Context, id db.UUID) (string, er
 	return val, nil
 }
 
-func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte, validUntil time.Time) {
+func (c *Cache) SetMediaDetails(ctx context.Context, id uuid.UUID, data []byte, validUntil time.Time) {
 	log.Printf("creating entry in cache for media #%s, valid until %s...", id, validUntil.Format(time.RFC1123))
 	exp := time.Until(validUntil)
 
@@ -70,7 +70,7 @@ func (c *Cache) SetMediaDetails(ctx context.Context, id db.UUID, data []byte, va
 	}
 }
 
-func (c *Cache) SetEtagMediaDetails(ctx context.Context, id db.UUID, etag string, validUntil time.Time) {
+func (c *Cache) SetEtagMediaDetails(ctx context.Context, id uuid.UUID, etag string, validUntil time.Time) {
 	log.Printf("creating etag in cache for media #%s, valid until %s...", id, validUntil.Format(time.RFC1123))
 	exp := time.Until(validUntil)
 
@@ -79,7 +79,7 @@ func (c *Cache) SetEtagMediaDetails(ctx context.Context, id db.UUID, etag string
 	}
 }
 
-func (c *Cache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
+func (c *Cache) DeleteMediaDetails(ctx context.Context, id uuid.UUID) error {
 	log.Printf("deleting entry in cache for media #%s...", id)
 
 	if err := c.client.Del(ctx, getCacheKey(id.String(), false)).Err(); err != nil {
@@ -88,7 +88,7 @@ func (c *Cache) DeleteMediaDetails(ctx context.Context, id db.UUID) error {
 	return nil
 }
 
-func (c *Cache) DeleteEtagMediaDetails(ctx context.Context, id db.UUID) error {
+func (c *Cache) DeleteEtagMediaDetails(ctx context.Context, id uuid.UUID) error {
 	log.Printf("deleting etag in cache for media #%s...", id)
 
 	if err := c.client.Del(ctx, getCacheKey(id.String(), true)).Err(); err != nil {

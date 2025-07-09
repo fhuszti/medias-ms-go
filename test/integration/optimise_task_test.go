@@ -12,6 +12,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/task"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/google/uuid"
 )
@@ -45,7 +46,7 @@ func setupWorker(t *testing.T) (*mariadb.MediaRepository, func()) {
 	return repo, cleanup
 }
 
-func waitOptimised(t *testing.T, repo *mariadb.MediaRepository, id db.UUID, wantVariants bool) *model.Media {
+func waitOptimised(t *testing.T, repo *mariadb.MediaRepository, id msuuid.UUID, wantVariants bool) *model.Media {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	for {
@@ -69,7 +70,7 @@ func TestOptimiseTaskIntegration_SuccessPNG(t *testing.T) {
 	repo, cleanup := setupWorker(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("11111111-1111-1111-1111-111111111111"))
+	id := msuuid.UUID(uuid.MustParse("11111111-1111-1111-1111-111111111111"))
 	objectKey := id.String() + ".png"
 	width, height := 200, 100
 	content := testutil.GeneratePNG(t, width, height)
@@ -156,7 +157,7 @@ func TestOptimiseTaskIntegration_SuccessWEBP(t *testing.T) {
 	repo, cleanup := setupWorker(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("22222222-2222-2222-2222-222222222222"))
+	id := msuuid.UUID(uuid.MustParse("22222222-2222-2222-2222-222222222222"))
 	objectKey := id.String() + ".webp"
 	width, height := 200, 400
 	content := testutil.GenerateWebP(t, width, height)
@@ -223,7 +224,7 @@ func TestOptimiseTaskIntegration_SuccessPDF(t *testing.T) {
 	repo, cleanup := setupWorker(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("33333333-3333-3333-3333-333333333333"))
+	id := msuuid.UUID(uuid.MustParse("33333333-3333-3333-3333-333333333333"))
 	objectKey := id.String() + ".pdf"
 	content := testutil.LoadPDF(t)
 	size := int64(len(content))
@@ -259,7 +260,7 @@ func TestOptimiseTaskIntegration_SuccessMarkdown(t *testing.T) {
 	repo, cleanup := setupWorker(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("44444444-4444-4444-4444-444444444444"))
+	id := msuuid.UUID(uuid.MustParse("44444444-4444-4444-4444-444444444444"))
 	objectKey := id.String() + ".md"
 	content := testutil.GenerateMarkdown()
 	size := int64(len(content))
@@ -295,7 +296,7 @@ func TestOptimiseTaskIntegration_ErrorWrongStatus(t *testing.T) {
 	repo, cleanup := setupWorker(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("55555555-5555-5555-5555-555555555555"))
+	id := msuuid.UUID(uuid.MustParse("55555555-5555-5555-5555-555555555555"))
 	objectKey := id.String() + ".png"
 	content := testutil.GeneratePNG(t, 10, 10)
 	size := int64(len(content))
@@ -330,7 +331,7 @@ func TestOptimiseTaskIntegration_ErrorMissingFile(t *testing.T) {
 	repo, cleanup := setupWorker(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("66666666-6666-6666-6666-666666666666"))
+	id := msuuid.UUID(uuid.MustParse("66666666-6666-6666-6666-666666666666"))
 	objectKey := id.String() + ".png"
 	size := int64(100)
 	mime := "image/png"

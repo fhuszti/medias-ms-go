@@ -4,15 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/model"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
-type UUIDGen func() db.UUID
+type UUIDGen func() uuid.UUID
 
 // MediaGetter retrieves media information from the repository and storage.
 type MediaGetter interface {
-	GetMedia(ctx context.Context, id db.UUID) (*GetMediaOutput, error)
+	GetMedia(ctx context.Context, id uuid.UUID) (*GetMediaOutput, error)
 }
 type MetadataOutput struct {
 	model.Metadata
@@ -29,7 +29,7 @@ type GetMediaOutput struct {
 
 // MediaDeleter deletes a media and its file.
 type MediaDeleter interface {
-	DeleteMedia(ctx context.Context, id db.UUID) error
+	DeleteMedia(ctx context.Context, id uuid.UUID) error
 }
 
 // UploadLinkGenerator returns a presigned link to upload a file.
@@ -40,8 +40,8 @@ type GenerateUploadLinkInput struct {
 	Name string
 }
 type GenerateUploadLinkOutput struct {
-	ID  db.UUID `json:"id"`
-	URL string  `json:"url"`
+	ID  uuid.UUID `json:"id"`
+	URL string    `json:"url"`
 }
 
 // UploadFinaliser validates the given media in the staging bucket and moves it to the destination bucket.
@@ -49,13 +49,13 @@ type UploadFinaliser interface {
 	FinaliseUpload(ctx context.Context, in FinaliseUploadInput) error
 }
 type FinaliseUploadInput struct {
-	ID         db.UUID
+	ID         uuid.UUID
 	DestBucket string
 }
 
 // MediaOptimiser reduces the file size with different techniques.
 type MediaOptimiser interface {
-	OptimiseMedia(ctx context.Context, id db.UUID) error
+	OptimiseMedia(ctx context.Context, id uuid.UUID) error
 }
 
 // ImageResizer resizes images and saves the generated variants.
@@ -63,7 +63,7 @@ type ImageResizer interface {
 	ResizeImage(ctx context.Context, in ResizeImageInput) error
 }
 type ResizeImageInput struct {
-	ID    db.UUID
+	ID    uuid.UUID
 	Sizes []int
 }
 

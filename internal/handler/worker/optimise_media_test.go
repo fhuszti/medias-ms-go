@@ -3,11 +3,11 @@ package worker
 import (
 	"context"
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"testing"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/fhuszti/medias-ms-go/internal/task"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/google/uuid"
 )
 
@@ -23,7 +23,7 @@ func TestOptimiseMediaHandler_InvalidID(t *testing.T) {
 }
 
 func TestOptimiseMediaHandler_ServiceError(t *testing.T) {
-	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	svcErr := errors.New("svc fail")
 	svc := &mock.MediaOptimiser{Err: svcErr}
 
@@ -40,7 +40,7 @@ func TestOptimiseMediaHandler_ServiceError(t *testing.T) {
 }
 
 func TestOptimiseMediaHandler_Success(t *testing.T) {
-	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	svc := &mock.MediaOptimiser{}
 
 	err := OptimiseMediaHandler(context.Background(), task.OptimiseMediaPayload{ID: id.String()}, svc)

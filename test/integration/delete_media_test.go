@@ -14,12 +14,12 @@ import (
 	"testing"
 
 	"github.com/fhuszti/medias-ms-go/internal/cache"
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -58,7 +58,7 @@ func TestDeleteMediaIntegration_Success(t *testing.T) {
 	repo, svc, cleanup := setupMediaDeleter(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
 	bucket := "images"
 

@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -55,7 +55,7 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 	mediaRepo, svc, cleanup := setupMediaGetter(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
 	bucket := "docs"
 	content := testutil.GenerateMarkdown()
@@ -123,7 +123,7 @@ func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 	mediaRepo, svc, cleanup := setupMediaGetter(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
 	bucket := "docs"
 	content := testutil.LoadPDF(t)
@@ -185,7 +185,7 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 	mediaRepo, svc, cleanup := setupMediaGetter(t)
 	defer cleanup()
 
-	id := db.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
 	bucket := "images"
 

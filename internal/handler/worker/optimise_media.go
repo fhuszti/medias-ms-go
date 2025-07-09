@@ -2,11 +2,11 @@ package worker
 
 import (
 	"context"
-	"github.com/fhuszti/medias-ms-go/internal/port"
 	"log"
 
-	"github.com/fhuszti/medias-ms-go/internal/db"
+	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/task"
+	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
 	"github.com/google/uuid"
 )
@@ -22,7 +22,7 @@ func OptimiseMediaHandler(ctx context.Context, p task.OptimiseMediaPayload, svc 
 
 	id := uuid.MustParse(p.ID)
 
-	if err := svc.OptimiseMedia(ctx, db.UUID(id)); err != nil {
+	if err := svc.OptimiseMedia(ctx, msuuid.UUID(id)); err != nil {
 		log.Printf("❌  Failed to optimise media #%s: %v", id, err)
 		return err
 	}
