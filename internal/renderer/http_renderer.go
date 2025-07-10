@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
+	"log"
 
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/uuid"
@@ -28,6 +29,7 @@ func (r *httpRenderer) RenderGetMedia(ctx context.Context, getter port.MediaGett
 	raw, err := r.cache.GetMediaDetails(ctx, id)
 	etag, errEtag := r.cache.GetEtagMediaDetails(ctx, id)
 	if err == nil && errEtag == nil && raw != nil && etag != "" {
+		log.Printf("http renderer used the cache to return details for media #%s", id)
 		return raw, etag, nil
 	}
 
