@@ -28,7 +28,7 @@ func GetMediaHandler(renderer port.HTTPRenderer, svc port.MediaGetter) http.Hand
 		}
 
 		w.Header().Set("ETag", etag)
-		w.Header().Set("Cache-Control", "max-age=300")
+		w.Header().Set("Cache-Control", "public, max-age=300")
 		if match := r.Header.Get("If-None-Match"); match == etag {
 			w.WriteHeader(http.StatusNotModified)
 			log.Printf("✅  Returning cached media #%s", id)
