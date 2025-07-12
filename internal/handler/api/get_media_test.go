@@ -61,7 +61,7 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "max-age=300",
+			wantCacheControl: "public, max-age=300",
 			wantETag:         true,
 			wantOutput:       &port.GetMediaOutput{},
 		},
@@ -78,7 +78,7 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "max-age=300",
+			wantCacheControl: "public, max-age=300",
 			wantETag:         true,
 			wantOutput:       &port.GetMediaOutput{},
 		},
@@ -95,7 +95,7 @@ func TestGetMediaHandler(t *testing.T) {
 			svcErr:           nil,
 			wantStatus:       http.StatusOK,
 			wantContentType:  "application/json",
-			wantCacheControl: "max-age=300",
+			wantCacheControl: "public, max-age=300",
 			wantETag:         true,
 			wantOutput:       &port.GetMediaOutput{},
 		},
@@ -214,8 +214,8 @@ func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
 	if et := rec.Header().Get("ETag"); et != etag {
 		t.Errorf("ETag = %q; want %q", et, etag)
 	}
-	if cc := rec.Header().Get("Cache-Control"); cc != "max-age=300" {
-		t.Errorf("Cache-Control = %q; want %q", cc, "max-age=300")
+	if cc := rec.Header().Get("Cache-Control"); cc != "public, max-age=300" {
+		t.Errorf("Cache-Control = %q; want %q", cc, "public, max-age=300")
 	}
 	if rec.Body.Len() != 0 {
 		t.Errorf("expected empty body, got %q", rec.Body.String())
