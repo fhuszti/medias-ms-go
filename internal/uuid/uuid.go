@@ -11,9 +11,14 @@ import (
 // scanning and driver.Value interfaces.
 type UUID uuid.UUID
 
-// NewUUID creates a new random UUID.
+// NewUUID creates a new UUIDv7.
 func NewUUID() UUID {
-	return UUID(uuid.New())
+	id, err := uuid.NewV7()
+	if err != nil {
+		// NewV7 should only fail if the random source fails.
+		panic(err)
+	}
+	return UUID(id)
 }
 
 func (u UUID) String() string {

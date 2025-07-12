@@ -19,10 +19,10 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
-	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
+	guuid "github.com/google/uuid"
 )
 
 func setupMediaDeleter(t *testing.T) (*mariadb.MediaRepository, port.MediaDeleter, func()) {
@@ -58,7 +58,7 @@ func TestDeleteMediaIntegration_Success(t *testing.T) {
 	repo, svc, cleanup := setupMediaDeleter(t)
 	defer cleanup()
 
-	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := uuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
 	bucket := "images"
 
@@ -132,7 +132,7 @@ func TestDeleteMediaIntegration_ErrorNotFound(t *testing.T) {
 	r := chi.NewRouter()
 	r.With(api.WithID()).Delete("/medias/{id}", api.DeleteMediaHandler(svc))
 
-	id := uuid.NewString()
+	id := uuid.NewUUID().String()
 	req := httptest.NewRequest(http.MethodDelete, "/medias/"+id, nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)

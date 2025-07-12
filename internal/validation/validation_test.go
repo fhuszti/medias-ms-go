@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 	guuid "github.com/google/uuid"
 )
 
@@ -74,8 +74,8 @@ func TestValidateStructAndErrorsToJson(t *testing.T) {
 
 func TestCustomTypeValidation(t *testing.T) {
 	type Input struct {
-		ID   msuuid.UUID `validate:"required,uuid4" json:"id"`
-		Type string      `validate:"required,mimetype" json:"type"`
+		ID   uuid.UUID `validate:"required,uuid" json:"id"`
+		Type string    `validate:"required,mimetype" json:"type"`
 	}
 
 	tests := []struct {
@@ -86,15 +86,14 @@ func TestCustomTypeValidation(t *testing.T) {
 	}{
 		{
 			name:    "all good",
-			in:      Input{ID: msuuid.UUID(guuid.New()), Type: "text/markdown"},
+			in:      Input{ID: uuid.NewUUID(), Type: "text/markdown"},
 			wantErr: false,
 		},
 		{
 			name:    "bad uuid, bad mimetype",
-			in:      Input{ID: msuuid.UUID(guuid.Nil), Type: "application/x-foo"},
+			in:      Input{ID: uuid.UUID(guuid.Nil), Type: "application/x-foo"},
 			wantErr: true,
 			wantErrMap: map[string]string{
-				"id":   "uuid4",
 				"type": "mimetype",
 			},
 		},

@@ -12,10 +12,10 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/renderer"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
-	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
+	guuid "github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -57,7 +57,7 @@ func TestGetMediaIntegration_SuccessMarkdown(t *testing.T) {
 	mediaRepo, svc, cleanup := setupMediaGetter(t)
 	defer cleanup()
 
-	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := uuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
 	bucket := "docs"
 	content := testutil.GenerateMarkdown()
@@ -125,7 +125,7 @@ func TestGetMediaIntegration_SuccessPDF(t *testing.T) {
 	mediaRepo, svc, cleanup := setupMediaGetter(t)
 	defer cleanup()
 
-	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := uuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".md"
 	bucket := "docs"
 	content := testutil.LoadPDF(t)
@@ -187,7 +187,7 @@ func TestGetMediaIntegration_SuccessImageWithVariants(t *testing.T) {
 	mediaRepo, svc, cleanup := setupMediaGetter(t)
 	defer cleanup()
 
-	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
+	id := uuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	objectKey := id.String() + ".png"
 	bucket := "images"
 
@@ -298,7 +298,7 @@ func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(rendererSvc, svc))
 
 	// Make request for a non-existent UUID
-	id := uuid.NewString()
+	id := uuid.NewUUID().String()
 	req := httptest.NewRequest(http.MethodGet, "/medias/"+id, nil)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
