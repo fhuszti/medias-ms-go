@@ -1,0 +1,9 @@
+-- Convert id from VARCHAR(36) to BINARY(16)
+ALTER TABLE medias ADD COLUMN id_new BINARY(16) NULL;
+
+UPDATE medias SET id_new = UNHEX(REPLACE(id, '-', ''));
+
+ALTER TABLE medias
+    DROP PRIMARY KEY,
+    DROP COLUMN id,
+    CHANGE COLUMN id_new id BINARY(16) NOT NULL PRIMARY KEY;
