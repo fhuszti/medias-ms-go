@@ -33,7 +33,7 @@ func main() {
 }
 
 func initDb(cfg *config.Settings) (*db.Database, error) {
-	database, err := db.New(cfg.MariaDBDSN, cfg.MaxOpenConns, cfg.MaxIdleConns, cfg.ConnMaxLifetime)
+	database, err := db.New(cfg.MariaDBDSN+"&multiStatements=true", cfg.MaxOpenConns, cfg.MaxIdleConns, cfg.ConnMaxLifetime)
 	if err != nil {
 		return nil, err
 	}
