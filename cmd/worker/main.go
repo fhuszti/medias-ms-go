@@ -69,14 +69,7 @@ func main() {
 func initDb(cfg *config.Settings) *db.Database {
 	log.Println("initialising database...")
 
-	dbCfg := db.MariaDbConfig{
-		DSN:             cfg.MariaDBDSN,
-		MaxOpenConns:    cfg.MaxOpenConns,
-		MaxIdleConns:    cfg.MaxIdleConns,
-		ConnMaxLifetime: cfg.ConnMaxLifetime,
-	}
-
-	database, err := db.NewFromConfig(dbCfg)
+	database, err := db.New(cfg.MariaDBDSN, cfg.MaxOpenConns, cfg.MaxIdleConns, cfg.ConnMaxLifetime)
 	if err != nil {
 		log.Fatalf("❌  Failed to connect to db: %v", err)
 	}
