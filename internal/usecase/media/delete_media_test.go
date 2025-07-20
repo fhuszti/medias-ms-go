@@ -13,7 +13,7 @@ import (
 )
 
 func TestDeleteMedia_NotFound(t *testing.T) {
-	repo := &mock.MockMediaRepo{GetErr: sql.ErrNoRows}
+	repo := &mock.MediaRepo{GetByIDErr: sql.ErrNoRows}
 	svc := NewMediaDeleter(repo, &mock.Cache{}, &mock.MockStorage{})
 
 	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
@@ -24,7 +24,7 @@ func TestDeleteMedia_NotFound(t *testing.T) {
 }
 
 func TestDeleteMedia_GetByIDError(t *testing.T) {
-	repo := &mock.MockMediaRepo{GetErr: errors.New("db fail")}
+	repo := &mock.MediaRepo{GetByIDErr: errors.New("db fail")}
 	svc := NewMediaDeleter(repo, &mock.Cache{}, &mock.MockStorage{})
 
 	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
@@ -35,7 +35,7 @@ func TestDeleteMedia_GetByIDError(t *testing.T) {
 
 func TestDeleteMedia_RemoveError(t *testing.T) {
 	m := &model.Media{ID: msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k"}
-	repo := &mock.MockMediaRepo{MediaRecord: m}
+	repo := &mock.MediaRepo{MediaOut: m}
 	strg := &mock.MockStorage{RemoveErr: errors.New("remove fail")}
 	svc := NewMediaDeleter(repo, &mock.Cache{}, strg)
 
@@ -47,7 +47,7 @@ func TestDeleteMedia_RemoveError(t *testing.T) {
 
 func TestDeleteMedia_DeleteError(t *testing.T) {
 	m := &model.Media{ID: msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k"}
-	repo := &mock.MockMediaRepo{MediaRecord: m, DeleteErr: errors.New("delete fail")}
+	repo := &mock.MediaRepo{MediaOut: m, DeleteErr: errors.New("delete fail")}
 	strg := &mock.MockStorage{}
 	svc := NewMediaDeleter(repo, &mock.Cache{}, strg)
 
@@ -59,7 +59,7 @@ func TestDeleteMedia_DeleteError(t *testing.T) {
 
 func TestDeleteMedia_Success(t *testing.T) {
 	m := &model.Media{ID: msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k", Variants: model.Variants{{ObjectKey: "v1"}}}
-	repo := &mock.MockMediaRepo{MediaRecord: m}
+	repo := &mock.MediaRepo{MediaOut: m}
 	strg := &mock.MockStorage{}
 	cache := &mock.Cache{}
 	svc := NewMediaDeleter(repo, cache, strg)
@@ -70,7 +70,7 @@ func TestDeleteMedia_Success(t *testing.T) {
 	if !strg.RemoveCalled {
 		t.Error("expected RemoveFile to be called")
 	}
-	if !repo.DeleteCalled || repo.DeletedID != m.ID {
+	if !repo.DeleteCalled || repo.GotDeletedID != m.ID {
 		t.Error("expected repo.Delete to be called with ID")
 	}
 	if !cache.DelMediaCalled {

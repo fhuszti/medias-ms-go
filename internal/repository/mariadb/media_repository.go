@@ -22,6 +22,29 @@ func NewMediaRepository(db *sql.DB) *MediaRepository {
 	return &MediaRepository{db: db}
 }
 
+func (r *MediaRepository) GetByID(ctx context.Context, ID msuuid.UUID) (*model.Media, error) {
+	log.Printf("fetching media #%s from the database...", ID)
+
+	const query = `
+      SELECT id, object_key, bucket, original_filename, mime_type, size_bytes, status, optimised, failure_message, metadata, variants, created_at, updated_at
+      FROM medias
+      WHERE id = ?
+    `
+	row := r.db.QueryRowContext(ctx, query, ID)
+	var media model.Media
+	if err := row.Scan(
+		&media.ID, &media.ObjectKey, &media.Bucket,
+		&media.OriginalFilename, &media.MimeType,
+		&media.SizeBytes, &media.Status, &media.Optimised,
+		&media.FailureMessage, &media.Metadata, &media.Variants,
+		&media.CreatedAt, &media.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+
+	return &media, nil
+}
+
 func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error {
 	log.Printf("creating database record for media #%s, at status %q...", media.ID, media.Status)
 
@@ -79,27 +102,12 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
 	return nil
 }
 
-func (r *MediaRepository) GetByID(ctx context.Context, ID msuuid.UUID) (*model.Media, error) {
-	log.Printf("fetching media #%s from the database...", ID)
+func (r *MediaRepository) Delete(ctx context.Context, ID msuuid.UUID) error {
+	log.Printf("deleting media #%s from the database...", ID)
 
-	const query = `
-      SELECT id, object_key, bucket, original_filename, mime_type, size_bytes, status, optimised, failure_message, metadata, variants, created_at, updated_at
-      FROM medias
-      WHERE id = ?
-    `
-	row := r.db.QueryRowContext(ctx, query, ID)
-	var media model.Media
-	if err := row.Scan(
-		&media.ID, &media.ObjectKey, &media.Bucket,
-		&media.OriginalFilename, &media.MimeType,
-		&media.SizeBytes, &media.Status, &media.Optimised,
-		&media.FailureMessage, &media.Metadata, &media.Variants,
-		&media.CreatedAt, &media.UpdatedAt,
-	); err != nil {
-		return nil, err
-	}
-
-	return &media, nil
+	const query = `DELETE FROM medias WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, ID)
+	return err
 }
 
 func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]msuuid.UUID, error) {
@@ -131,14 +139,6 @@ func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, be
 		return nil, err
 	}
 	return ids, nil
-}
-
-func (r *MediaRepository) Delete(ctx context.Context, ID msuuid.UUID) error {
-	log.Printf("deleting media #%s from the database...", ID)
-
-	const query = `DELETE FROM medias WHERE id = ?`
-	_, err := r.db.ExecContext(ctx, query, ID)
-	return err
 }
 
 func (r *MediaRepository) ListOptimisedImagesNoVariantsBefore(ctx context.Context, before time.Time) ([]msuuid.UUID, error) {

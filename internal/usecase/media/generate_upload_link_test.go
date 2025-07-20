@@ -17,7 +17,7 @@ import (
 func TestGenerateUploadLink_Success(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
-	repo := &mock.MockMediaRepo{}
+	repo := &mock.MediaRepo{}
 	strg := &mock.MockStorage{}
 	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 
@@ -34,7 +34,7 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	}
 
 	// verify repo.Create was called with a valid Media
-	m := repo.Created
+	m := repo.GotCreated
 	if m == nil {
 		t.Fatal("expected repo.Create to be called")
 	}
@@ -75,7 +75,7 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 func TestGenerateUploadLink_RepoError(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
-	repo := &mock.MockMediaRepo{CreateErr: errors.New("repo failure")}
+	repo := &mock.MediaRepo{CreateErr: errors.New("repo failure")}
 	strg := &mock.MockStorage{}
 	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 
@@ -98,7 +98,7 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 func TestGenerateUploadLink_StorageError(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
-	repo := &mock.MockMediaRepo{}
+	repo := &mock.MediaRepo{}
 	strg := &mock.MockStorage{GenerateUploadLinkErr: errors.New("strg failure")}
 	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 

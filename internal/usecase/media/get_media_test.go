@@ -13,7 +13,7 @@ import (
 )
 
 func TestGetMedia_RepoError(t *testing.T) {
-	repo := &mock.MockMediaRepo{GetErr: errors.New("db fail")}
+	repo := &mock.MediaRepo{GetByIDErr: errors.New("db fail")}
 	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
@@ -25,7 +25,7 @@ func TestGetMedia_RepoError(t *testing.T) {
 
 func TestGetMedia_WrongStatus(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending}
-	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	repo := &mock.MediaRepo{MediaOut: mrec}
 	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
@@ -39,7 +39,7 @@ func TestGetMedia_WrongStatus(t *testing.T) {
 func TestGetMedia_URLGenError(t *testing.T) {
 	mt := "image/png"
 	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
-	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	repo := &mock.MediaRepo{MediaOut: mrec}
 	strg := &mock.MockStorage{GenerateDownloadLinkErr: errors.New("link generation failed")}
 	svc := NewMediaGetter(repo, strg)
 
@@ -77,7 +77,7 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 			},
 		},
 	}
-	repo := &mock.MockMediaRepo{MediaRecord: mrec}
+	repo := &mock.MediaRepo{MediaOut: mrec}
 	strg := &mock.MockStorage{}
 	svc := NewMediaGetter(repo, strg)
 
