@@ -12,7 +12,7 @@ import (
 
 func TestBacklogOptimiser_RepoError(t *testing.T) {
 	repo := &mock.MediaRepo{ListUnoptimisedCompletedBeforeErr: errors.New("db fail")}
-	dispatcher := &mock.MockDispatcher{}
+	dispatcher := &mock.Dispatcher{}
 	svc := NewBacklogOptimiser(repo, dispatcher)
 
 	err := svc.OptimiseBacklog(context.Background())
@@ -30,7 +30,7 @@ func TestBacklogOptimiser_Success(t *testing.T) {
 	resize1 := msuuid.UUID(uuid.MustParse("11111111-2222-3333-4444-555555555555"))
 	resize2 := msuuid.UUID(uuid.MustParse("66666666-7777-8888-9999-000000000000"))
 	repo := &mock.MediaRepo{ListOut: []msuuid.UUID{id1, id2}, ListVariantsOut: []msuuid.UUID{resize1, resize2}}
-	dispatcher := &mock.MockDispatcher{}
+	dispatcher := &mock.Dispatcher{}
 	svc := NewBacklogOptimiser(repo, dispatcher)
 
 	if err := svc.OptimiseBacklog(context.Background()); err != nil {
@@ -57,7 +57,7 @@ func TestBacklogOptimiser_DispatcherError(t *testing.T) {
 	id1 := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	id2 := msuuid.UUID(uuid.MustParse("ffffffff-1111-2222-3333-444444444444"))
 	repo := &mock.MediaRepo{ListOut: []msuuid.UUID{id1, id2}}
-	dispatcher := &mock.MockDispatcher{OptimiseErr: errors.New("queue fail")}
+	dispatcher := &mock.Dispatcher{OptimiseErr: errors.New("queue fail")}
 	svc := NewBacklogOptimiser(repo, dispatcher)
 
 	if err := svc.OptimiseBacklog(context.Background()); err != nil {
@@ -70,7 +70,7 @@ func TestBacklogOptimiser_DispatcherError(t *testing.T) {
 
 func TestBacklogOptimiser_ListVariantsError(t *testing.T) {
 	repo := &mock.MediaRepo{ListOptimisedImagesNoVariantsBeforeErr: errors.New("variants fail")}
-	dispatcher := &mock.MockDispatcher{}
+	dispatcher := &mock.Dispatcher{}
 	svc := NewBacklogOptimiser(repo, dispatcher)
 
 	err := svc.OptimiseBacklog(context.Background())
@@ -85,7 +85,7 @@ func TestBacklogOptimiser_ListVariantsError(t *testing.T) {
 func TestBacklogOptimiser_ResizeDispatcherError(t *testing.T) {
 	resize1 := msuuid.UUID(uuid.MustParse("11111111-2222-3333-4444-555555555555"))
 	repo := &mock.MediaRepo{ListVariantsOut: []msuuid.UUID{resize1}}
-	dispatcher := &mock.MockDispatcher{ResizeErr: errors.New("queue fail")}
+	dispatcher := &mock.Dispatcher{ResizeErr: errors.New("queue fail")}
 	svc := NewBacklogOptimiser(repo, dispatcher)
 
 	if err := svc.OptimiseBacklog(context.Background()); err != nil {
