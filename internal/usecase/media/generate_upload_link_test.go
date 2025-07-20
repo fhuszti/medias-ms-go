@@ -18,7 +18,7 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MediaRepo{}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 
 	in := port.GenerateUploadLinkInput{Name: "my-file.webp"}
@@ -76,7 +76,7 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MediaRepo{CreateErr: errors.New("repo failure")}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 
 	out, err := svc.GenerateUploadLink(context.Background(), port.GenerateUploadLinkInput{Name: "foo"})
@@ -99,7 +99,7 @@ func TestGenerateUploadLink_StorageError(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MediaRepo{}
-	strg := &mock.MockStorage{GenerateUploadLinkErr: errors.New("strg failure")}
+	strg := &mock.Storage{GenerateUploadLinkErr: errors.New("strg failure")}
 	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
 
 	out, err := svc.GenerateUploadLink(context.Background(), port.GenerateUploadLinkInput{Name: "foo"})

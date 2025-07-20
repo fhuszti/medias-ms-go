@@ -14,7 +14,7 @@ import (
 
 func TestDeleteMedia_NotFound(t *testing.T) {
 	repo := &mock.MediaRepo{GetByIDErr: sql.ErrNoRows}
-	svc := NewMediaDeleter(repo, &mock.Cache{}, &mock.MockStorage{})
+	svc := NewMediaDeleter(repo, &mock.Cache{}, &mock.Storage{})
 
 	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	err := svc.DeleteMedia(context.Background(), id)
@@ -25,7 +25,7 @@ func TestDeleteMedia_NotFound(t *testing.T) {
 
 func TestDeleteMedia_GetByIDError(t *testing.T) {
 	repo := &mock.MediaRepo{GetByIDErr: errors.New("db fail")}
-	svc := NewMediaDeleter(repo, &mock.Cache{}, &mock.MockStorage{})
+	svc := NewMediaDeleter(repo, &mock.Cache{}, &mock.Storage{})
 
 	id := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 	if err := svc.DeleteMedia(context.Background(), id); err == nil || err.Error() != "db fail" {
@@ -36,7 +36,7 @@ func TestDeleteMedia_GetByIDError(t *testing.T) {
 func TestDeleteMedia_RemoveError(t *testing.T) {
 	m := &model.Media{ID: msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k"}
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{RemoveErr: errors.New("remove fail")}
+	strg := &mock.Storage{RemoveErr: errors.New("remove fail")}
 	svc := NewMediaDeleter(repo, &mock.Cache{}, strg)
 
 	err := svc.DeleteMedia(context.Background(), m.ID)
@@ -48,7 +48,7 @@ func TestDeleteMedia_RemoveError(t *testing.T) {
 func TestDeleteMedia_DeleteError(t *testing.T) {
 	m := &model.Media{ID: msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k"}
 	repo := &mock.MediaRepo{MediaOut: m, DeleteErr: errors.New("delete fail")}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewMediaDeleter(repo, &mock.Cache{}, strg)
 
 	err := svc.DeleteMedia(context.Background(), m.ID)
@@ -60,7 +60,7 @@ func TestDeleteMedia_DeleteError(t *testing.T) {
 func TestDeleteMedia_Success(t *testing.T) {
 	m := &model.Media{ID: msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), Bucket: "images", ObjectKey: "k", Variants: model.Variants{{ObjectKey: "v1"}}}
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	cache := &mock.Cache{}
 	svc := NewMediaDeleter(repo, cache, strg)
 

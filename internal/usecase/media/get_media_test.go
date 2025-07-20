@@ -14,7 +14,7 @@ import (
 
 func TestGetMedia_RepoError(t *testing.T) {
 	repo := &mock.MediaRepo{GetByIDErr: errors.New("db fail")}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), msuuid.UUID{})
@@ -26,7 +26,7 @@ func TestGetMedia_RepoError(t *testing.T) {
 func TestGetMedia_WrongStatus(t *testing.T) {
 	mrec := &model.Media{Status: model.MediaStatusPending}
 	repo := &mock.MediaRepo{MediaOut: mrec}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), msuuid.UUID{})
@@ -40,7 +40,7 @@ func TestGetMedia_URLGenError(t *testing.T) {
 	mt := "image/png"
 	mrec := &model.Media{Status: model.MediaStatusCompleted, MimeType: &mt}
 	repo := &mock.MediaRepo{MediaOut: mrec}
-	strg := &mock.MockStorage{GenerateDownloadLinkErr: errors.New("link generation failed")}
+	strg := &mock.Storage{GenerateDownloadLinkErr: errors.New("link generation failed")}
 	svc := NewMediaGetter(repo, strg)
 
 	_, err := svc.GetMedia(context.Background(), msuuid.UUID{})
@@ -78,7 +78,7 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 		},
 	}
 	repo := &mock.MediaRepo{MediaOut: mrec}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewMediaGetter(repo, strg)
 
 	out, err := svc.GetMedia(context.Background(), msuuid.UUID{})
@@ -94,8 +94,8 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 		t.Errorf("GeneratePresignedDownloadURL got TTL %v, want %v", strg.TTL, DownloadUrlTTL)
 	}
 
-	if out.URL != "https://example.com/upload" {
-		t.Errorf("URL = %q, want 'https://example.com/upload'", out.URL)
+	if out.URL != "https://example.com/download" {
+		t.Errorf("URL = %q, want 'https://example.com/download'", out.URL)
 	}
 	if out.Metadata.MimeType != *mrec.MimeType {
 		t.Errorf("MimeType = %q, want %q", out.Metadata.MimeType, *mrec.MimeType)
@@ -107,8 +107,8 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 		t.Errorf("Metadata struct = %+v, want %+v", out.Metadata.Metadata, mrec.Metadata)
 	}
 
-	if out.Variants[0].URL != "https://example.com/upload" {
-		t.Errorf("Variants[0].URL = %q, want 'https://example.com/upload'", out.Variants[0].URL)
+	if out.Variants[0].URL != "https://example.com/download" {
+		t.Errorf("Variants[0].URL = %q, want 'https://example.com/download'", out.Variants[0].URL)
 	}
 	if out.Variants[0].SizeBytes != mrec.Variants[0].SizeBytes {
 		t.Errorf("Variants[0].SizeBytes = %d, want %d", out.Variants[0].SizeBytes, mrec.Variants[0].SizeBytes)
@@ -120,8 +120,8 @@ func TestGetMedia_VariantSuccess(t *testing.T) {
 		t.Errorf("Variants[0].Height = %d, want %d", out.Variants[0].Height, mrec.Variants[0].Height)
 	}
 
-	if out.Variants[1].URL != "https://example.com/upload" {
-		t.Errorf("Variants[1].URL = %q, want 'https://example.com/upload'", out.Variants[1].URL)
+	if out.Variants[1].URL != "https://example.com/download" {
+		t.Errorf("Variants[1].URL = %q, want 'https://example.com/download'", out.Variants[1].URL)
 	}
 	if out.Variants[1].SizeBytes != mrec.Variants[1].SizeBytes {
 		t.Errorf("Variants[1].SizeBytes = %d, want %d", out.Variants[1].SizeBytes, mrec.Variants[1].SizeBytes)

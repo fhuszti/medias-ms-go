@@ -29,7 +29,7 @@ func newCompletedMedia() *model.Media {
 
 func TestOptimiseMedia_GetByIDNotFound(t *testing.T) {
 	repo := &mock.MediaRepo{GetByIDErr: sql.ErrNoRows}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewMediaOptimiser(repo, &mock.FileOptimiser{}, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
 	err := svc.OptimiseMedia(context.Background(), msuuid.NewUUID())
@@ -40,7 +40,7 @@ func TestOptimiseMedia_GetByIDNotFound(t *testing.T) {
 
 func TestOptimiseMedia_GetByIDError(t *testing.T) {
 	repo := &mock.MediaRepo{GetByIDErr: errors.New("db fail")}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewMediaOptimiser(repo, &mock.FileOptimiser{}, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
 	err := svc.OptimiseMedia(context.Background(), msuuid.NewUUID())
@@ -53,7 +53,7 @@ func TestOptimiseMedia_WrongStatus(t *testing.T) {
 	m := newCompletedMedia()
 	m.Status = model.MediaStatusPending
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	svc := NewMediaOptimiser(repo, &mock.FileOptimiser{}, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
 	err := svc.OptimiseMedia(context.Background(), m.ID)
@@ -65,7 +65,7 @@ func TestOptimiseMedia_WrongStatus(t *testing.T) {
 func TestOptimiseMedia_GetFileError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{GetErr: errors.New("get fail")}
+	strg := &mock.Storage{GetErr: errors.New("get fail")}
 	svc := NewMediaOptimiser(repo, &mock.FileOptimiser{}, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
 	err := svc.OptimiseMedia(context.Background(), m.ID)
@@ -77,7 +77,7 @@ func TestOptimiseMedia_GetFileError(t *testing.T) {
 func TestOptimiseMedia_CompressError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	fo := &mock.FileOptimiser{CompressErr: errors.New("compress fail")}
 	svc := NewMediaOptimiser(repo, fo, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
@@ -90,7 +90,7 @@ func TestOptimiseMedia_CompressError(t *testing.T) {
 func TestOptimiseMedia_ExtensionError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{}
+	strg := &mock.Storage{}
 	fo := &mock.FileOptimiser{MimeOut: "application/unknown"}
 	svc := NewMediaOptimiser(repo, fo, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
@@ -103,7 +103,7 @@ func TestOptimiseMedia_ExtensionError(t *testing.T) {
 func TestOptimiseMedia_SaveFileError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{SaveErr: errors.New("save fail")}
+	strg := &mock.Storage{SaveErr: errors.New("save fail")}
 	fo := &mock.FileOptimiser{MimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
@@ -116,7 +116,7 @@ func TestOptimiseMedia_SaveFileError(t *testing.T) {
 func TestOptimiseMedia_CopyFileError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{CopyErr: errors.New("copy fail")}
+	strg := &mock.Storage{CopyErr: errors.New("copy fail")}
 	fo := &mock.FileOptimiser{MimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
@@ -129,7 +129,7 @@ func TestOptimiseMedia_CopyFileError(t *testing.T) {
 func TestOptimiseMedia_StatError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{StatErr: errors.New("stat fail")}
+	strg := &mock.Storage{StatErr: errors.New("stat fail")}
 	fo := &mock.FileOptimiser{MimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
@@ -142,8 +142,8 @@ func TestOptimiseMedia_StatError(t *testing.T) {
 func TestOptimiseMedia_UpdateError(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m, UpdateErr: errors.New("update fail")}
-	strg := &mock.MockStorage{}
-	strg.StatInfo = port.FileInfo{SizeBytes: 200}
+	strg := &mock.Storage{}
+	strg.StatInfoOut = port.FileInfo{SizeBytes: 200}
 	fo := &mock.FileOptimiser{MimeOut: *m.MimeType}
 	svc := NewMediaOptimiser(repo, fo, strg, &mock.MockDispatcher{}, &mock.Cache{})
 
@@ -156,8 +156,8 @@ func TestOptimiseMedia_UpdateError(t *testing.T) {
 func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{}
-	strg.StatInfo = port.FileInfo{SizeBytes: 456}
+	strg := &mock.Storage{}
+	strg.StatInfoOut = port.FileInfo{SizeBytes: 456}
 	fo := &mock.FileOptimiser{MimeOut: *m.MimeType, CompressOut: []byte("comp")}
 	dispatcher := &mock.MockDispatcher{}
 	svc := NewMediaOptimiser(repo, fo, strg, dispatcher, &mock.Cache{})
@@ -170,7 +170,7 @@ func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 	if !repo.GotUpdated.Optimised {
 		t.Error("media should be marked optimised")
 	}
-	if repo.GotUpdated.SizeBytes == nil || *repo.GotUpdated.SizeBytes != strg.StatInfo.SizeBytes {
+	if repo.GotUpdated.SizeBytes == nil || *repo.GotUpdated.SizeBytes != strg.StatInfoOut.SizeBytes {
 		t.Error("size not updated")
 	}
 	if repo.GotUpdated.ObjectKey != m.ObjectKey {
@@ -187,8 +187,8 @@ func TestOptimiseMedia_SuccessSameMime(t *testing.T) {
 func TestOptimiseMedia_SuccessMimeChange(t *testing.T) {
 	m := newCompletedMedia()
 	repo := &mock.MediaRepo{MediaOut: m}
-	strg := &mock.MockStorage{}
-	strg.StatInfo = port.FileInfo{SizeBytes: 789}
+	strg := &mock.Storage{}
+	strg.StatInfoOut = port.FileInfo{SizeBytes: 789}
 	fo := &mock.FileOptimiser{MimeOut: "image/webp", CompressOut: []byte("webp")}
 	dispatcher := &mock.MockDispatcher{}
 	svc := NewMediaOptimiser(repo, fo, strg, dispatcher, &mock.Cache{})

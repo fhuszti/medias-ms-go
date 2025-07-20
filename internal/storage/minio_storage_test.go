@@ -139,7 +139,7 @@ func TestInitBucket(t *testing.T) {
 }
 
 func TestGeneratePresignedDownloadURL(t *testing.T) {
-	fake, _ := url.Parse("https://cdn.example.com/upload")
+	fake, _ := url.Parse("https://cdn.example.com/download")
 	mock := &mockMinio{
 		presignedGetObjectFn: func(_ context.Context, bucket, key string, expiry time.Duration) (*url.URL, error) {
 			if bucket != "bucket" {
