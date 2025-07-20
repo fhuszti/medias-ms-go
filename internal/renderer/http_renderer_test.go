@@ -19,7 +19,7 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 	id := uuid.NewUUID()
 
 	t.Run("cache hit", func(t *testing.T) {
-		c := &mock.MockCache{Data: []byte(`{"ok":true}`), Etag: "\"1234\""}
+		c := &mock.Cache{MediaOut: []byte(`{"ok":true}`), EtagMedia: "\"1234\""}
 		r := NewHTTPRenderer(c)
 		getter := &mock.MediaGetter{}
 
@@ -27,22 +27,22 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if string(out) != string(c.Data) {
-			t.Errorf("raw mismatch: got %s want %s", out, c.Data)
+		if string(out) != string(c.MediaOut) {
+			t.Errorf("raw mismatch: got %s want %s", out, c.MediaOut)
 		}
-		if etag != c.Etag {
-			t.Errorf("etag mismatch: got %s want %s", etag, c.Etag)
+		if etag != c.EtagMedia {
+			t.Errorf("etag mismatch: got %s want %s", etag, c.EtagMedia)
 		}
 		if getter.Called {
 			t.Error("getter should not be called on cache hit")
 		}
-		if c.SetMediaCalled || c.SetEtagCalled {
+		if c.SetMediaCalled || c.SetEtagMediaCalled {
 			t.Error("cache should not be set on hit")
 		}
 	})
 
 	t.Run("cache miss", func(t *testing.T) {
-		c := &mock.MockCache{}
+		c := &mock.Cache{}
 		now := time.Now().Add(time.Hour)
 		resp := &port.GetMediaOutput{ValidUntil: now}
 		getter := &mock.MediaGetter{Out: resp}
@@ -63,19 +63,19 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 		if !getter.Called {
 			t.Error("getter should be called on cache miss")
 		}
-		if !c.SetMediaCalled || !c.SetEtagCalled {
+		if !c.SetMediaCalled || !c.SetEtagMediaCalled {
 			t.Error("cache should be written on miss")
 		}
-		if string(c.Data) != string(expected) {
-			t.Errorf("cache data mismatch: got %s want %s", c.Data, expected)
+		if string(c.MediaOut) != string(expected) {
+			t.Errorf("cache data mismatch: got %s want %s", c.MediaOut, expected)
 		}
-		if c.Etag != expEtag {
-			t.Errorf("cached etag mismatch: got %s want %s", c.Etag, expEtag)
+		if c.EtagMedia != expEtag {
+			t.Errorf("cached etag mismatch: got %s want %s", c.EtagMedia, expEtag)
 		}
 	})
 
 	t.Run("getter error", func(t *testing.T) {
-		c := &mock.MockCache{}
+		c := &mock.Cache{}
 		g := &mock.MediaGetter{Err: errors.New("fail")}
 		r := NewHTTPRenderer(c)
 
@@ -86,13 +86,13 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 		if !g.Called {
 			t.Error("getter should be called when cache miss")
 		}
-		if c.SetMediaCalled || c.SetEtagCalled {
+		if c.SetMediaCalled || c.SetEtagMediaCalled {
 			t.Error("cache should not be written on error")
 		}
 	})
 
 	t.Run("cache error", func(t *testing.T) {
-		c := &mock.MockCache{GetMediaErr: errors.New("boom")}
+		c := &mock.Cache{GetMediaErr: errors.New("boom")}
 		now := time.Now().Add(time.Hour)
 		resp := &port.GetMediaOutput{ValidUntil: now}
 		g := &mock.MediaGetter{Out: resp}
@@ -105,7 +105,7 @@ func TestRenderGetMedia_Cases(t *testing.T) {
 		if !g.Called {
 			t.Error("getter should be called when cache returns error")
 		}
-		if !c.SetMediaCalled || !c.SetEtagCalled {
+		if !c.SetMediaCalled || !c.SetEtagMediaCalled {
 			t.Error("cache should be written when missing due to error")
 		}
 	})

@@ -7,55 +7,61 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/uuid"
 )
 
-// MockCache implements cache behaviour for tests.
-type MockCache struct {
-	Data []byte
-	Etag string
+// Cache implements cache behaviour for tests.
+type Cache struct {
+	// stored values
+	MediaOut []byte
 
-	GetMediaErr error
-	GetEtagErr  error
-	DelMediaErr error
+	// etag values
+	EtagMedia string
 
-	GetMediaCalled bool
-	GetEtagCalled  bool
-	SetMediaCalled bool
-	SetEtagCalled  bool
-	DelMediaCalled bool
-	DelEtagCalled  bool
+	// errors
+	GetMediaErr     error
+	GetEtagMediaErr error
+	DelMediaErr     error
+	DelEtagMediaErr error
+
+	// call flags
+	GetMediaCalled     bool
+	GetEtagMediaCalled bool
+	SetMediaCalled     bool
+	SetEtagMediaCalled bool
+	DelMediaCalled     bool
+	DelEtagMediaCalled bool
 }
 
-func (c *MockCache) GetMediaDetails(ctx context.Context, id uuid.UUID) ([]byte, error) {
+func (c *Cache) GetMediaDetails(ctx context.Context, id uuid.UUID) ([]byte, error) {
 	c.GetMediaCalled = true
 	if c.GetMediaErr != nil {
 		return nil, c.GetMediaErr
 	}
-	return c.Data, nil
+	return c.MediaOut, nil
 }
 
-func (c *MockCache) GetEtagMediaDetails(ctx context.Context, id uuid.UUID) (string, error) {
-	c.GetEtagCalled = true
-	if c.GetEtagErr != nil {
-		return "", c.GetEtagErr
+func (c *Cache) GetEtagMediaDetails(ctx context.Context, id uuid.UUID) (string, error) {
+	c.GetEtagMediaCalled = true
+	if c.GetEtagMediaErr != nil {
+		return "", c.GetEtagMediaErr
 	}
-	return c.Etag, nil
+	return c.EtagMedia, nil
 }
 
-func (c *MockCache) SetMediaDetails(ctx context.Context, id uuid.UUID, data []byte, validUntil time.Time) {
+func (c *Cache) SetMediaDetails(ctx context.Context, id uuid.UUID, data []byte, validUntil time.Time) {
 	c.SetMediaCalled = true
-	c.Data = data
+	c.MediaOut = data
 }
 
-func (c *MockCache) SetEtagMediaDetails(ctx context.Context, id uuid.UUID, etag string, validUntil time.Time) {
-	c.SetEtagCalled = true
-	c.Etag = etag
+func (c *Cache) SetEtagMediaDetails(ctx context.Context, id uuid.UUID, etag string, validUntil time.Time) {
+	c.SetEtagMediaCalled = true
+	c.EtagMedia = etag
 }
 
-func (c *MockCache) DeleteMediaDetails(ctx context.Context, id uuid.UUID) error {
+func (c *Cache) DeleteMediaDetails(ctx context.Context, id uuid.UUID) error {
 	c.DelMediaCalled = true
 	return c.DelMediaErr
 }
 
-func (c *MockCache) DeleteEtagMediaDetails(ctx context.Context, id uuid.UUID) error {
-	c.DelEtagCalled = true
-	return nil
+func (c *Cache) DeleteEtagMediaDetails(ctx context.Context, id uuid.UUID) error {
+	c.DelEtagMediaCalled = true
+	return c.DelEtagMediaErr
 }
