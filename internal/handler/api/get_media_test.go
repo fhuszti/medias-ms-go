@@ -127,7 +127,7 @@ func TestGetMediaHandler(t *testing.T) {
 				Err: tc.svcErr,
 			}
 			raw, _ := json.Marshal(tc.svcOut)
-			renderer := &mock.MockHTTPRenderer{Data: raw, Etag: computeETag(t, tc.svcOut), Err: tc.svcErr}
+			renderer := &mock.HTTPRenderer{MediaOut: raw, EtagMedia: computeETag(t, tc.svcOut), GetMediaErr: tc.svcErr}
 			handlerFn := GetMediaHandler(renderer, mockSvc)
 
 			req := httptest.NewRequest(http.MethodPost, "/medias/"+validID.String(), nil)
@@ -165,17 +165,17 @@ func TestGetMediaHandler(t *testing.T) {
 					t.Fatalf("JSON decode = %v (body=%q)", err, rec.Body.String())
 				}
 				// verify renderer was called with the correct ID
-				if !renderer.Called {
+				if !renderer.GetMediaCalled {
 					t.Error("renderer was not called")
 				}
-				if renderer.ID != *tc.ctxID {
-					t.Errorf("renderer got ID = %s; want %s", renderer.ID, *tc.ctxID)
+				if renderer.GotMediaID != *tc.ctxID {
+					t.Errorf("renderer got ID = %s; want %s", renderer.GotMediaID, *tc.ctxID)
 				}
 			case tc.wantBodyContains != "":
 				if !strings.Contains(rec.Body.String(), tc.wantBodyContains) {
 					t.Errorf("body = %q; want to contain %q", rec.Body.String(), tc.wantBodyContains)
 				}
-				if tc.ctxID == nil && renderer.Called {
+				if tc.ctxID == nil && renderer.GetMediaCalled {
 					t.Error("renderer should not be called when ID missing")
 				}
 			default:
@@ -198,9 +198,9 @@ func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
 	}
 
 	raw, _ := json.Marshal(mockSvc.Out)
-	renderer := &mock.MockHTTPRenderer{Data: raw, Etag: computeETag(t, mockSvc.Out)}
+	renderer := &mock.HTTPRenderer{MediaOut: raw, EtagMedia: computeETag(t, mockSvc.Out)}
 	handlerFn := GetMediaHandler(renderer, mockSvc)
-	etag := renderer.Etag
+	etag := renderer.EtagMedia
 	req := httptest.NewRequest(http.MethodGet, "/medias/"+validID.String(), nil)
 	req = req.WithContext(context.WithValue(req.Context(), IDKey, validID))
 	req.Header.Set("If-None-Match", etag)
