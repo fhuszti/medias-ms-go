@@ -18,6 +18,9 @@ jobs:
               uses: actions/setup-go@v5
               with:
                   go-version: ${{ matrix.go-version }}
+                  cache: true
+            - name: Sync workspace
+              run: go work sync
             - name: Run golangci-lint
               uses: golangci/golangci-lint-action@v7
               with:
@@ -38,6 +41,9 @@ jobs:
               uses: actions/setup-go@v5
               with:
                   go-version: ${{ matrix.go-version }}
+                  cache: true
+            - name: Sync workspace
+              run: go work sync
             - name: Install dependencies
               run: go mod download
             - name: Run unit tests
@@ -88,8 +94,11 @@ jobs:
               uses: actions/setup-go@v5
               with:
                   go-version: ${{ matrix.go-version }}
+                  cache: true
+            - name: Sync workspace
+              run: go work sync
             - name: Install dependencies
-              run: go mod download
+              run: (cd test && go mod download)
             - name: Run integration tests
               run: go test ./test/integration -v -timeout 10m
 
@@ -142,12 +151,15 @@ jobs:
             TEST_MINIO_USE_SSL: false
             TEST_REDIS_ADDR: localhost:6379
         steps:
-            -   uses: actions/checkout@v4
-            -   name: Set up Go
-                uses: actions/setup-go@v5
-                with:
-                    go-version: ${{ matrix.go-version }}
-            -   name: Install dependencies
-                run: go mod download
-            -   name: Run E2E tests
-                run: go test ./test/e2e -v -timeout 10m
+            - uses: actions/checkout@v4
+            - name: Set up Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: ${{ matrix.go-version }}
+                  cache: true
+            - name: Sync workspace
+              run: go work sync
+            - name: Install dependencies
+              run: (cd test && go mod download)
+            - name: Run E2E tests
+              run: go test ./test/e2e -v -timeout 10m
