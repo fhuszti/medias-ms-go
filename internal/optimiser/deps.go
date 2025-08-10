@@ -1,10 +1,11 @@
 package optimiser
 
 import (
-	"github.com/chai2010/webp"
-	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"image"
 	"io"
+
+	"github.com/chai2010/webp"
+	"github.com/pdfcpu/pdfcpu/pkg/api"
 )
 
 type WebPEncoder interface {

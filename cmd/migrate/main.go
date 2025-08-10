@@ -1,11 +1,12 @@
 package main
 
 import (
+	"log"
+
 	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	_ "github.com/go-sql-driver/mysql"
-	"log"
 )
 
 func main() {

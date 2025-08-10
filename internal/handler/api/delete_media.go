@@ -2,10 +2,11 @@ package api
 
 import (
 	"errors"
-	"github.com/fhuszti/medias-ms-go/internal/port"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"log"
 	"net/http"
+
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 )
 
 // DeleteMediaHandler deletes a media by ID.

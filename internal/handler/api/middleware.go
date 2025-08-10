@@ -7,10 +7,9 @@ import (
 	"strings"
 
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v4"
 	guuid "github.com/google/uuid"
-
-	"github.com/go-chi/chi/v5"
 )
 
 func WithID() func(http.Handler) http.Handler {

@@ -2,14 +2,15 @@ package testutil
 
 import (
 	"bytes"
-	"github.com/chai2010/webp"
-	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"image"
 	"image/color"
 	"image/png"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/chai2010/webp"
+	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 )
 
 // GeneratePNG generates a simple RGBA image and encodes it to PNG

@@ -3,10 +3,10 @@ package testutil
 import (
 	"context"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"log"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/ory/dockertest/v3"

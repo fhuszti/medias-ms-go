@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/minio/minio-go/v7"
 )

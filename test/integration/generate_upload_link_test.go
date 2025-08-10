@@ -3,6 +3,14 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
@@ -13,13 +21,6 @@ import (
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"reflect"
-	"strconv"
-	"strings"
-	"testing"
 )
 
 func TestGenerateUploadLinkIntegration_Success(t *testing.T) {

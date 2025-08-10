@@ -2,11 +2,12 @@ package e2e
 
 import (
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/storage"
-	"github.com/fhuszti/medias-ms-go/test/testutil"
 	"os"
 	"runtime"
 	"testing"
+
+	"github.com/fhuszti/medias-ms-go/internal/storage"
+	"github.com/fhuszti/medias-ms-go/test/testutil"
 )
 
 var (

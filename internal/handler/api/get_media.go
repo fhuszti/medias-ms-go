@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/fhuszti/medias-ms-go/internal/port"
-	media "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 )
 
 func GetMediaHandler(renderer port.HTTPRenderer, svc port.MediaGetter) http.HandlerFunc {

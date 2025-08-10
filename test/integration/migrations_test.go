@@ -1,11 +1,12 @@
 package integration
 
 import (
+	"testing"
+	"time"
+
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/test/testutil"
 	_ "github.com/go-sql-driver/mysql"
-	"testing"
-	"time"
 )
 
 func TestMigrateUpIntegration(t *testing.T) {

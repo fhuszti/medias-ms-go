@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	_ "golang.org/x/image/webp"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
@@ -18,6 +17,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/ledongthuc/pdf"
+	_ "golang.org/x/image/webp"
 )
 
 type uploadFinaliserSrv struct {

@@ -7,9 +7,8 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
-	guuid "github.com/google/uuid"
-
 	"github.com/go-playground/validator/v10"
+	guuid "github.com/google/uuid"
 )
 
 var validate *validator.Validate

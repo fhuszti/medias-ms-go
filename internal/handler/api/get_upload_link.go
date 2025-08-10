@@ -3,10 +3,11 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/port"
-	"github.com/fhuszti/medias-ms-go/internal/validation"
 	"log"
 	"net/http"
+
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/validation"
 )
 
 type GenerateUploadLinkRequest struct {

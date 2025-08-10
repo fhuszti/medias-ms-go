@@ -2,12 +2,13 @@ package config
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
-	"github.com/spf13/viper"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 type Settings struct {

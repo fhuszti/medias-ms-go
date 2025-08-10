@@ -2,10 +2,11 @@ package storage
 
 import (
 	"context"
-	"github.com/minio/minio-go/v7"
 	"io"
 	"net/url"
 	"time"
+
+	"github.com/minio/minio-go/v7"
 )
 
 type minioClient interface {

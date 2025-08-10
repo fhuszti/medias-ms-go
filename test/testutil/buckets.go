@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"fmt"
+
 	"github.com/fhuszti/medias-ms-go/internal/storage"
 	"github.com/minio/minio-go/v7"
 )

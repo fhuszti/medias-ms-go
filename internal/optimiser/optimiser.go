@@ -2,16 +2,17 @@ package optimiser
 
 import (
 	"fmt"
-	"github.com/fhuszti/medias-ms-go/internal/port"
-	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
-	"golang.org/x/image/draw"
-	_ "golang.org/x/image/webp"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
 	"log"
 	"os"
+
+	"github.com/fhuszti/medias-ms-go/internal/port"
+	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+	"golang.org/x/image/draw"
+	_ "golang.org/x/image/webp"
 )
 
 type FileOptimiser struct {

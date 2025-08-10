@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"net/http"
+
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
-	"log"
-	"net/http"
 )
 
 type FinaliseUploadRequest struct {

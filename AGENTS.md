@@ -38,8 +38,11 @@ This microservice is designed to:
 - internal/handler/api/: HTTP handler layer
 - internal/handler/worker/: Async handler layer
 - internal/migration/: SQL migrations runner
+- internal/mock/: Mocks for unit tests
 - internal/model/: Model layer
 - internal/optimiser/: File optimiser implementation
+- internal/port/: All the interfaces for the application
+- internal/renderer/: Renderers to manage cache and use cases responses
 - internal/repository/: Database operations
 - internal/repository/mariadb/: MariaDB implementation
 - internal/storage/: File storage (MinIO) implementation
