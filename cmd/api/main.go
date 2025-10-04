@@ -15,6 +15,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
+	cMiddleware "github.com/fhuszti/medias-ms-go/internal/middleware"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/renderer"
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
@@ -34,8 +35,7 @@ func main() {
 
 	database := initDb(cfg)
 
-	r := initRouter()
-	r.Use(api.WithJWTAuth(cfg.JWTKey))
+	r := initRouter(cfg.JWTPublicKey)
 
 	strg := initStorage(cfg)
 	initBuckets(strg, cfg.Buckets)
@@ -57,16 +57,16 @@ func main() {
 	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
 
 	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, strg, dispatcher)
-	r.With(api.WithID()).
+	r.With(cMiddleware.WithMediaID()).
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(uploadFinaliserSvc, cfg.Buckets))
 
 	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, strg)
 	rendererSvc := renderer.NewHTTPRenderer(ca)
-	r.With(api.WithID()).
+	r.With(cMiddleware.WithMediaID()).
 		Get("/medias/{id}", api.GetMediaHandler(rendererSvc, getMediaSvc))
 
 	deleteMediaSvc := mediaSvc.NewMediaDeleter(mediaRepo, ca, strg)
-	r.With(api.WithID()).
+	r.With(cMiddleware.WithMediaID()).
 		Delete("/medias/{id}", api.DeleteMediaHandler(deleteMediaSvc))
 
 	listenRouter(r, cfg, database)
@@ -83,12 +83,13 @@ func initDb(cfg *config.Settings) *db.Database {
 	return database
 }
 
-func initRouter() *chi.Mux {
+func initRouter(jwtKey string) *chi.Mux {
 	log.Println("initialising router...")
 
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
+	r.Use(cMiddleware.WithDSTAuth(jwtKey))
 
 	r.NotFound(api.NotFoundHandler())
 	r.MethodNotAllowed(api.MethodNotAllowedHandler())

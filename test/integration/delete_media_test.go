@@ -14,6 +14,7 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
+	"github.com/fhuszti/medias-ms-go/internal/middleware"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
@@ -130,7 +131,7 @@ func TestDeleteMediaIntegration_ErrorNotFound(t *testing.T) {
 	defer cleanup()
 
 	r := chi.NewRouter()
-	r.With(api.WithID()).Delete("/medias/{id}", api.DeleteMediaHandler(svc))
+	r.With(middleware.WithMediaID()).Delete("/medias/{id}", api.DeleteMediaHandler(svc))
 
 	id := uuid.NewUUID().String()
 	req := httptest.NewRequest(http.MethodDelete, "/medias/"+id, nil)
@@ -161,7 +162,7 @@ func TestDeleteMediaIntegration_ErrorInvalidID(t *testing.T) {
 	svc := mediaSvc.NewMediaDeleter(repo, nil, nil)
 
 	r := chi.NewRouter()
-	r.With(api.WithID()).Delete("/medias/{id}", api.DeleteMediaHandler(svc))
+	r.With(middleware.WithMediaID()).Delete("/medias/{id}", api.DeleteMediaHandler(svc))
 
 	req := httptest.NewRequest(http.MethodDelete, "/medias/not-a-uuid", nil)
 	rec := httptest.NewRecorder()

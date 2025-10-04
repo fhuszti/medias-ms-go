@@ -12,6 +12,7 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
+	"github.com/fhuszti/medias-ms-go/internal/middleware"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
@@ -296,7 +297,7 @@ func TestGetMediaIntegration_ErrorNotFound(t *testing.T) {
 
 	r := chi.NewRouter()
 	rendererSvc := renderer.NewHTTPRenderer(cache.NewNoop())
-	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(rendererSvc, svc))
+	r.With(middleware.WithMediaID()).Get("/medias/{id}", api.GetMediaHandler(rendererSvc, svc))
 
 	// Make request for a non-existent UUID
 	id := uuid.NewUUID().String()
@@ -330,7 +331,7 @@ func TestGetMediaIntegration_ErrorInvalidID(t *testing.T) {
 
 	r := chi.NewRouter()
 	rendererSvc := renderer.NewHTTPRenderer(cache.NewNoop())
-	r.With(api.WithID()).Get("/medias/{id}", api.GetMediaHandler(rendererSvc, svc))
+	r.With(middleware.WithMediaID()).Get("/medias/{id}", api.GetMediaHandler(rendererSvc, svc))
 
 	// Invalid UUID
 	req := httptest.NewRequest(http.MethodGet, "/medias/not-a-uuid", nil)

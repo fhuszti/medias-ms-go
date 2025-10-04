@@ -91,7 +91,7 @@ If Redis is not configured:
 
 ## JWT authentication *(optional)*
 
-If `JWT_KEY` is set in the environment, the API requires all requests to
+If `JWT_PUBLIC_KEY_PATH` is set in the environment, the API requires all requests to
 include a valid JWT token as a Bearer token in the `Authorization` header. The
-token signature is verified using this RSA public key. When `JWT_KEY` is
+token signature is verified using this RSA public key. When `JWT_PUBLIC_KEY_PATH` is
 empty, authentication is skipped and all requests are allowed through.

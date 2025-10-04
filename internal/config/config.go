@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ type Settings struct {
 	ImagesSizes     []int
 	RedisAddr       string
 	RedisPassword   string
-	JWTKey          string
+	JWTPublicKey    string
 }
 
 func Load() (*Settings, error) {
@@ -78,6 +79,11 @@ func Load() (*Settings, error) {
 		return nil, fmt.Errorf("IMAGES_SIZES is required")
 	}
 
+	jwtPem, err := getJWTPem()
+	if err != nil {
+		return nil, fmt.Errorf("could not read file from JWT_PUBLIC_KEY_PATH: %w", err)
+	}
+
 	return &Settings{
 		MariaDBDSN:      viper.GetString("MARIADB_DSN"),
 		MaxOpenConns:    viper.GetInt("MARIADB_MAX_OPEN_CONN"),
@@ -92,7 +98,7 @@ func Load() (*Settings, error) {
 		ImagesSizes:     getImagesSizes(),
 		RedisAddr:       viper.GetString("REDIS_ADDR"),
 		RedisPassword:   viper.GetString("REDIS_PASSWORD"),
-		JWTKey:          viper.GetString("JWT_KEY"),
+		JWTPublicKey:    jwtPem,
 	}, nil
 }
 
@@ -135,4 +141,19 @@ func getImagesSizes() []int {
 		sizes = append(sizes, sizeInt)
 	}
 	return sizes
+}
+
+func getJWTPem() (string, error) {
+	jwtKeyPath := viper.GetString("JWT_PUBLIC_KEY_PATH")
+	if jwtKeyPath == "" {
+		return "", nil
+	}
+
+	data, err := os.ReadFile(jwtKeyPath)
+	if err != nil {
+		return "", err
+	}
+	jwtPem := string(data)
+
+	return jwtPem, nil
 }

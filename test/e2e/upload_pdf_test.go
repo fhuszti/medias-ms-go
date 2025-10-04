@@ -14,6 +14,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
+	"github.com/fhuszti/medias-ms-go/internal/middleware"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/renderer"
@@ -88,11 +89,11 @@ func setupServer(t *testing.T) *httptest.Server {
 	// Setup HTTP handlers
 	r := chi.NewRouter()
 	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
-	r.With(api.WithID()).
+	r.With(middleware.WithMediaID()).
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(finaliserSvc, []string{"staging", "images", "docs"}))
-	r.With(api.WithID()).
+	r.With(middleware.WithMediaID()).
 		Get("/medias/{id}", api.GetMediaHandler(rendererSvc, getterSvc))
-	r.With(api.WithID()).
+	r.With(middleware.WithMediaID()).
 		Delete("/medias/{id}", api.DeleteMediaHandler(deleterSvc))
 
 	ts := httptest.NewServer(r)

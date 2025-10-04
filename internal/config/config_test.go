@@ -41,6 +41,14 @@ func TestLoad_Success(t *testing.T) {
 		t.Setenv(k, v)
 	}
 
+	// Create a fake JWT public key and point the env var to it
+	jwtFile := "jwt.pem"
+	jwtContent := "-----BEGIN PUBLIC KEY-----\nfake\n-----END PUBLIC KEY-----"
+	if err := os.WriteFile(jwtFile, []byte(jwtContent), 0o600); err != nil {
+		t.Fatalf("could not write temp jwt file: %v", err)
+	}
+	t.Setenv("JWT_PUBLIC_KEY_PATH", jwtFile)
+
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -80,6 +88,9 @@ func TestLoad_Success(t *testing.T) {
 	wantedImagesSizes := []int{100, 500, 1000}
 	if !reflect.DeepEqual(cfg.ImagesSizes, wantedImagesSizes) {
 		t.Errorf("ImagesSizes: expected %v, got %v", wantedImagesSizes, cfg.ImagesSizes)
+	}
+	if cfg.JWTPublicKey != jwtContent {
+		t.Errorf("JWTPublicKey: expected %q, got %q", jwtContent, cfg.JWTPublicKey)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fhuszti/medias-ms-go/internal/api_context"
 	"github.com/fhuszti/medias-ms-go/internal/mock"
 	mediaUC "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
@@ -59,7 +60,7 @@ func TestDeleteMediaHandler(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodDelete, "/medias/"+validID.String(), nil)
 			if tc.ctxID != nil {
-				req = req.WithContext(context.WithValue(req.Context(), IDKey, *tc.ctxID))
+				req = req.WithContext(context.WithValue(req.Context(), api_context.IDKey, *tc.ctxID))
 			}
 
 			rec := httptest.NewRecorder()

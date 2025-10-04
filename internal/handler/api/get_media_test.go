@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fhuszti/medias-ms-go/internal/api_context"
 	"github.com/fhuszti/medias-ms-go/internal/mock"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
@@ -132,7 +133,7 @@ func TestGetMediaHandler(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodPost, "/medias/"+validID.String(), nil)
 			if tc.ctxID != nil {
-				req = req.WithContext(context.WithValue(req.Context(), IDKey, *tc.ctxID))
+				req = req.WithContext(context.WithValue(req.Context(), api_context.IDKey, *tc.ctxID))
 			}
 			rec := httptest.NewRecorder()
 
@@ -202,7 +203,7 @@ func TestGetMediaHandler_IfNoneMatch(t *testing.T) {
 	handlerFn := GetMediaHandler(renderer, mockSvc)
 	etag := renderer.EtagMedia
 	req := httptest.NewRequest(http.MethodGet, "/medias/"+validID.String(), nil)
-	req = req.WithContext(context.WithValue(req.Context(), IDKey, validID))
+	req = req.WithContext(context.WithValue(req.Context(), api_context.IDKey, validID))
 	req.Header.Set("If-None-Match", etag)
 	rec := httptest.NewRecorder()
 

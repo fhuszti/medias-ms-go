@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
+	"github.com/fhuszti/medias-ms-go/internal/middleware"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
@@ -500,7 +501,7 @@ func TestFinaliseUploadIntegration_ErrorFileSize(t *testing.T) {
 func TestFinaliseUploadIntegration_ErrorInvalidBucket(t *testing.T) {
 	r := chi.NewRouter()
 	allowed := []string{"images", "docs"}
-	r.With(api.WithID()).
+	r.With(middleware.WithMediaID()).
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(nil, allowed))
 
 	body := strings.NewReader(`{"dest_bucket":"not-a-bucket"}`)

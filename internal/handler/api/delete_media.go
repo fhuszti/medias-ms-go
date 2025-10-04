@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/fhuszti/medias-ms-go/internal/api_context"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 )
@@ -12,7 +13,7 @@ import (
 // DeleteMediaHandler deletes a media by ID.
 func DeleteMediaHandler(svc port.MediaDeleter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := IDFromContext(r.Context())
+		id, ok := api_context.IDFromContext(r.Context())
 		if !ok {
 			WriteError(w, http.StatusBadRequest, "ID is required", nil)
 			return

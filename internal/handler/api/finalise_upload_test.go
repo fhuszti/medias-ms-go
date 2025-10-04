@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fhuszti/medias-ms-go/internal/api_context"
 	"github.com/fhuszti/medias-ms-go/internal/mock"
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	guuid "github.com/google/uuid"
@@ -87,7 +88,7 @@ func TestFinaliseUploadHandler(t *testing.T) {
 			if tc.ctxID {
 				req = req.WithContext(context.WithValue(
 					req.Context(),
-					IDKey,
+					api_context.IDKey,
 					validID,
 				))
 			}

@@ -5,13 +5,14 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/fhuszti/medias-ms-go/internal/api_context"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 )
 
 func GetMediaHandler(renderer port.HTTPRenderer, svc port.MediaGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := IDFromContext(r.Context())
+		id, ok := api_context.IDFromContext(r.Context())
 		if !ok {
 			WriteError(w, http.StatusBadRequest, "ID is required", nil)
 			return
