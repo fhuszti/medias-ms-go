@@ -10,7 +10,9 @@ import (
 
 	"github.com/fhuszti/medias-ms-go/internal/api_context"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
+	"github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/golang-jwt/jwt/v4"
+	gouuid "github.com/google/uuid"
 )
 
 // WithDSTAuth validates a short-lived Bearer JWT (DST only)
@@ -76,9 +78,15 @@ func WithDSTAuth(jwtPublicKeyPEM string) func(http.Handler) http.Handler {
 				api.WriteError(w, http.StatusUnauthorized, "missing sub", nil)
 				return
 			}
+			parsedSub, err := gouuid.Parse(sub)
+			if err != nil {
+				api.WriteError(w, http.StatusBadRequest, fmt.Sprintf("User ID %q is not a valid UUID", sub), nil)
+				return
+			}
+
 			roles := toStringSlice(claims["roles"])
 
-			ctx := context.WithValue(r.Context(), api_context.AuthUserIDKey, sub)
+			ctx := context.WithValue(r.Context(), api_context.AuthUserIDKey, uuid.UUID(parsedSub))
 			ctx = context.WithValue(ctx, api_context.AuthRolesKey, roles)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

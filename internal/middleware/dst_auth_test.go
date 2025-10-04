@@ -33,7 +33,7 @@ func TestWithDSTAuth(t *testing.T) {
 		"aud":   "medias",
 		"exp":   time.Now().Add(time.Minute).Unix(),
 		"iat":   time.Now().Unix(),
-		"sub":   "user-123",
+		"sub":   "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 		"roles": []any{"admin", "dst"},
 	}
 
@@ -153,10 +153,11 @@ func TestWithDSTAuth(t *testing.T) {
 			nextCalled := false
 			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				nextCalled = true
-				rawUserID := r.Context().Value(api_context.AuthUserIDKey)
+
 				roles, _ := api_context.AuthRolesFromContext(r.Context())
-				if sub, ok := rawUserID.(string); ok {
-					w.Header().Set("X-User-ID", sub)
+
+				if id, ok := api_context.AuthUserIDFromContext(r.Context()); ok {
+					w.Header().Set("X-User-ID", id.String())
 				}
 				w.Header().Set("X-Roles", strings.Join(roles, ","))
 				w.WriteHeader(http.StatusNoContent)
