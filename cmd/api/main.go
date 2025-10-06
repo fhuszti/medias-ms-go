@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +14,7 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/handler/api"
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 	cMiddleware "github.com/fhuszti/medias-ms-go/internal/middleware"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/renderer"
@@ -28,17 +28,22 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
+
+	logger.Init()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("❌  Configuration error: %v", err)
+		logger.Errorf(ctx, "❌  Configuration error: %v", err)
+		os.Exit(1)
 	}
 
-	database := initDb(cfg)
+	database := initDb(ctx, cfg)
 
-	r := initRouter(cfg.JWTPublicKey)
+	r := initRouter(ctx, cfg.JWTPublicKey)
 
-	strg := initStorage(cfg)
-	initBuckets(strg, cfg.Buckets)
+	strg := initStorage(ctx, cfg)
+	initBuckets(ctx, strg, cfg.Buckets)
 
 	mediaRepo := mariadb.NewMediaRepository(database.DB)
 	var ca port.Cache
@@ -46,11 +51,11 @@ func main() {
 	if cfg.RedisAddr != "" {
 		ca = cache.NewCache(cfg.RedisAddr, cfg.RedisPassword)
 		dispatcher = task.NewDispatcher(cfg.RedisAddr, cfg.RedisPassword)
-		log.Println("✅  Redis cache enabled")
+		logger.Info(ctx, "✅  Redis cache enabled")
 	} else {
 		ca = cache.NewNoop()
 		dispatcher = task.NewNoopDispatcher()
-		log.Println("⚠️  Redis not configured — caching is disabled")
+		logger.Warn(ctx, "⚠️  Redis not configured — caching is disabled")
 	}
 
 	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, strg, msuuid.NewUUID)
@@ -69,22 +74,23 @@ func main() {
 	r.With(cMiddleware.WithMediaID()).
 		Delete("/medias/{id}", api.DeleteMediaHandler(deleteMediaSvc))
 
-	listenRouter(r, cfg, database)
+	listenRouter(ctx, r, cfg, database)
 }
 
-func initDb(cfg *config.Settings) *db.Database {
-	log.Println("initialising database...")
+func initDb(ctx context.Context, cfg *config.Settings) *db.Database {
+	logger.Info(ctx, "initialising database...")
 
 	database, err := db.New(cfg.MariaDBDSN, cfg.MaxOpenConns, cfg.MaxIdleConns, cfg.ConnMaxLifetime)
 	if err != nil {
-		log.Fatalf("❌  Failed to connect to db: %v", err)
+		logger.Errorf(ctx, "❌  Failed to connect to db: %v", err)
+		os.Exit(1)
 	}
 
 	return database
 }
 
-func initRouter(jwtKey string) *chi.Mux {
-	log.Println("initialising router...")
+func initRouter(ctx context.Context, jwtKey string) *chi.Mux {
+	logger.Info(ctx, "initialising router...")
 
 	r := chi.NewRouter()
 
@@ -97,7 +103,7 @@ func initRouter(jwtKey string) *chi.Mux {
 	return r
 }
 
-func initStorage(cfg *config.Settings) port.Storage {
+func initStorage(ctx context.Context, cfg *config.Settings) port.Storage {
 	strg, err := storage.NewStorage(
 		cfg.MinioEndpoint,
 		cfg.MinioAccessKey,
@@ -105,28 +111,31 @@ func initStorage(cfg *config.Settings) port.Storage {
 		cfg.MinioUseSSL,
 	)
 	if err != nil {
-		log.Fatalf("❌  Failed to initialize MinIO client: %v", err)
+		logger.Errorf(ctx, "❌  Failed to initialize MinIO client: %v", err)
+		os.Exit(1)
 	}
 
 	return strg
 }
 
-func initBuckets(strg port.Storage, buckets []string) {
+func initBuckets(ctx context.Context, strg port.Storage, buckets []string) {
 	for _, b := range buckets {
 		if err := strg.InitBucket(b); err != nil {
-			log.Fatalf("❌  Failed to initialize bucket %q: %v", b, err)
+			logger.Errorf(ctx, "❌  Failed to initialize bucket %q: %v", b, err)
+			os.Exit(1)
 		}
 	}
 }
 
-func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {
+func listenRouter(ctx context.Context, r *chi.Mux, cfg *config.Settings, database *db.Database) {
 	srv := &http.Server{Addr: ":" + strconv.Itoa(cfg.ServerPort), Handler: r}
 
 	// start serving
 	go func() {
-		log.Printf("🚀 API listening on %s", srv.Addr)
+		logger.Infof(ctx, "🚀 API listening on %s", srv.Addr)
 		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("❌  Listen error: %v", err)
+			logger.Errorf(ctx, "❌  Listen error: %v", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -134,17 +143,19 @@ func listenRouter(r *chi.Mux, cfg *config.Settings, database *db.Database) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("🛑 Shutdown signal received, exiting…")
+	logger.Info(ctx, "🛑 Shutdown signal received, exiting…")
 
 	// graceful shutdown with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("❌  Server shutdown failed: %v", err)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logger.Errorf(ctx, "❌  Server shutdown failed: %v", err)
+		os.Exit(1)
 	}
-	log.Println("✅  Server gracefully stopped")
+	logger.Info(ctx, "✅  Server gracefully stopped")
 
 	if err := database.Close(); err != nil {
-		log.Printf("DB close error: %v", err)
+		logger.Errorf(ctx, "DB close error: %v", err)
+		os.Exit(1)
 	}
 }
