@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"os"
 
 	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
@@ -10,18 +10,23 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/repository/mariadb"
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 func main() {
+	ctx := context.Background()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("❌  Configuration error: %v", err)
+		logger.Errorf(ctx, "❌  Configuration error: %v", err)
+		os.Exit(1)
 	}
 
 	database := initDb(cfg)
 	defer func() {
 		if err := database.Close(); err != nil {
-			log.Printf("DB close error: %v", err)
+			logger.Warnf(ctx, "DB close error: %v", err)
 		}
 	}()
 
@@ -29,25 +34,29 @@ func main() {
 	repo := mariadb.NewMediaRepository(database.DB)
 
 	optimiser := mediaSvc.NewBacklogOptimiser(repo, dispatcher)
-	if err := optimiser.OptimiseBacklog(context.Background()); err != nil {
-		log.Fatalf("❌  Backlog optimisation failed: %v", err)
+	if err := optimiser.OptimiseBacklog(ctx); err != nil {
+		logger.Errorf(ctx, "❌  Backlog optimisation failed: %v", err)
+		os.Exit(1)
 	}
-	log.Println("✅  Backlog optimisation enqueuing done")
+	logger.Info(ctx, "✅  Backlog optimisation enqueuing done")
 }
 
 func initDb(cfg *config.Settings) *db.Database {
-	log.Println("initialising database...")
-	
+	ctx := context.Background()
+	logger.Info(ctx, "initialising database...")
+
 	database, err := db.New(cfg.MariaDBDSN, cfg.MaxOpenConns, cfg.MaxIdleConns, cfg.ConnMaxLifetime)
 	if err != nil {
-		log.Fatalf("❌  Failed to connect to db: %v", err)
+		logger.Errorf(ctx, "❌  Failed to connect to db: %v", err)
+		os.Exit(1)
 	}
 	return database
 }
 
 func initDispatcher(cfg *config.Settings) port.TaskDispatcher {
 	if cfg.RedisAddr == "" {
-		log.Fatalf("❌  Redis not configured: this command requires a running Redis instance")
+		logger.Error(context.Background(), "❌  Redis not configured: this command requires a running Redis instance")
+		os.Exit(1)
 	}
 	return task.NewDispatcher(cfg.RedisAddr, cfg.RedisPassword)
 }

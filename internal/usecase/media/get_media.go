@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type mediaGetterSrv struct {
@@ -59,7 +60,7 @@ func (s *mediaGetterSrv) GetMedia(ctx context.Context, id msuuid.UUID) (*port.Ge
 		for _, v := range media.Variants {
 			vUrl, vErr := s.strg.GeneratePresignedDownloadURL(ctx, media.Bucket, v.ObjectKey, DownloadUrlTTL)
 			if vErr != nil {
-				log.Printf("error generating presigned download URL for variant %q: %+v", v.ObjectKey, vErr)
+				logger.Warnf(ctx, "error generating presigned download URL for variant %q: %+v", v.ObjectKey, vErr)
 				continue
 			}
 			variants = append(variants, model.VariantOutput{

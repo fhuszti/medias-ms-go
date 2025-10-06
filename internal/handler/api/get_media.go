@@ -2,12 +2,13 @@ package api
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/fhuszti/medias-ms-go/internal/api_context"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 func GetMediaHandler(renderer port.HTTPRenderer, svc port.MediaGetter) http.HandlerFunc {
@@ -32,11 +33,11 @@ func GetMediaHandler(renderer port.HTTPRenderer, svc port.MediaGetter) http.Hand
 		w.Header().Set("Cache-Control", "public, max-age=300")
 		if match := r.Header.Get("If-None-Match"); match == etag {
 			w.WriteHeader(http.StatusNotModified)
-			log.Printf("✅  Returning cached media #%s", id)
+			logger.Infof(r.Context(), "✅  Returning cached media #%s", id)
 			return
 		}
 
 		RespondRawJSON(w, http.StatusOK, raw)
-		log.Printf("✅  Successfully returned details for media #%s", id)
+		logger.Infof(r.Context(), "✅  Successfully returned details for media #%s", id)
 	}
 }

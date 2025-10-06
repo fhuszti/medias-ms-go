@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"path/filepath"
 	"strings"
 
@@ -13,6 +12,8 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
 	"golang.org/x/net/context"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type mediaOptimiserSrv struct {
@@ -91,13 +92,13 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, id msuuid.UUID) e
 
 	// Remove the tmp file
 	if err := m.strg.RemoveFile(ctx, media.Bucket, tempKey); err != nil {
-		log.Printf("warning: failed to remove temp file %q from bucket %q: %v", tempKey, media.Bucket, err)
+		logger.Warnf(ctx, "failed to remove temp file %q from bucket %q: %v", tempKey, media.Bucket, err)
 	}
 
 	// If the file extension has changed, remove the original
 	if newObjectKey != media.ObjectKey {
 		if err := m.strg.RemoveFile(ctx, media.Bucket, media.ObjectKey); err != nil {
-			log.Printf("warning: failed to remove old file %q from bucket %q: %v", media.ObjectKey, media.Bucket, err)
+			logger.Warnf(ctx, "failed to remove old file %q from bucket %q: %v", media.ObjectKey, media.Bucket, err)
 		}
 	}
 
@@ -118,15 +119,15 @@ func (m *mediaOptimiserSrv) OptimiseMedia(ctx context.Context, id msuuid.UUID) e
 
 	if IsImage(newMimeType) {
 		if err := m.tasks.EnqueueResizeImage(ctx, media.ID); err != nil {
-			log.Printf("failed to enqueue resize task for media #%s: %v", media.ID, err)
+			logger.Warnf(ctx, "failed to enqueue resize task for media #%s: %v", media.ID, err)
 		}
 	}
 
 	if err := m.cache.DeleteMediaDetails(ctx, media.ID); err != nil {
-		log.Printf("failed deleting cache for media #%s: %v", media.ID, err)
+		logger.Warnf(ctx, "failed deleting cache for media #%s: %v", media.ID, err)
 	}
 	if err := m.cache.DeleteEtagMediaDetails(ctx, media.ID); err != nil {
-		log.Printf("failed deleting etag cache for media #%s: %v", media.ID, err)
+		logger.Warnf(ctx, "failed deleting etag cache for media #%s: %v", media.ID, err)
 	}
 
 	return nil

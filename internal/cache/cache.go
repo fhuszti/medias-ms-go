@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/uuid"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type Cache struct {
@@ -31,7 +32,7 @@ func NewCache(addr, password string) *Cache {
 }
 
 func (c *Cache) GetMediaDetails(ctx context.Context, id uuid.UUID) ([]byte, error) {
-	log.Printf("getting entry in cache for media #%s...", id)
+	logger.Debugf(ctx, "getting entry in cache for media #%s...", id)
 
 	val, err := c.client.Get(ctx, getCacheKey(id.String(), false)).Result()
 	if errors.Is(err, redis.Nil) {
@@ -48,7 +49,7 @@ func (c *Cache) GetMediaDetails(ctx context.Context, id uuid.UUID) ([]byte, erro
 }
 
 func (c *Cache) GetEtagMediaDetails(ctx context.Context, id uuid.UUID) (string, error) {
-	log.Printf("getting etag in cache for media #%s...", id)
+	logger.Debugf(ctx, "getting etag in cache for media #%s...", id)
 
 	val, err := c.client.Get(ctx, getCacheKey(id.String(), true)).Result()
 	if errors.Is(err, redis.Nil) {
@@ -62,25 +63,25 @@ func (c *Cache) GetEtagMediaDetails(ctx context.Context, id uuid.UUID) (string, 
 }
 
 func (c *Cache) SetMediaDetails(ctx context.Context, id uuid.UUID, data []byte, validUntil time.Time) {
-	log.Printf("creating entry in cache for media #%s, valid until %s...", id, validUntil.Format(time.RFC1123))
+	logger.Debugf(ctx, "creating entry in cache for media #%s, valid until %s...", id, validUntil.Format(time.RFC1123))
 	exp := time.Until(validUntil)
 
 	if err := c.client.Set(ctx, getCacheKey(id.String(), false), data, exp).Err(); err != nil {
-		log.Printf("WARNING: redis set failed: %v", err)
+		logger.Warnf(ctx, "redis set failed: %v", err)
 	}
 }
 
 func (c *Cache) SetEtagMediaDetails(ctx context.Context, id uuid.UUID, etag string, validUntil time.Time) {
-	log.Printf("creating etag in cache for media #%s, valid until %s...", id, validUntil.Format(time.RFC1123))
+	logger.Debugf(ctx, "creating etag in cache for media #%s, valid until %s...", id, validUntil.Format(time.RFC1123))
 	exp := time.Until(validUntil)
 
 	if err := c.client.Set(ctx, getCacheKey(id.String(), true), etag, exp).Err(); err != nil {
-		log.Printf("WARNING: redis set failed: %v", err)
+		logger.Warnf(ctx, "redis set failed: %v", err)
 	}
 }
 
 func (c *Cache) DeleteMediaDetails(ctx context.Context, id uuid.UUID) error {
-	log.Printf("deleting entry in cache for media #%s...", id)
+	logger.Debugf(ctx, "deleting entry in cache for media #%s...", id)
 
 	if err := c.client.Del(ctx, getCacheKey(id.String(), false)).Err(); err != nil {
 		return fmt.Errorf("redis del failed: %w", err)
@@ -89,7 +90,7 @@ func (c *Cache) DeleteMediaDetails(ctx context.Context, id uuid.UUID) error {
 }
 
 func (c *Cache) DeleteEtagMediaDetails(ctx context.Context, id uuid.UUID) error {
-	log.Printf("deleting etag in cache for media #%s...", id)
+	logger.Debugf(ctx, "deleting etag in cache for media #%s...", id)
 
 	if err := c.client.Del(ctx, getCacheKey(id.String(), true)).Err(); err != nil {
 		return fmt.Errorf("redis del failed: %w", err)

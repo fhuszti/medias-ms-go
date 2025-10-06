@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"path"
 	"strings"
 
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type imageResizerSrv struct {
@@ -109,15 +110,15 @@ func (s *imageResizerSrv) ResizeImage(ctx context.Context, in port.ResizeImageIn
 	}
 
 	if err := s.repo.Update(ctx, media); err != nil {
-		log.Printf("failed updating media with variants: %v", err)
+		logger.Errorf(ctx, "failed updating media with variants: %v", err)
 		return fmt.Errorf("failed updating media: %w", err)
 	}
 
 	if err := s.cache.DeleteMediaDetails(ctx, media.ID); err != nil {
-		log.Printf("failed deleting cache for media #%s: %v", media.ID, err)
+		logger.Warnf(ctx, "failed deleting cache for media #%s: %v", media.ID, err)
 	}
 	if err := s.cache.DeleteEtagMediaDetails(ctx, media.ID); err != nil {
-		log.Printf("failed deleting etag cache for media #%s: %v", media.ID, err)
+		logger.Warnf(ctx, "failed deleting etag cache for media #%s: %v", media.ID, err)
 	}
 	return nil
 }

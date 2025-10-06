@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/fhuszti/medias-ms-go/internal/api_context"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type FinaliseUploadRequest struct {
@@ -43,7 +44,7 @@ func FinaliseUploadHandler(svc port.UploadFinaliser, allowedBuckets []string) ht
 				return
 			}
 			RespondRawJSON(w, http.StatusBadRequest, []byte(errsJSON))
-			log.Printf("❌  Validation failed: %s", errsJSON)
+			logger.Warnf(r.Context(), "❌  Validation failed: %s", errsJSON)
 			return
 		}
 
@@ -66,6 +67,6 @@ func FinaliseUploadHandler(svc port.UploadFinaliser, allowedBuckets []string) ht
 		}
 
 		w.WriteHeader(http.StatusNoContent)
-		log.Printf("✅  Successfully finalised upload of media #%s", input.ID)
+		logger.Infof(r.Context(), "✅  Successfully finalised upload of media #%s", input.ID)
 	}
 }

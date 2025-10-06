@@ -3,12 +3,13 @@ package testutil
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 	"github.com/redis/go-redis/v9"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type RedisContainerInfo struct {
@@ -55,7 +56,7 @@ func StartRedisContainer() (*RedisContainerInfo, error) {
 		Addr: addr,
 		Cleanup: func() {
 			if err := pool.Purge(resource); err != nil {
-				log.Printf("could not purge redis container: %s", err)
+				logger.Warnf(context.Background(), "could not purge redis container: %s", err)
 			}
 		},
 	}

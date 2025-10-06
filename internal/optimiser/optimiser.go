@@ -1,18 +1,20 @@
 package optimiser
 
 import (
+	"context"
 	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"log"
 	"os"
 
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type FileOptimiser struct {
@@ -24,7 +26,7 @@ type FileOptimiser struct {
 var _ port.FileOptimiser = (*FileOptimiser)(nil)
 
 func NewFileOptimiser(webpEnc WebPEncoder, pdfOpt PDFOptimizer) *FileOptimiser {
-	log.Println("initialising file optimiser...")
+	logger.Info(context.Background(), "initialising file optimiser...")
 	return &FileOptimiser{
 		webpEnc: webpEnc,
 		pdfOpt:  pdfOpt,
@@ -37,7 +39,7 @@ func NewFileOptimiser(webpEnc WebPEncoder, pdfOpt PDFOptimizer) *FileOptimiser {
 //   - PDFs (application/pdf): run pdfcpu.Optimize to strip unused objects.
 //   - Everything else (e.g. markdown): read as-is and return raw bytes.
 func (fo *FileOptimiser) Compress(mimeType string, r io.Reader) (io.ReadCloser, string, error) {
-	log.Printf("compressing  file of type %q...", mimeType)
+	logger.Debugf(context.Background(), "compressing  file of type %q...", mimeType)
 
 	pr, pw := io.Pipe()
 
@@ -128,7 +130,7 @@ func (fo *FileOptimiser) Compress(mimeType string, r io.Reader) (io.ReadCloser, 
 }
 
 func (fo *FileOptimiser) Resize(mimeType string, r io.Reader, width, height int) (io.ReadCloser, error) {
-	log.Printf("resizing image of type %q...", mimeType)
+	logger.Debugf(context.Background(), "resizing image of type %q...", mimeType)
 
 	pr, pw := io.Pipe()
 

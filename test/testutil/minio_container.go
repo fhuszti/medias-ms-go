@@ -3,7 +3,6 @@ package testutil
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/storage"
@@ -11,6 +10,8 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type MinIOContainerInfo struct {
@@ -82,7 +83,7 @@ func StartMinIOContainer() (*MinIOContainerInfo, error) {
 		Strg: strg,
 		Cleanup: func() {
 			if err := pool.Purge(resource); err != nil {
-				log.Printf("could not purge minio container: %s", err)
+				logger.Warnf(context.Background(), "could not purge minio container: %s", err)
 			}
 		},
 	}
