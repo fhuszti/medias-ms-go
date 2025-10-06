@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,21 +18,27 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/hibiken/asynq"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 func main() {
+	ctx := context.Background()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("❌  Configuration error: %v", err)
+		logger.Errorf(ctx, "❌  Configuration error: %v", err)
+		os.Exit(1)
 	}
 	if cfg.RedisAddr == "" {
-		log.Fatal("⚠️  REDIS_ADDR must be set to run the worker")
+		logger.Error(ctx, "⚠️  REDIS_ADDR must be set to run the worker")
+		os.Exit(1)
 	}
 
 	database := initDb(cfg)
 	defer func() {
 		if err := database.Close(); err != nil {
-			log.Printf("DB close error: %v", err)
+			logger.Warnf(ctx, "DB close error: %v", err)
 		}
 	}()
 
@@ -63,15 +68,17 @@ func main() {
 		return workerHandler.ResizeImageHandler(ctx, p, cfg.ImagesSizes, resizeSvc)
 	})
 
-	runWorker(mux, cfg, database)
+	runWorker(ctx, mux, cfg, database)
 }
 
 func initDb(cfg *config.Settings) *db.Database {
-	log.Println("initialising database...")
+	ctx := context.Background()
+	logger.Info(ctx, "initialising database...")
 
 	database, err := db.New(cfg.MariaDBDSN, cfg.MaxOpenConns, cfg.MaxIdleConns, cfg.ConnMaxLifetime)
 	if err != nil {
-		log.Fatalf("❌  Failed to connect to db: %v", err)
+		logger.Errorf(ctx, "❌  Failed to connect to db: %v", err)
+		os.Exit(1)
 	}
 	return database
 }
@@ -84,7 +91,8 @@ func initStorage(cfg *config.Settings) port.Storage {
 		cfg.MinioUseSSL,
 	)
 	if err != nil {
-		log.Fatalf("❌  Failed to initialize MinIO client: %v", err)
+		logger.Errorf(context.Background(), "❌  Failed to initialize MinIO client: %v", err)
+		os.Exit(1)
 	}
 
 	return strg
@@ -93,12 +101,13 @@ func initStorage(cfg *config.Settings) port.Storage {
 func initBuckets(strg port.Storage, buckets []string) {
 	for _, b := range buckets {
 		if err := strg.InitBucket(b); err != nil {
-			log.Fatalf("❌  Failed to initialize bucket %q: %v", b, err)
+			logger.Errorf(context.Background(), "❌  Failed to initialize bucket %q: %v", b, err)
+			os.Exit(1)
 		}
 	}
 }
 
-func runWorker(mux *asynq.ServeMux, cfg *config.Settings, database *db.Database) {
+func runWorker(ctx context.Context, mux *asynq.ServeMux, cfg *config.Settings, database *db.Database) {
 	srv := asynq.NewServer(asynq.RedisClientOpt{
 		Addr:     cfg.RedisAddr,
 		Password: cfg.RedisPassword,
@@ -107,16 +116,17 @@ func runWorker(mux *asynq.ServeMux, cfg *config.Settings, database *db.Database)
 	// Run server in background
 	go func() {
 		if err := srv.Run(mux); err != nil {
-			log.Fatalf("❌  Worker failed: %v", err)
+			logger.Errorf(context.Background(), "❌  Worker failed: %v", err)
+			os.Exit(1)
 		}
 	}()
-	log.Println("🚀 Worker started")
+	logger.Info(ctx, "🚀 Worker started")
 
 	// Wait for interrupt signal
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	<-sigCh
-	log.Println("🛑 Shutdown signal received, exiting…")
+	logger.Info(ctx, "🛑 Shutdown signal received, exiting…")
 
 	// Give Asynq up to 30 sec to finish tasks
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -126,7 +136,7 @@ func runWorker(mux *asynq.ServeMux, cfg *config.Settings, database *db.Database)
 
 	// Close DB
 	if err := database.Close(); err != nil {
-		log.Printf("DB close error: %v", err)
+		logger.Warnf(ctx, "DB close error: %v", err)
 	}
-	log.Println("✅  Worker gracefully stopped")
+	logger.Info(ctx, "✅  Worker gracefully stopped")
 }

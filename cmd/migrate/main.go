@@ -1,23 +1,30 @@
 package main
 
 import (
-	"log"
+	"context"
+	"os"
 
 	"github.com/fhuszti/medias-ms-go/internal/config"
 	"github.com/fhuszti/medias-ms-go/internal/db"
 	"github.com/fhuszti/medias-ms-go/internal/migration"
 	_ "github.com/go-sql-driver/mysql"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 func main() {
+	ctx := context.Background()
+
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("❌  Configuration error: %v", err)
+		logger.Errorf(ctx, "❌  Configuration error: %v", err)
+		os.Exit(1)
 	}
 
 	database, err := initDb(cfg)
 	if err != nil {
-		log.Fatalf("❌  Failed to connect to db: %v", err)
+		logger.Errorf(ctx, "❌  Failed to connect to db: %v", err)
+		os.Exit(1)
 	}
 	defer func(database *db.Database) {
 		err := database.Close()
@@ -27,10 +34,11 @@ func main() {
 	}(database)
 
 	if err := migration.MigrateUp(database.DB); err != nil {
-		log.Fatalf("❌  Migration up failed: %v", err)
+		logger.Errorf(ctx, "❌  Migration up failed: %v", err)
+		os.Exit(1)
 	}
 
-	log.Println("✅  Migrations applied successfully")
+	logger.Info(ctx, "✅  Migrations applied successfully")
 }
 
 func initDb(cfg *config.Settings) (*db.Database, error) {

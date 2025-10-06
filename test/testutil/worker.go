@@ -2,7 +2,6 @@ package testutil
 
 import (
 	"context"
-	"log"
 
 	"github.com/fhuszti/medias-ms-go/internal/cache"
 	"github.com/fhuszti/medias-ms-go/internal/db"
@@ -13,6 +12,8 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/task"
 	mediaSvc "github.com/fhuszti/medias-ms-go/internal/usecase/media"
 	"github.com/hibiken/asynq"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 // StartWorker starts an asynq worker processing optimisation tasks.
@@ -44,7 +45,7 @@ func StartWorker(dbConn *db.Database, strg *storage.Strg, redisAddr string) func
 	srv := asynq.NewServer(asynq.RedisClientOpt{Addr: redisAddr}, asynq.Config{Concurrency: 5})
 	go func() {
 		if err := srv.Run(mux); err != nil {
-			log.Printf("worker stopped: %v", err)
+			logger.Errorf(context.Background(), "worker stopped: %v", err)
 		}
 	}()
 

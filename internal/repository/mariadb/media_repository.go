@@ -3,12 +3,13 @@ package mariadb
 import (
 	"context"
 	"database/sql"
-	"log"
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type MediaRepository struct {
@@ -23,7 +24,7 @@ func NewMediaRepository(db *sql.DB) *MediaRepository {
 }
 
 func (r *MediaRepository) GetByID(ctx context.Context, ID msuuid.UUID) (*model.Media, error) {
-	log.Printf("fetching media #%s from the database...", ID)
+	logger.Debugf(ctx, "fetching media #%s from the database...", ID)
 
 	const query = `
       SELECT id, object_key, bucket, original_filename, mime_type, size_bytes, status, optimised, failure_message, metadata, variants, created_at, updated_at
@@ -46,7 +47,7 @@ func (r *MediaRepository) GetByID(ctx context.Context, ID msuuid.UUID) (*model.M
 }
 
 func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error {
-	log.Printf("creating database record for media #%s, at status %q...", media.ID, media.Status)
+	logger.Debugf(ctx, "creating database record for media #%s, at status %q...", media.ID, media.Status)
 
 	const query = `
       INSERT INTO medias 
@@ -67,7 +68,7 @@ func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error 
 }
 
 func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error {
-	log.Printf("updating database record for media #%s, with status %q...", media.ID, media.Status)
+	logger.Debugf(ctx, "updating database record for media #%s, with status %q...", media.ID, media.Status)
 
 	const query = `
       UPDATE medias
@@ -103,7 +104,7 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
 }
 
 func (r *MediaRepository) Delete(ctx context.Context, ID msuuid.UUID) error {
-	log.Printf("deleting media #%s from the database...", ID)
+	logger.Debugf(ctx, "deleting media #%s from the database...", ID)
 
 	const query = `DELETE FROM medias WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, ID)
@@ -111,7 +112,7 @@ func (r *MediaRepository) Delete(ctx context.Context, ID msuuid.UUID) error {
 }
 
 func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, before time.Time) ([]msuuid.UUID, error) {
-	log.Printf("fetching medias to reoptimise before %s...", before)
+	logger.Debugf(ctx, "fetching medias to reoptimise before %s...", before)
 
 	const query = `
       SELECT id FROM medias
@@ -123,7 +124,7 @@ func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, be
 	}
 	defer func() {
 		if cerr := rows.Close(); cerr != nil {
-			log.Printf("rows close error: %v", cerr)
+			logger.Warnf(ctx, "rows close error: %v", cerr)
 		}
 	}()
 
@@ -142,7 +143,7 @@ func (r *MediaRepository) ListUnoptimisedCompletedBefore(ctx context.Context, be
 }
 
 func (r *MediaRepository) ListOptimisedImagesNoVariantsBefore(ctx context.Context, before time.Time) ([]msuuid.UUID, error) {
-	log.Printf("fetching images to resize before %s...", before)
+	logger.Debugf(ctx, "fetching images to resize before %s...", before)
 
 	const query = `
       SELECT id FROM medias
@@ -158,7 +159,7 @@ func (r *MediaRepository) ListOptimisedImagesNoVariantsBefore(ctx context.Contex
 	}
 	defer func() {
 		if cerr := rows.Close(); cerr != nil {
-			log.Printf("rows close error: %v", cerr)
+			logger.Warnf(ctx, "rows close error: %v", cerr)
 		}
 	}()
 

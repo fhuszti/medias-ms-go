@@ -1,13 +1,15 @@
 package testutil
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type MariaDBContainerInfo struct {
@@ -66,7 +68,7 @@ func StartMariaDBContainer() (*MariaDBContainerInfo, error) {
 		DSN: dsn,
 		Cleanup: func() {
 			if err := pool.Purge(resource); err != nil {
-				log.Printf("could not purge container: %s", err)
+				logger.Warnf(context.Background(), "could not purge container: %s", err)
 			}
 		},
 	}

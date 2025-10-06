@@ -3,11 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/fhuszti/medias-ms-go/internal/validation"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type GenerateUploadLinkRequest struct {
@@ -31,7 +32,7 @@ func GenerateUploadLinkHandler(svc port.UploadLinkGenerator) http.HandlerFunc {
 
 			// return the validation errors payload directly
 			RespondRawJSON(w, http.StatusBadRequest, []byte(errsJSON))
-			log.Printf("❌  Validation failed: %s", errsJSON)
+			logger.Warnf(r.Context(), "❌  Validation failed: %s", errsJSON)
 			return
 		}
 
@@ -43,6 +44,6 @@ func GenerateUploadLinkHandler(svc port.UploadLinkGenerator) http.HandlerFunc {
 		}
 
 		RespondJSON(w, http.StatusCreated, out)
-		log.Printf("✅  Successfully generated upload link for media #%s", out.ID)
+		logger.Infof(r.Context(), "✅  Successfully generated upload link for media #%s", out.ID)
 	}
 }

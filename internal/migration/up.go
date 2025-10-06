@@ -1,11 +1,11 @@
 package migration
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,12 +13,15 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
 func MigrateUp(db *sql.DB) error {
+	ctx := context.Background()
 	src, err := iofs.New(migrationsFS, "migrations")
 	if err != nil {
 		return fmt.Errorf("could not create source driver: %v", err)
@@ -43,7 +46,7 @@ func MigrateUp(db *sql.DB) error {
 			if err != nil {
 				return err
 			}
-			log.Printf("database dirty at version %d, forcing back to %d", dirtyErr.Version, prev)
+			logger.Warnf(ctx, "database dirty at version %d, forcing back to %d", dirtyErr.Version, prev)
 			if ferr := m.Force(int(prev)); ferr != nil {
 				return fmt.Errorf("failed to force to version %d: %w", prev, ferr)
 			}

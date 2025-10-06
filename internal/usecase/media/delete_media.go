@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
 
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	msuuid "github.com/fhuszti/medias-ms-go/internal/uuid"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type deleteMediaSrv struct {
@@ -36,7 +37,7 @@ func (s *deleteMediaSrv) DeleteMedia(ctx context.Context, id msuuid.UUID) error 
 
 	for _, v := range media.Variants {
 		if err := s.strg.RemoveFile(ctx, media.Bucket, v.ObjectKey); err != nil {
-			log.Printf("failed to remove variant %q: %v", v.ObjectKey, err)
+			logger.Warnf(ctx, "failed to remove variant %q: %v", v.ObjectKey, err)
 		}
 	}
 
@@ -49,10 +50,10 @@ func (s *deleteMediaSrv) DeleteMedia(ctx context.Context, id msuuid.UUID) error 
 	}
 
 	if err := s.cache.DeleteMediaDetails(ctx, media.ID); err != nil {
-		log.Printf("failed deleting cache for media #%s: %v", media.ID, err)
+		logger.Warnf(ctx, "failed deleting cache for media #%s: %v", media.ID, err)
 	}
 	if err := s.cache.DeleteEtagMediaDetails(ctx, media.ID); err != nil {
-		log.Printf("failed deleting etag cache for media #%s: %v", media.ID, err)
+		logger.Warnf(ctx, "failed deleting etag cache for media #%s: %v", media.ID, err)
 	}
 
 	return nil

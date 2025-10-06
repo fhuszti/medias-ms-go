@@ -2,10 +2,11 @@ package media
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/port"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type backlogOptimiserSrv struct {
@@ -31,13 +32,13 @@ func (s *backlogOptimiserSrv) OptimiseBacklog(ctx context.Context) error {
 	}
 
 	if len(ids) == 0 {
-		log.Printf("no medias found to optimise")
+		logger.Info(ctx, "no medias found to optimise")
 	}
 
 	for _, id := range ids {
-		log.Printf("starting optimisation for media #%s", id)
+		logger.Infof(ctx, "starting optimisation for media #%s", id)
 		if err := s.tasks.EnqueueOptimiseMedia(ctx, id); err != nil {
-			log.Printf("failed to enqueue optimise task for media #%s: %v", id, err)
+			logger.Warnf(ctx, "failed to enqueue optimise task for media #%s: %v", id, err)
 		}
 	}
 
@@ -47,13 +48,13 @@ func (s *backlogOptimiserSrv) OptimiseBacklog(ctx context.Context) error {
 	}
 
 	if len(resizeIDs) == 0 {
-		log.Printf("no images found to resize")
+		logger.Info(ctx, "no images found to resize")
 	}
 
 	for _, id := range resizeIDs {
-		log.Printf("starting resize for media #%s", id)
+		logger.Infof(ctx, "starting resize for media #%s", id)
 		if err := s.tasks.EnqueueResizeImage(ctx, id); err != nil {
-			log.Printf("failed to enqueue resize task for media #%s: %v", id, err)
+			logger.Warnf(ctx, "failed to enqueue resize task for media #%s: %v", id, err)
 		}
 	}
 	return nil

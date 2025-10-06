@@ -10,7 +10,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"log"
 	"regexp"
 	"strings"
 
@@ -18,6 +17,8 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/port"
 	"github.com/ledongthuc/pdf"
 	_ "golang.org/x/image/webp"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type uploadFinaliserSrv struct {
@@ -53,10 +54,10 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in port.Finalis
 	defer func() {
 		if finalErr != nil {
 			if err := s.cleanupFile(media.ObjectKey); err != nil {
-				log.Printf("cleanup failed for file %q: %v", media.ObjectKey, err)
+				logger.Errorf(ctx, "cleanup failed for file %q: %v", media.ObjectKey, err)
 			}
 			if markErr := s.markAsFailed(ctx, media, finalErr.Error()); markErr != nil {
-				log.Printf("markAsFailed failed for file %q: %v", media.ObjectKey, markErr)
+				logger.Errorf(ctx, "markAsFailed failed for file %q: %v", media.ObjectKey, markErr)
 			}
 		}
 	}()
@@ -91,7 +92,7 @@ func (s *uploadFinaliserSrv) FinaliseUpload(ctx context.Context, in port.Finalis
 	}
 
 	if err := s.tasks.EnqueueOptimiseMedia(ctx, media.ID); err != nil {
-		log.Printf("failed to enqueue optimise task for media #%s: %v", media.ID, err)
+		logger.Warnf(ctx, "failed to enqueue optimise task for media #%s: %v", media.ID, err)
 	}
 
 	return nil
@@ -130,7 +131,7 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 	}
 	defer func(file io.ReadSeekCloser) {
 		if err := file.Close(); err != nil {
-			log.Printf("failed to close reader")
+			logger.Warn(ctx, "failed to close reader")
 		}
 	}(file)
 
@@ -154,7 +155,7 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 	}
 
 	if err := s.strg.RemoveFile(ctx, "staging", media.ObjectKey); err != nil {
-		log.Printf("failed to clean up file %q in staging: %v", media.ObjectKey, err)
+		logger.Warnf(ctx, "failed to clean up file %q in staging: %v", media.ObjectKey, err)
 	}
 
 	updated := *media
@@ -167,7 +168,7 @@ func (s *uploadFinaliserSrv) moveFile(ctx context.Context, media *model.Media, s
 
 	if err := s.repo.Update(ctx, &updated); err != nil {
 		if remErr := s.strg.RemoveFile(ctx, destBucket, newObjectKey); remErr != nil {
-			log.Printf("failed to remove file %q from bucket %q after update failure: %v", newObjectKey, destBucket, remErr)
+			logger.Warnf(ctx, "failed to remove file %q from bucket %q after update failure: %v", newObjectKey, destBucket, remErr)
 		}
 		return fmt.Errorf("failed updating media: %w", err)
 	}

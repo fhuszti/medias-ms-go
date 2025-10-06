@@ -1,8 +1,8 @@
 package config
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
+
+	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
 type Settings struct {
@@ -30,10 +32,12 @@ type Settings struct {
 }
 
 func Load() (*Settings, error) {
-	log.Println("loading env variables...")
+	ctx := context.Background()
+
+	logger.Info(ctx, "loading env variables...")
 
 	if err := godotenv.Load(".env"); err != nil {
-		log.Println("No .env file found; proceeding with OS environment variables")
+		logger.Info(ctx, "No .env file found; proceeding with OS environment variables")
 	}
 
 	viper.AutomaticEnv()
@@ -42,7 +46,7 @@ func Load() (*Settings, error) {
 	viper.SetConfigType("env")
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("Warning: could not read .env file: %v", err)
+		logger.Warnf(ctx, "Warning: could not read .env file: %v", err)
 	}
 
 	if !viper.IsSet("MARIADB_DSN") {
@@ -127,6 +131,7 @@ func getBuckets() []string {
 }
 
 func getImagesSizes() []int {
+	ctx := context.Background()
 	sizes := make([]int, 0)
 	for _, size := range strings.Split(viper.GetString("IMAGES_SIZES"), ",") {
 		size = strings.TrimSpace(size)
@@ -135,7 +140,7 @@ func getImagesSizes() []int {
 		}
 		sizeInt, err := strconv.Atoi(size)
 		if err != nil {
-			log.Printf("Warning: could not parse image size %q: %v", size, err)
+			logger.Warnf(ctx, "Warning: could not parse image size %q: %v", size, err)
 			continue
 		}
 		sizes = append(sizes, sizeInt)
