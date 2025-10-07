@@ -30,13 +30,13 @@ import (
 func main() {
 	ctx := context.Background()
 
-	logger.Init()
-
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Errorf(ctx, "❌  Configuration error: %v", err)
 		os.Exit(1)
 	}
+
+	logger.Init()
 
 	database := initDb(ctx, cfg)
 
