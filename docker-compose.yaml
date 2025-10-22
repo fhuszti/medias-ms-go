@@ -1,24 +1,64 @@
 services:
+    app:
+        build:
+            context: .
+            target: dev
+        command: [ "air", "-c", ".air.toml" ]
+        restart: unless-stopped
+        depends_on:
+            db:
+                condition: service_healthy
+        environment:
+            MARIADB_HOST: ${MARIADB_HOST:-db}
+            MARIADB_PORT: ${MARIADB_INTERNAL_PORT:-3306}
+            MARIADB_USER: ${MARIADB_USER:-db}
+            MARIADB_PASS: ${MARIADB_PASS:-dbpass}
+            MARIADB_NAME: ${MARIADB_NAME:-medias_ms}
+            MARIADB_DSN: ${MARIADB_USER:-db}:${MARIADB_PASS:-dbpass}@tcp(${MARIADB_HOST:-db}:${MARIADB_INTERNAL_PORT:-3306})/${MARIADB_NAME:-medias_ms}?charset=utf8mb4&parseTime=true&loc=Local
+            MARIADB_MAX_OPEN_CONN: ${MARIADB_MAX_OPEN_CONN:-20}
+            MARIADB_MAX_IDLE_CONNS: ${MARIADB_MAX_IDLE_CONNS:-10}
+            MARIADB_CONN_MAX_LIFETIME: ${MARIADB_CONN_MAX_LIFETIME:-300}
+            SERVER_PORT: ${SERVER_PORT:-8081}
+            REDIS_ADDR: ${REDIS_ADDR:-}
+            REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+            JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH:-internal/resources/jwt/public.pem}
+        ports:
+            - "${SERVER_PORT:-8081}:${SERVER_PORT:-8081}"
+        volumes:
+            - .:/app
+            - go-mod-cache:/go/pkg/mod
+            - go-build-cache:/root/.cache/go-build
+            - air-tmp:/app/tmp
+        working_dir: /app
+
     db:
         image: mariadb:10.11
-        restart: always
+        restart: unless-stopped
         environment:
-            MARIADB_ROOT_PASSWORD: ${MARIADB_PASS}
-            MARIADB_DATABASE: ${MARIADB_NAME}
+            MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASS:-root}
+            MARIADB_DATABASE: ${MARIADB_NAME:-medias_ms}
+            MARIADB_USER: ${MARIADB_USER:-db}
+            MARIADB_PASSWORD: ${MARIADB_PASS:-dbpass}
+        healthcheck:
+            test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u root -p${MARIADB_ROOT_PASS:-root}" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
         ports:
-            - "33068:3306"
+            - "${MARIADB_HOST_PORT:-33068}:${MARIADB_INTERNAL_PORT:-3306}"
         volumes:
             - db-data:/var/lib/mysql
 
     minio:
         image: minio/minio:latest
-        restart: always
+        restart: unless-stopped
         environment:
-            MINIO_ROOT_USER: ${MINIO_USER}
-            MINIO_ROOT_PASSWORD: ${MINIO_PASS}
+            MINIO_ROOT_USER: ${MINIO_USER:-minio}
+            MINIO_ROOT_PASSWORD: ${MINIO_PASS:-password}
         ports:
-            - "9000:9000"
-            - "9001:9001" # console UI
+            - "${MINIO_HOST_PORT:-9000}:${MINIO_INTERNAL_PORT:-9000}"
+            - "${MINIO_HOST_UI_PORT:-9001}:${MINIO_INTERNAL_UI_PORT:-9001}" # console UI
         command: server /data --console-address ":9001"
         volumes:
             - minio_data:/data
@@ -26,3 +66,6 @@ services:
 volumes:
     db-data:
     minio_data:
+    go-mod-cache:
+    go-build-cache:
+    air-tmp:
