@@ -26,3 +26,5 @@ profile.cov
 
 tmp/
 internal/resources/jwt/
+
+docker-compose.override.yml

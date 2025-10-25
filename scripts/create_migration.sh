@@ -1,6 +1,6 @@
 set -euo pipefail
 
-read -p "Enter migration name (e.g. create_npcs_table): " name
+read -p "Enter migration name (e.g. create_medias_table): " name
 
 if [[ -z "$name" ]]; then
   echo "❌ Migration name cannot be empty" >&2

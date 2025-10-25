@@ -27,13 +27,13 @@ clean:
 	golangci-lint run
 
 start:
-	go run .\cmd\api\
+	docker compose exec app go run ./cmd/api/
 
 migrate:
-	go run .\cmd\migrate\
+	docker compose exec app go run ./cmd/migrate/
 
 worker:
-	go run .\cmd\worker\
+	docker compose exec app go run ./cmd/worker/
 
 optimise-backlog:
-	go run .\cmd\optimise-backlog\
+	docker compose exec app go run ./cmd/optimise-backlog/
