@@ -24,14 +24,18 @@ func TestLoad_Success(t *testing.T) {
 
 	// Set all required environment variables
 	reqs := map[string]string{
-		"MARIADB_DSN":      "user:pass@tcp(localhost:3306)/db",
-		"SERVER_PORT":      "8080",
-		"MINIO_ACCESS_KEY": "access",
-		"MINIO_SECRET_KEY": "secret",
-		"MINIO_ENDPOINT":   "localhost:9000",
-		"MINIO_USE_SSL":    "true",
-		"BUCKETS":          "images,docs,images",
-		"IMAGES_SIZES":     "100,500,1000",
+		"MARIADB_USER":          "user",
+		"MARIADB_PASS":          "pass",
+		"MARIADB_HOST":          "localhost",
+		"MARIADB_INTERNAL_PORT": "3306",
+		"MARIADB_NAME":          "db",
+		"SERVER_PORT":           "8080",
+		"MINIO_ACCESS_KEY":      "access",
+		"MINIO_SECRET_KEY":      "secret",
+		"MINIO_ENDPOINT":        "localhost:9000",
+		"MINIO_USE_SSL":         "true",
+		"BUCKETS":               "images,docs,images",
+		"IMAGES_SIZES":          "100,500,1000",
 	}
 	for k, v := range reqs {
 		t.Setenv(k, v)
@@ -50,8 +54,9 @@ func TestLoad_Success(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if cfg.MariaDBDSN != "user:pass@tcp(localhost:3306)/db" {
-		t.Errorf("MariaDBDSN: expected %q, got %q", reqs["MARIADB_DSN"], cfg.MariaDBDSN)
+	expectedDSN := "user:pass@tcp(localhost:3306)/db?charset=utf8mb4&parseTime=true&loc=Local"
+	if cfg.MariaDBDSN != expectedDSN {
+		t.Errorf("MariaDBDSN: expected %q, got %q", expectedDSN, cfg.MariaDBDSN)
 	}
 	if cfg.ServerPort != 8080 {
 		t.Errorf("ServerPort: expected %d, got %d", 8080, cfg.ServerPort)
@@ -86,7 +91,11 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 		missingKey string
 		wantErr    string
 	}{
-		{"MARIADB_DSN", "MARIADB_DSN is required"},
+		{"MARIADB_USER", "MARIADB_USER is required"},
+		{"MARIADB_PASS", "MARIADB_PASS is required"},
+		{"MARIADB_HOST", "MARIADB_HOST is required"},
+		{"MARIADB_INTERNAL_PORT", "MARIADB_INTERNAL_PORT is required"},
+		{"MARIADB_NAME", "MARIADB_NAME is required"},
 		{"SERVER_PORT", "SERVER_PORT is required"},
 		{"MINIO_ACCESS_KEY", "MINIO_ACCESS_KEY is required"},
 		{"MINIO_SECRET_KEY", "MINIO_SECRET_KEY is required"},
@@ -115,14 +124,18 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 
 			// Set all except the missing key
 			reqs := map[string]string{
-				"MARIADB_DSN":      "user:pass@tcp(localhost:3306)/db",
-				"SERVER_PORT":      "8080",
-				"MINIO_ACCESS_KEY": "access",
-				"MINIO_SECRET_KEY": "secret",
-				"MINIO_ENDPOINT":   "localhost:9000",
-				"MINIO_USE_SSL":    "true",
-				"BUCKETS":          "images,docs",
-				"IMAGES_SIZES":     "100,500,1000",
+				"MARIADB_USER":          "user",
+				"MARIADB_PASS":          "pass",
+				"MARIADB_HOST":          "localhost",
+				"MARIADB_INTERNAL_PORT": "3306",
+				"MARIADB_NAME":          "db",
+				"SERVER_PORT":           "8080",
+				"MINIO_ACCESS_KEY":      "access",
+				"MINIO_SECRET_KEY":      "secret",
+				"MINIO_ENDPOINT":        "localhost:9000",
+				"MINIO_USE_SSL":         "true",
+				"BUCKETS":               "images,docs",
+				"IMAGES_SIZES":          "100,500,1000",
 			}
 			for k, v := range reqs {
 				if k == tc.missingKey {
