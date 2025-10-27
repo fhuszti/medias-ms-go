@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -15,20 +14,17 @@ import (
 )
 
 type Settings struct {
-	MariaDBDSN      string
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxLifetime time.Duration
-	ServerPort      int
-	MinioAccessKey  string
-	MinioSecretKey  string
-	MinioEndpoint   string
-	MinioUseSSL     bool
-	Buckets         []string
-	ImagesSizes     []int
-	RedisAddr       string
-	RedisPassword   string
-	JWTPublicKey    string
+	MariaDBDSN     string
+	ServerPort     int
+	MinioAccessKey string
+	MinioSecretKey string
+	MinioEndpoint  string
+	MinioUseSSL    bool
+	Buckets        []string
+	ImagesSizes    []int
+	RedisAddr      string
+	RedisPassword  string
+	JWTPublicKey   string
 }
 
 func Load() (*Settings, error) {
@@ -51,15 +47,6 @@ func Load() (*Settings, error) {
 
 	if !viper.IsSet("MARIADB_DSN") {
 		return nil, fmt.Errorf("MARIADB_DSN is required")
-	}
-	if !viper.IsSet("MARIADB_MAX_OPEN_CONN") {
-		return nil, fmt.Errorf("MARIADB_MAX_OPEN_CONN is required")
-	}
-	if !viper.IsSet("MARIADB_MAX_IDLE_CONNS") {
-		return nil, fmt.Errorf("MARIADB_MAX_IDLE_CONNS is required")
-	}
-	if !viper.IsSet("MARIADB_CONN_MAX_LIFETIME") {
-		return nil, fmt.Errorf("MARIADB_CONN_MAX_LIFETIME is required")
 	}
 	if !viper.IsSet("SERVER_PORT") {
 		return nil, fmt.Errorf("SERVER_PORT is required")
@@ -89,20 +76,17 @@ func Load() (*Settings, error) {
 	}
 
 	return &Settings{
-		MariaDBDSN:      viper.GetString("MARIADB_DSN"),
-		MaxOpenConns:    viper.GetInt("MARIADB_MAX_OPEN_CONN"),
-		MaxIdleConns:    viper.GetInt("MARIADB_MAX_IDLE_CONNS"),
-		ConnMaxLifetime: time.Duration(viper.GetInt("MARIADB_CONN_MAX_LIFETIME")) * time.Second,
-		ServerPort:      viper.GetInt("SERVER_PORT"),
-		MinioAccessKey:  viper.GetString("MINIO_ACCESS_KEY"),
-		MinioSecretKey:  viper.GetString("MINIO_SECRET_KEY"),
-		MinioEndpoint:   viper.GetString("MINIO_ENDPOINT"),
-		MinioUseSSL:     viper.GetBool("MINIO_USE_SSL"),
-		Buckets:         getBuckets(),
-		ImagesSizes:     getImagesSizes(),
-		RedisAddr:       viper.GetString("REDIS_ADDR"),
-		RedisPassword:   viper.GetString("REDIS_PASSWORD"),
-		JWTPublicKey:    jwtPem,
+		MariaDBDSN:     viper.GetString("MARIADB_DSN"),
+		ServerPort:     viper.GetInt("SERVER_PORT"),
+		MinioAccessKey: viper.GetString("MINIO_ACCESS_KEY"),
+		MinioSecretKey: viper.GetString("MINIO_SECRET_KEY"),
+		MinioEndpoint:  viper.GetString("MINIO_ENDPOINT"),
+		MinioUseSSL:    viper.GetBool("MINIO_USE_SSL"),
+		Buckets:        getBuckets(),
+		ImagesSizes:    getImagesSizes(),
+		RedisAddr:      viper.GetString("REDIS_ADDR"),
+		RedisPassword:  viper.GetString("REDIS_PASSWORD"),
+		JWTPublicKey:   jwtPem,
 	}, nil
 }
 
