@@ -4,7 +4,6 @@ import (
 	"os"
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestLoad_Success(t *testing.T) {
@@ -25,17 +24,14 @@ func TestLoad_Success(t *testing.T) {
 
 	// Set all required environment variables
 	reqs := map[string]string{
-		"MARIADB_DSN":               "user:pass@tcp(localhost:3306)/db",
-		"MARIADB_MAX_OPEN_CONN":     "10",
-		"MARIADB_MAX_IDLE_CONNS":    "5",
-		"MARIADB_CONN_MAX_LIFETIME": "30",
-		"SERVER_PORT":               "8080",
-		"MINIO_ACCESS_KEY":          "access",
-		"MINIO_SECRET_KEY":          "secret",
-		"MINIO_ENDPOINT":            "localhost:9000",
-		"MINIO_USE_SSL":             "true",
-		"BUCKETS":                   "images,docs,images",
-		"IMAGES_SIZES":              "100,500,1000",
+		"MARIADB_DSN":      "user:pass@tcp(localhost:3306)/db",
+		"SERVER_PORT":      "8080",
+		"MINIO_ACCESS_KEY": "access",
+		"MINIO_SECRET_KEY": "secret",
+		"MINIO_ENDPOINT":   "localhost:9000",
+		"MINIO_USE_SSL":    "true",
+		"BUCKETS":          "images,docs,images",
+		"IMAGES_SIZES":     "100,500,1000",
 	}
 	for k, v := range reqs {
 		t.Setenv(k, v)
@@ -56,15 +52,6 @@ func TestLoad_Success(t *testing.T) {
 
 	if cfg.MariaDBDSN != "user:pass@tcp(localhost:3306)/db" {
 		t.Errorf("MariaDBDSN: expected %q, got %q", reqs["MARIADB_DSN"], cfg.MariaDBDSN)
-	}
-	if cfg.MaxOpenConns != 10 {
-		t.Errorf("MaxOpenConns: expected %d, got %d", 10, cfg.MaxOpenConns)
-	}
-	if cfg.MaxIdleConns != 5 {
-		t.Errorf("MaxIdleConns: expected %d, got %d", 5, cfg.MaxIdleConns)
-	}
-	if cfg.ConnMaxLifetime != 30*time.Second {
-		t.Errorf("ConnMaxLifetime: expected %v, got %v", 30*time.Second, cfg.ConnMaxLifetime)
 	}
 	if cfg.ServerPort != 8080 {
 		t.Errorf("ServerPort: expected %d, got %d", 8080, cfg.ServerPort)
@@ -100,9 +87,6 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 		wantErr    string
 	}{
 		{"MARIADB_DSN", "MARIADB_DSN is required"},
-		{"MARIADB_MAX_OPEN_CONN", "MARIADB_MAX_OPEN_CONN is required"},
-		{"MARIADB_MAX_IDLE_CONNS", "MARIADB_MAX_IDLE_CONNS is required"},
-		{"MARIADB_CONN_MAX_LIFETIME", "MARIADB_CONN_MAX_LIFETIME is required"},
 		{"SERVER_PORT", "SERVER_PORT is required"},
 		{"MINIO_ACCESS_KEY", "MINIO_ACCESS_KEY is required"},
 		{"MINIO_SECRET_KEY", "MINIO_SECRET_KEY is required"},
@@ -131,17 +115,14 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 
 			// Set all except the missing key
 			reqs := map[string]string{
-				"MARIADB_DSN":               "user:pass@tcp(localhost:3306)/db",
-				"MARIADB_MAX_OPEN_CONN":     "10",
-				"MARIADB_MAX_IDLE_CONNS":    "5",
-				"MARIADB_CONN_MAX_LIFETIME": "30",
-				"SERVER_PORT":               "8080",
-				"MINIO_ACCESS_KEY":          "access",
-				"MINIO_SECRET_KEY":          "secret",
-				"MINIO_ENDPOINT":            "localhost:9000",
-				"MINIO_USE_SSL":             "true",
-				"BUCKETS":                   "images,docs",
-				"IMAGES_SIZES":              "100,500,1000",
+				"MARIADB_DSN":      "user:pass@tcp(localhost:3306)/db",
+				"SERVER_PORT":      "8080",
+				"MINIO_ACCESS_KEY": "access",
+				"MINIO_SECRET_KEY": "secret",
+				"MINIO_ENDPOINT":   "localhost:9000",
+				"MINIO_USE_SSL":    "true",
+				"BUCKETS":          "images,docs",
+				"IMAGES_SIZES":     "100,500,1000",
 			}
 			for k, v := range reqs {
 				if k == tc.missingKey {

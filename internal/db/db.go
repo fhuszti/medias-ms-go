@@ -7,6 +7,12 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+const (
+	maxOpenConns    = 20
+	maxIdleConns    = 10
+	connMaxLifetime = 300 * time.Second
+)
+
 // Database holds your SQL connection pool.
 type Database struct {
 	*sql.DB
@@ -14,15 +20,15 @@ type Database struct {
 
 // New creates, configures, and verifies a MySQL connection pool.
 // It returns an error if opening or pinging the database fails.
-func New(dsn string, maxOpen, maxIdle int, connMaxLifetime time.Duration) (*Database, error) {
+func New(dsn string) (*Database, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
 	}
 
 	// configure pooling
-	db.SetMaxOpenConns(maxOpen)
-	db.SetMaxIdleConns(maxIdle)
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
 	db.SetConnMaxLifetime(connMaxLifetime)
 
 	// verify connectivity
