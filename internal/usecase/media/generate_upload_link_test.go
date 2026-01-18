@@ -50,6 +50,9 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	if m.OriginalFilename != in.Name {
 		t.Errorf("expected OriginalFilename %q, got %q", in.Name, m.OriginalFilename)
 	}
+	if m.Version != 1 {
+		t.Errorf("expected Version 1, got %d", m.Version)
+	}
 	if m.Status != model.MediaStatusPending {
 		t.Errorf("expected Status Pending, got %v", m.Status)
 	}

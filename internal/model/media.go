@@ -19,6 +19,7 @@ type Media struct {
 	ObjectKey        string      `json:"object_key"`
 	Bucket           string      `json:"bucket"`
 	OriginalFilename string      `json:"original_filename"`
+	Version          uint16      `json:"version"`
 	MimeType         *string     `json:"mime_type,omitempty"`
 	SizeBytes        *int64      `json:"size_bytes,omitempty"`
 	Status           MediaStatus `json:"status"`

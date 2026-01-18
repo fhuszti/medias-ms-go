@@ -27,7 +27,7 @@ func (r *MediaRepository) GetByID(ctx context.Context, ID msuuid.UUID) (*model.M
 	logger.Debugf(ctx, "fetching media #%s from the database...", ID)
 
 	const query = `
-      SELECT id, object_key, bucket, original_filename, mime_type, size_bytes, status, optimised, failure_message, metadata, variants, created_at, updated_at
+      SELECT id, object_key, bucket, original_filename, version, mime_type, size_bytes, status, optimised, failure_message, metadata, variants, created_at, updated_at
       FROM medias
       WHERE id = ?
     `
@@ -35,7 +35,7 @@ func (r *MediaRepository) GetByID(ctx context.Context, ID msuuid.UUID) (*model.M
 	var media model.Media
 	if err := row.Scan(
 		&media.ID, &media.ObjectKey, &media.Bucket,
-		&media.OriginalFilename, &media.MimeType,
+		&media.OriginalFilename, &media.Version, &media.MimeType,
 		&media.SizeBytes, &media.Status, &media.Optimised,
 		&media.FailureMessage, &media.Metadata, &media.Variants,
 		&media.CreatedAt, &media.UpdatedAt,
@@ -51,12 +51,12 @@ func (r *MediaRepository) Create(ctx context.Context, media *model.Media) error 
 
 	const query = `
       INSERT INTO medias 
-        (id, object_key, bucket, original_filename, mime_type, size_bytes, status, optimised, failure_message, metadata, variants)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, object_key, bucket, original_filename, version, mime_type, size_bytes, status, optimised, failure_message, metadata, variants)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `
 	_, err := r.db.ExecContext(ctx, query,
 		media.ID, media.ObjectKey, media.Bucket,
-		media.OriginalFilename, media.MimeType,
+		media.OriginalFilename, media.Version, media.MimeType,
 		media.SizeBytes, media.Status, media.Optimised,
 		media.FailureMessage, media.Metadata, media.Variants,
 	)
@@ -75,6 +75,7 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
       SET
         object_key      = ?,
         bucket     		= ?,
+        version         = ?,
         mime_type       = ?,
         size_bytes      = ?,
         status          = ?,
@@ -87,6 +88,7 @@ func (r *MediaRepository) Update(ctx context.Context, media *model.Media) error 
 	_, err := r.db.ExecContext(ctx, query,
 		media.ObjectKey,
 		media.Bucket,
+		media.Version,
 		media.MimeType,
 		media.SizeBytes,
 		media.Status,

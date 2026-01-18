@@ -12,8 +12,9 @@ Currently accepts PNG | JPG | WEBP | PDF | MD.
 - Go CLI
 - Docker
 
-
-- *if on Windows,* [GCC/MinGW](https://jmeubank.github.io/tdm-gcc/download/)
+- Make sure the GCC compiler is installed:
+    - *if on Windows,* [GCC/MinGW](https://jmeubank.github.io/tdm-gcc/download/)
+    - *if on Linux,* ``sudo apt install build-essential``
 
 
 - *(optional)* a Redis server, used for cache and file optimisations

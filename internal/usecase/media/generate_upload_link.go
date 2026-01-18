@@ -29,6 +29,7 @@ func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in port
 		ObjectKey:        objectKey,
 		Bucket:           "staging",
 		OriginalFilename: in.Name,
+		Version:          1,
 		Status:           model.MediaStatusPending,
 		Metadata:         model.Metadata{},
 		Variants:         model.Variants{},

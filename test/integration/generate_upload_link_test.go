@@ -79,13 +79,14 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 		id               msuuid.UUID
 		bucket           string
 		originalFilename string
+		version          uint16
 		status           model.MediaStatus
 		metadata         model.Metadata
 		variants         model.Variants
 	)
 	row := testDB.DB.QueryRowContext(context.Background(),
-		"SELECT id, bucket, original_filename, status, metadata, variants FROM medias WHERE object_key = ?", objectKey)
-	if err := row.Scan(&id, &bucket, &originalFilename, &status, &metadata, &variants); err != nil {
+		"SELECT id, bucket, original_filename, version, status, metadata, variants FROM medias WHERE object_key = ?", objectKey)
+	if err := row.Scan(&id, &bucket, &originalFilename, &version, &status, &metadata, &variants); err != nil {
 		t.Fatalf("failed to scan media record: %v", err)
 	}
 
@@ -97,6 +98,9 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 	}
 	if originalFilename != in.Name {
 		t.Errorf("expected originalFilename to be %q', got %q", originalFilename, in.Name)
+	}
+	if version != 1 {
+		t.Errorf("expected version to be 1, got %d", version)
 	}
 	if status != model.MediaStatusPending {
 		t.Errorf("expected status %q, got %q", model.MediaStatusPending, status)
