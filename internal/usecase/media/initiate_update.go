@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fhuszti/medias-ms-go/internal/model"
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
@@ -35,30 +34,13 @@ func (s *updateInitiatorSrv) InitiateUpdate(ctx context.Context, in port.Initiat
 	nextVersion := media.Version + 1
 	objectKey := fmt.Sprintf("%s-v%d", media.ID, nextVersion)
 
-	updated := *media
-	updated.ObjectKey = objectKey
-	updated.Bucket = "staging"
-	updated.OriginalFilename = in.Name
-	updated.Version = nextVersion
-	updated.MimeType = nil
-	updated.SizeBytes = nil
-	updated.Status = model.MediaStatusPending
-	updated.Optimised = false
-	updated.FailureMessage = nil
-	updated.Metadata = model.Metadata{}
-	updated.Variants = model.Variants{}
-
-	if err := s.repo.Update(ctx, &updated); err != nil {
-		return port.InitiateUpdateOutput{}, err
-	}
-
 	url, err := s.strg.GeneratePresignedUploadURL(ctx, "staging", objectKey, 5*time.Minute)
 	if err != nil {
 		return port.InitiateUpdateOutput{}, err
 	}
 
 	return port.InitiateUpdateOutput{
-		ID:  updated.ID,
+		ID:  media.ID,
 		URL: url,
 	}, nil
 }
