@@ -90,7 +90,7 @@ func setupServer(t *testing.T) *httptest.Server {
 	r := chi.NewRouter()
 	r.Post("/medias/initiate_upload", api.InitiateUploadHandler(uploadLinkSvc))
 	r.With(middleware.WithMediaID()).
-		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(finaliserSvc, []string{"staging", "images", "docs"}))
+		Post("/medias/{id}/finalise_upload", api.FinaliseUploadHandler(finaliserSvc, []string{"staging", "images", "docs"}))
 	r.With(middleware.WithMediaID()).
 		Get("/medias/{id}", api.GetMediaHandler(rendererSvc, getterSvc))
 	r.With(middleware.WithMediaID()).
@@ -147,7 +147,7 @@ func TestUploadImageE2E(t *testing.T) {
 
 	// ---- Step 3: Finalise upload ----
 	finReq := `{"dest_bucket":"images"}`
-	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
+	resp2, err := http.Post(ts.URL+"/medias/"+out1.ID+"/finalise_upload", "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)
 	}
@@ -287,7 +287,7 @@ func TestUploadMarkdownE2E(t *testing.T) {
 
 	// ---- Step 3: Finalise upload ----
 	finReq := `{"dest_bucket":"docs"}`
-	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
+	resp2, err := http.Post(ts.URL+"/medias/"+out1.ID+"/finalise_upload", "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)
 	}
@@ -400,7 +400,7 @@ func TestUploadPDFE2E(t *testing.T) {
 
 	// ---- Step 3: Finalise upload ----
 	finReq := `{"dest_bucket":"docs"}`
-	resp2, err := http.Post(ts.URL+"/medias/finalise_upload/"+out1.ID, "application/json", strings.NewReader(finReq))
+	resp2, err := http.Post(ts.URL+"/medias/"+out1.ID+"/finalise_upload", "application/json", strings.NewReader(finReq))
 	if err != nil {
 		t.Fatalf("POST finalise_upload error: %v", err)
 	}
