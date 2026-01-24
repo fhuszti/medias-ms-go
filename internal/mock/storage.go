@@ -23,7 +23,7 @@ type Storage struct {
 	// errors
 	InitBucketErr           error
 	GenerateDownloadLinkErr error
-	GenerateUploadLinkErr   error
+	InitiateUploadErr       error
 	StatErr                 error
 	RemoveErr               error
 	GetErr                  error
@@ -34,7 +34,7 @@ type Storage struct {
 	// call flags
 	InitBucketCalled           bool
 	GenerateDownloadLinkCalled bool
-	GenerateUploadLinkCalled   bool
+	InitiateUploadCalled       bool
 	StatCalled                 bool
 	RemoveCalled               bool
 	GetCalled                  bool
@@ -59,11 +59,11 @@ func (m *Storage) GeneratePresignedDownloadURL(ctx context.Context, bucket, file
 }
 
 func (m *Storage) GeneratePresignedUploadURL(ctx context.Context, bucket, fileKey string, expiry time.Duration) (string, error) {
-	m.GenerateUploadLinkCalled = true
+	m.InitiateUploadCalled = true
 	m.ObjectKey = fileKey
 	m.TTL = expiry
-	if m.GenerateUploadLinkErr != nil {
-		return "", m.GenerateUploadLinkErr
+	if m.InitiateUploadErr != nil {
+		return "", m.InitiateUploadErr
 	}
 	return "https://example.com/upload", nil
 }

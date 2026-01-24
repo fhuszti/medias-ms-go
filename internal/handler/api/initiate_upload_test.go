@@ -16,32 +16,32 @@ import (
 	guuid "github.com/google/uuid"
 )
 
-func TestGenerateUploadLinkHandler(t *testing.T) {
+func TestInitiateUploadHandler(t *testing.T) {
 	tests := []struct {
 		name            string
 		body            string
-		svcOut          port.GenerateUploadLinkOutput
+		svcOut          port.InitiateUploadOutput
 		svcErr          error
 		wantStatus      int
 		wantContentType string
 
-		wantOutput       *port.GenerateUploadLinkOutput
+		wantOutput       *port.InitiateUploadOutput
 		wantErrorMap     map[string]string
 		wantBodyContains string
 	}{
 		{
 			name:            "happy path",
 			body:            `{"name":"my-file.png"}`,
-			svcOut:          port.GenerateUploadLinkOutput{ID: msuuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), URL: "https://cdn.example.com/presigned"},
+			svcOut:          port.InitiateUploadOutput{ID: msuuid.UUID(guuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")), URL: "https://cdn.example.com/presigned"},
 			svcErr:          nil,
 			wantStatus:      http.StatusCreated,
 			wantContentType: "application/json",
-			wantOutput:      &port.GenerateUploadLinkOutput{},
+			wantOutput:      &port.InitiateUploadOutput{},
 		},
 		{
 			name:             "invalid JSON",
 			body:             `{"name":`, // malformed
-			svcOut:           port.GenerateUploadLinkOutput{},
+			svcOut:           port.InitiateUploadOutput{},
 			svcErr:           nil,
 			wantStatus:       http.StatusBadRequest,
 			wantContentType:  "application/json",
@@ -50,7 +50,7 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 		{
 			name:            "validation error: empty name",
 			body:            `{"name":""}`,
-			svcOut:          port.GenerateUploadLinkOutput{},
+			svcOut:          port.InitiateUploadOutput{},
 			svcErr:          nil,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
@@ -59,7 +59,7 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 		{
 			name:            "validation error: name too long",
 			body:            fmt.Sprintf(`{"name":"%s"}`, strings.Repeat("a", 81)),
-			svcOut:          port.GenerateUploadLinkOutput{},
+			svcOut:          port.InitiateUploadOutput{},
 			svcErr:          nil,
 			wantStatus:      http.StatusBadRequest,
 			wantContentType: "application/json",
@@ -68,21 +68,21 @@ func TestGenerateUploadLinkHandler(t *testing.T) {
 		{
 			name:             "service error",
 			body:             `{"name":"ok.png"}`,
-			svcOut:           port.GenerateUploadLinkOutput{},
+			svcOut:           port.InitiateUploadOutput{},
 			svcErr:           errors.New("boom"),
 			wantStatus:       http.StatusInternalServerError,
 			wantContentType:  "application/json",
-			wantBodyContains: "Could not generate upload link",
+			wantBodyContains: "Could not initiate upload",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockSvc := &mock.UploadLinkGenerator{
+			mockSvc := &mock.UploadInitiator{
 				Out: tc.svcOut,
 				Err: tc.svcErr,
 			}
-			handlerFn := GenerateUploadLinkHandler(mockSvc)
+			handlerFn := InitiateUploadHandler(mockSvc)
 
 			req := httptest.NewRequest(http.MethodPost, "/upload", strings.NewReader(tc.body))
 			// we don't need any special headers; JSON decoder uses Body only

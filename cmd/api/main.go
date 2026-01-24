@@ -58,8 +58,8 @@ func main() {
 		logger.Warn(ctx, "⚠️  Redis not configured — caching is disabled")
 	}
 
-	uploadLinkGeneratorSvc := mediaSvc.NewUploadLinkGenerator(mediaRepo, strg, msuuid.NewUUID)
-	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkGeneratorSvc))
+	uploadInitiatorSvc := mediaSvc.NewUploadInitiator(mediaRepo, strg, msuuid.NewUUID)
+	r.Post("/medias/initiate_upload", api.InitiateUploadHandler(uploadInitiatorSvc))
 
 	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, strg, dispatcher)
 	r.With(cMiddleware.WithMediaID()).

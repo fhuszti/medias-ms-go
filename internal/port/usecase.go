@@ -32,14 +32,14 @@ type MediaDeleter interface {
 	DeleteMedia(ctx context.Context, id uuid.UUID) error
 }
 
-// UploadLinkGenerator returns a presigned link to upload a file.
-type UploadLinkGenerator interface {
-	GenerateUploadLink(ctx context.Context, in GenerateUploadLinkInput) (GenerateUploadLinkOutput, error)
+// UploadInitiator creates the media record and returns a presigned upload link.
+type UploadInitiator interface {
+	InitiateUpload(ctx context.Context, in InitiateUploadInput) (InitiateUploadOutput, error)
 }
-type GenerateUploadLinkInput struct {
+type InitiateUploadInput struct {
 	Name string
 }
-type GenerateUploadLinkOutput struct {
+type InitiateUploadOutput struct {
 	ID  uuid.UUID `json:"id"`
 	URL string    `json:"url"`
 }

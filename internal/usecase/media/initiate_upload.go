@@ -8,20 +8,20 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/port"
 )
 
-type uploadLinkGeneratorSrv struct {
+type uploadInitiatorSrv struct {
 	repo    port.MediaRepository
 	strg    port.Storage
 	genUUID port.UUIDGen
 }
 
-// compile-time check: *uploadLinkGeneratorSrv must satisfy port.UploadLinkGenerator
-var _ port.UploadLinkGenerator = (*uploadLinkGeneratorSrv)(nil)
+// compile-time check: *uploadInitiatorSrv must satisfy port.UploadInitiator
+var _ port.UploadInitiator = (*uploadInitiatorSrv)(nil)
 
-func NewUploadLinkGenerator(repo port.MediaRepository, strg port.Storage, genUUID port.UUIDGen) port.UploadLinkGenerator {
-	return &uploadLinkGeneratorSrv{repo, strg, genUUID}
+func NewUploadInitiator(repo port.MediaRepository, strg port.Storage, genUUID port.UUIDGen) port.UploadInitiator {
+	return &uploadInitiatorSrv{repo, strg, genUUID}
 }
 
-func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in port.GenerateUploadLinkInput) (port.GenerateUploadLinkOutput, error) {
+func (s *uploadInitiatorSrv) InitiateUpload(ctx context.Context, in port.InitiateUploadInput) (port.InitiateUploadOutput, error) {
 	id := s.genUUID()
 	objectKey := id.String()
 	media := &model.Media{
@@ -36,15 +36,15 @@ func (s *uploadLinkGeneratorSrv) GenerateUploadLink(ctx context.Context, in port
 	}
 
 	if err := s.repo.Create(ctx, media); err != nil {
-		return port.GenerateUploadLinkOutput{}, err
+		return port.InitiateUploadOutput{}, err
 	}
 
 	url, err := s.strg.GeneratePresignedUploadURL(ctx, "staging", objectKey, 5*time.Minute)
 	if err != nil {
-		return port.GenerateUploadLinkOutput{}, err
+		return port.InitiateUploadOutput{}, err
 	}
 
-	return port.GenerateUploadLinkOutput{
+	return port.InitiateUploadOutput{
 		ID:  media.ID,
 		URL: url,
 	}, nil

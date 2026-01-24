@@ -11,13 +11,13 @@ import (
 	"github.com/fhuszti/medias-ms-go/internal/logger"
 )
 
-type GenerateUploadLinkRequest struct {
+type InitiateUploadRequest struct {
 	Name string `json:"name" validate:"required,max=80"`
 }
 
-func GenerateUploadLinkHandler(svc port.UploadLinkGenerator) http.HandlerFunc {
+func InitiateUploadHandler(svc port.UploadInitiator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req GenerateUploadLinkRequest
+		var req InitiateUploadRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			WriteError(w, http.StatusBadRequest, "Invalid request", fmt.Errorf("invalid JSON: %w", err))
 			return
@@ -36,14 +36,14 @@ func GenerateUploadLinkHandler(svc port.UploadLinkGenerator) http.HandlerFunc {
 			return
 		}
 
-		in := port.GenerateUploadLinkInput(req)
-		out, err := svc.GenerateUploadLink(r.Context(), in)
+		in := port.InitiateUploadInput(req)
+		out, err := svc.InitiateUpload(r.Context(), in)
 		if err != nil {
-			WriteError(w, http.StatusInternalServerError, "Could not generate upload link", err)
+			WriteError(w, http.StatusInternalServerError, "Could not initiate upload", err)
 			return
 		}
 
 		RespondJSON(w, http.StatusCreated, out)
-		logger.Infof(r.Context(), "✅  Successfully generated upload link for media #%s", out.ID)
+		logger.Infof(r.Context(), "✅  Successfully initiated upload for media #%s", out.ID)
 	}
 }

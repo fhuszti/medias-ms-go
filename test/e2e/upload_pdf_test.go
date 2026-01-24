@@ -77,7 +77,7 @@ func setupServer(t *testing.T) *httptest.Server {
 
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
-	uploadLinkSvc := mediaSvc.NewUploadLinkGenerator(repo, GlobalStrg, msuuid.NewUUID)
+	uploadLinkSvc := mediaSvc.NewUploadInitiator(repo, GlobalStrg, msuuid.NewUUID)
 	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
 	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
 	t.Cleanup(workerStop)
@@ -88,7 +88,7 @@ func setupServer(t *testing.T) *httptest.Server {
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
-	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(uploadLinkSvc))
+	r.Post("/medias/initiate_upload", api.InitiateUploadHandler(uploadLinkSvc))
 	r.With(middleware.WithMediaID()).
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(finaliserSvc, []string{"staging", "images", "docs"}))
 	r.With(middleware.WithMediaID()).
@@ -107,7 +107,7 @@ func TestUploadImageE2E(t *testing.T) {
 
 	// ---- Step 1: Generate upload link ----
 	genReq := `{"name":"sample.png"}`
-	resp1, err := http.Post(ts.URL+"/medias/generate_upload_link", "application/json", strings.NewReader(genReq))
+	resp1, err := http.Post(ts.URL+"/medias/initiate_upload", "application/json", strings.NewReader(genReq))
 	if err != nil {
 		t.Fatalf("POST generate_upload_link error: %v", err)
 	}
@@ -247,7 +247,7 @@ func TestUploadMarkdownE2E(t *testing.T) {
 
 	// ---- Step 1: Generate upload link ----
 	genReq := `{"name":"sample.md"}`
-	resp1, err := http.Post(ts.URL+"/medias/generate_upload_link", "application/json", strings.NewReader(genReq))
+	resp1, err := http.Post(ts.URL+"/medias/initiate_upload", "application/json", strings.NewReader(genReq))
 	if err != nil {
 		t.Fatalf("POST generate_upload_link error: %v", err)
 	}
@@ -360,7 +360,7 @@ func TestUploadPDFE2E(t *testing.T) {
 
 	// ---- Step 1: Generate upload link ----
 	genReq := `{"name":"sample.pdf"}`
-	resp1, err := http.Post(ts.URL+"/medias/generate_upload_link", "application/json", strings.NewReader(genReq))
+	resp1, err := http.Post(ts.URL+"/medias/initiate_upload", "application/json", strings.NewReader(genReq))
 	if err != nil {
 		t.Fatalf("POST generate_upload_link error: %v", err)
 	}

@@ -23,7 +23,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
+func TestInitiateUploadIntegration_Success(t *testing.T) {
 	testDB, err := testutil.SetupTestDB()
 	if err != nil {
 		t.Fatalf("setup DB: %v", err)
@@ -41,15 +41,15 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 	defer bCleanup()
 
 	mediaRepo := mariadb.NewMediaRepository(database)
-	svc := mediaService.NewUploadLinkGenerator(mediaRepo, GlobalStrg, msuuid.NewUUID)
+	svc := mediaService.NewUploadInitiator(mediaRepo, GlobalStrg, msuuid.NewUUID)
 
-	in := port.GenerateUploadLinkInput{
+	in := port.InitiateUploadInput{
 		Name: "file_example.png",
 	}
 
-	out, err := svc.GenerateUploadLink(context.Background(), in)
+	out, err := svc.InitiateUpload(context.Background(), in)
 	if err != nil {
-		t.Fatalf("GenerateUploadLink returned error: %v", err)
+		t.Fatalf("InitiateUpload returned error: %v", err)
 	}
 
 	if out.ID == msuuid.UUID(uuid.Nil) {
@@ -113,12 +113,12 @@ func TestGenerateUploadLinkIntegration_Success(t *testing.T) {
 	}
 }
 
-func TestGenerateUploadLinkIntegration_ErrorValidation(t *testing.T) {
+func TestInitiateUploadIntegration_ErrorValidation(t *testing.T) {
 	r := chi.NewRouter()
-	r.Post("/medias/generate_upload_link", api.GenerateUploadLinkHandler(nil))
+	r.Post("/medias/initiate_upload", api.InitiateUploadHandler(nil))
 
 	// Missing `name` entirely
-	req := httptest.NewRequest(http.MethodPost, "/medias/generate_upload_link", strings.NewReader(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/medias/initiate_upload", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
@@ -145,7 +145,7 @@ func TestGenerateUploadLinkIntegration_ErrorValidation(t *testing.T) {
 	// Too-long name (>80 chars)
 	longName := strings.Repeat("x", 81)
 	body := `{"name":` + strconv.Quote(longName) + `}`
-	req2 := httptest.NewRequest(http.MethodPost, "/medias/generate_upload_link", strings.NewReader(body))
+	req2 := httptest.NewRequest(http.MethodPost, "/medias/initiate_upload", strings.NewReader(body))
 	req2.Header.Set("Content-Type", "application/json")
 	rec2 := httptest.NewRecorder()
 	r.ServeHTTP(rec2, req2)

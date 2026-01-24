@@ -14,15 +14,15 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestGenerateUploadLink_Success(t *testing.T) {
+func TestInitiateUpload_Success(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MediaRepo{}
 	strg := &mock.Storage{}
-	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
+	svc := NewUploadInitiator(repo, strg, func() msuuid.UUID { return mockID })
 
-	in := port.GenerateUploadLinkInput{Name: "my-file.webp"}
-	out, err := svc.GenerateUploadLink(context.Background(), in)
+	in := port.InitiateUploadInput{Name: "my-file.webp"}
+	out, err := svc.InitiateUpload(context.Background(), in)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -64,7 +64,7 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	}
 
 	// verify strg call
-	if !strg.GenerateUploadLinkCalled {
+	if !strg.InitiateUploadCalled {
 		t.Error("expected strg.GeneratePresignedUploadURL to be called")
 	}
 	if strg.ObjectKey != m.ObjectKey {
@@ -75,14 +75,14 @@ func TestGenerateUploadLink_Success(t *testing.T) {
 	}
 }
 
-func TestGenerateUploadLink_RepoError(t *testing.T) {
+func TestInitiateUpload_RepoError(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MediaRepo{CreateErr: errors.New("repo failure")}
 	strg := &mock.Storage{}
-	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
+	svc := NewUploadInitiator(repo, strg, func() msuuid.UUID { return mockID })
 
-	out, err := svc.GenerateUploadLink(context.Background(), port.GenerateUploadLinkInput{Name: "foo"})
+	out, err := svc.InitiateUpload(context.Background(), port.InitiateUploadInput{Name: "foo"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -93,19 +93,19 @@ func TestGenerateUploadLink_RepoError(t *testing.T) {
 		t.Errorf("expected empty url, got %q", out.URL)
 	}
 
-	if strg.GenerateUploadLinkCalled {
+	if strg.InitiateUploadCalled {
 		t.Error("did not expect strg.GeneratePresignedUploadURL to be called")
 	}
 }
 
-func TestGenerateUploadLink_StorageError(t *testing.T) {
+func TestInitiateUpload_StorageError(t *testing.T) {
 	mockID := msuuid.UUID(uuid.MustParse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"))
 
 	repo := &mock.MediaRepo{}
-	strg := &mock.Storage{GenerateUploadLinkErr: errors.New("strg failure")}
-	svc := NewUploadLinkGenerator(repo, strg, func() msuuid.UUID { return mockID })
+	strg := &mock.Storage{InitiateUploadErr: errors.New("strg failure")}
+	svc := NewUploadInitiator(repo, strg, func() msuuid.UUID { return mockID })
 
-	out, err := svc.GenerateUploadLink(context.Background(), port.GenerateUploadLinkInput{Name: "foo"})
+	out, err := svc.InitiateUpload(context.Background(), port.InitiateUploadInput{Name: "foo"})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -115,7 +115,7 @@ func TestGenerateUploadLink_StorageError(t *testing.T) {
 	if out.URL != "" {
 		t.Errorf("expected empty url, got %q", out.URL)
 	}
-	if !strg.GenerateUploadLinkCalled {
+	if !strg.InitiateUploadCalled {
 		t.Error("expected strg.GeneratePresignedUploadURL to be called")
 	}
 }

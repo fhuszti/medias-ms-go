@@ -30,13 +30,13 @@ func (m *MediaDeleter) DeleteMedia(ctx context.Context, id uuid.UUID) error {
 	return m.Err
 }
 
-type UploadLinkGenerator struct {
-	Out port.GenerateUploadLinkOutput
+type UploadInitiator struct {
+	Out port.InitiateUploadOutput
 	Err error
-	In  port.GenerateUploadLinkInput
+	In  port.InitiateUploadInput
 }
 
-func (m *UploadLinkGenerator) GenerateUploadLink(ctx context.Context, in port.GenerateUploadLinkInput) (port.GenerateUploadLinkOutput, error) {
+func (m *UploadInitiator) InitiateUpload(ctx context.Context, in port.InitiateUploadInput) (port.InitiateUploadOutput, error) {
 	m.In = in
 	return m.Out, m.Err
 }
