@@ -31,12 +31,23 @@ func (m *MediaDeleter) DeleteMedia(ctx context.Context, id uuid.UUID) error {
 }
 
 type UploadInitiator struct {
+	In  port.InitiateUploadInput
 	Out port.InitiateUploadOutput
 	Err error
-	In  port.InitiateUploadInput
 }
 
 func (m *UploadInitiator) InitiateUpload(ctx context.Context, in port.InitiateUploadInput) (port.InitiateUploadOutput, error) {
+	m.In = in
+	return m.Out, m.Err
+}
+
+type UpdateInitiator struct {
+	In  port.InitiateUpdateInput
+	Out port.InitiateUpdateOutput
+	Err error
+}
+
+func (m *UpdateInitiator) InitiateUpdate(ctx context.Context, in port.InitiateUpdateInput) (port.InitiateUpdateOutput, error) {
 	m.In = in
 	return m.Out, m.Err
 }

@@ -71,8 +71,8 @@ func TestInitiateUploadIntegration_Success(t *testing.T) {
 	if bucketName != "staging" {
 		t.Errorf("expected bucket 'staging', got %q", bucketName)
 	}
-	if objectKey != out.ID.String() {
-		t.Errorf("expected objectKey to be %q, got %q", objectKey, out.ID.String())
+	if objectKey != out.ID.String()+"-v1" {
+		t.Errorf("expected objectKey to be %q, got %q", objectKey, out.ID.String()+"-v1")
 	}
 
 	var (

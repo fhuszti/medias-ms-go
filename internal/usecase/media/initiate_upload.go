@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fhuszti/medias-ms-go/internal/model"
@@ -23,7 +24,7 @@ func NewUploadInitiator(repo port.MediaRepository, strg port.Storage, genUUID po
 
 func (s *uploadInitiatorSrv) InitiateUpload(ctx context.Context, in port.InitiateUploadInput) (port.InitiateUploadOutput, error) {
 	id := s.genUUID()
-	objectKey := id.String()
+	objectKey := fmt.Sprintf("%s-v1", id)
 	media := &model.Media{
 		ID:               id,
 		ObjectKey:        objectKey,

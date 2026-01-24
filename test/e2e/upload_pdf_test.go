@@ -187,8 +187,8 @@ func TestUploadImageE2E(t *testing.T) {
 		t.Fatalf("Variants length = %d; want 2", len(getOut.Variants))
 	}
 	var found50, found300 bool
-	key50 := fmt.Sprintf("variants/%s/%s_50.webp", out1.ID, out1.ID)
-	key300 := fmt.Sprintf("variants/%s/%s_300.webp", out1.ID, out1.ID)
+	key50 := fmt.Sprintf("variants/%s/%s-v1_50.webp", out1.ID, out1.ID)
+	key300 := fmt.Sprintf("variants/%s/%s-v1_300.webp", out1.ID, out1.ID)
 	for _, v := range getOut.Variants {
 		if strings.Contains(v.URL, key50) {
 			if v.Width != 50 || v.Height != 37 {

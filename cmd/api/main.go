@@ -61,6 +61,10 @@ func main() {
 	uploadInitiatorSvc := mediaSvc.NewUploadInitiator(mediaRepo, strg, msuuid.NewUUID)
 	r.Post("/medias/initiate_upload", api.InitiateUploadHandler(uploadInitiatorSvc))
 
+	updateInitiatorSvc := mediaSvc.NewUpdateInitiator(mediaRepo, strg)
+	r.With(cMiddleware.WithMediaID()).
+		Post("/medias/{id}/initiate_update", api.InitiateUpdateHandler(updateInitiatorSvc))
+
 	uploadFinaliserSvc := mediaSvc.NewUploadFinaliser(mediaRepo, strg, dispatcher)
 	r.With(cMiddleware.WithMediaID()).
 		Post("/medias/finalise_upload/{id}", api.FinaliseUploadHandler(uploadFinaliserSvc, cfg.Buckets))

@@ -44,6 +44,19 @@ type InitiateUploadOutput struct {
 	URL string    `json:"url"`
 }
 
+// UpdateInitiator creates a new staging upload for an existing media.
+type UpdateInitiator interface {
+	InitiateUpdate(ctx context.Context, in InitiateUpdateInput) (InitiateUpdateOutput, error)
+}
+type InitiateUpdateInput struct {
+	ID   uuid.UUID
+	Name string
+}
+type InitiateUpdateOutput struct {
+	ID  uuid.UUID `json:"id"`
+	URL string    `json:"url"`
+}
+
 // UploadFinaliser validates the given media in the staging bucket and moves it to the destination bucket.
 type UploadFinaliser interface {
 	FinaliseUpload(ctx context.Context, in FinaliseUploadInput) error

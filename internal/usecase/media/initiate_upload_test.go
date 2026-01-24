@@ -41,8 +41,8 @@ func TestInitiateUpload_Success(t *testing.T) {
 	if m.ID != mockID {
 		t.Errorf("expected create to be called with ID %q, got %q", mockID, out.ID)
 	}
-	if m.ObjectKey != mockID.String() {
-		t.Errorf("ObjectKey %q does not match ID %q", m.ObjectKey, mockID.String())
+	if m.ObjectKey != mockID.String()+"-v1" {
+		t.Errorf("ObjectKey %q does not match ID %q", m.ObjectKey, mockID.String()+"-v1")
 	}
 	if m.Bucket != "staging" {
 		t.Errorf("bucket should be 'staging', got %q", m.Bucket)
