@@ -14,7 +14,6 @@ services:
             MARIADB_USER: ${MARIADB_USER:-db}
             MARIADB_PASS: ${MARIADB_PASS:-dbpass}
             MARIADB_NAME: ${MARIADB_NAME:-medias_ms}
-            MARIADB_DSN: ${MARIADB_USER:-db}:${MARIADB_PASS:-dbpass}@tcp(${MARIADB_HOST:-db}:${MARIADB_INTERNAL_PORT:-3306})/${MARIADB_NAME:-medias_ms}?charset=utf8mb4&parseTime=true&loc=Local
             SERVER_PORT: ${SERVER_PORT:-8081}
             REDIS_ADDR: ${REDIS_ADDR:-}
             REDIS_PASSWORD: ${REDIS_PASSWORD:-}

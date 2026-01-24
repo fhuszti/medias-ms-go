@@ -45,8 +45,9 @@ func Load() (*Settings, error) {
 		logger.Warnf(ctx, "Warning: could not read .env file: %v", err)
 	}
 
-	if !viper.IsSet("MARIADB_DSN") {
-		return nil, fmt.Errorf("MARIADB_DSN is required")
+	mariaDBDSN, err := getMariaDBDSN()
+	if err != nil {
+		return nil, err
 	}
 	if !viper.IsSet("SERVER_PORT") {
 		return nil, fmt.Errorf("SERVER_PORT is required")
@@ -76,7 +77,7 @@ func Load() (*Settings, error) {
 	}
 
 	return &Settings{
-		MariaDBDSN:     viper.GetString("MARIADB_DSN"),
+		MariaDBDSN:     mariaDBDSN,
 		ServerPort:     viper.GetInt("SERVER_PORT"),
 		MinioAccessKey: viper.GetString("MINIO_ACCESS_KEY"),
 		MinioSecretKey: viper.GetString("MINIO_SECRET_KEY"),
@@ -88,6 +89,30 @@ func Load() (*Settings, error) {
 		RedisPassword:  viper.GetString("REDIS_PASSWORD"),
 		JWTPublicKey:   jwtPem,
 	}, nil
+}
+
+func getMariaDBDSN() (string, error) {
+	requiredKeys := []string{
+		"MARIADB_USER",
+		"MARIADB_PASS",
+		"MARIADB_HOST",
+		"MARIADB_INTERNAL_PORT",
+		"MARIADB_NAME",
+	}
+
+	for _, key := range requiredKeys {
+		if !viper.IsSet(key) {
+			return "", fmt.Errorf("%s is required", key)
+		}
+	}
+
+	user := viper.GetString("MARIADB_USER")
+	password := viper.GetString("MARIADB_PASS")
+	host := viper.GetString("MARIADB_HOST")
+	port := viper.GetString("MARIADB_INTERNAL_PORT")
+	database := viper.GetString("MARIADB_NAME")
+
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&loc=Local", user, password, host, port, database), nil
 }
 
 func getBuckets() []string {
