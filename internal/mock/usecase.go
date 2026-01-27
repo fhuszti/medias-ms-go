@@ -52,6 +52,16 @@ func (m *UpdateInitiator) InitiateUpdate(ctx context.Context, in port.InitiateUp
 	return m.Out, m.Err
 }
 
+type UpdateFinaliser struct {
+	In  port.FinaliseUpdateInput
+	Err error
+}
+
+func (m *UpdateFinaliser) FinaliseUpdate(ctx context.Context, in port.FinaliseUpdateInput) error {
+	m.In = in
+	return m.Err
+}
+
 type UploadFinaliser struct {
 	In  port.FinaliseUploadInput
 	Err error

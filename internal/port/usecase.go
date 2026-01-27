@@ -57,6 +57,15 @@ type InitiateUpdateOutput struct {
 	URL string    `json:"url"`
 }
 
+// UpdateFinaliser validates the given media update in the staging bucket and moves it to the destination bucket.
+type UpdateFinaliser interface {
+	FinaliseUpdate(ctx context.Context, in FinaliseUpdateInput) error
+}
+type FinaliseUpdateInput struct {
+	ID         uuid.UUID
+	DestBucket string
+}
+
 // UploadFinaliser validates the given media in the staging bucket and moves it to the destination bucket.
 type UploadFinaliser interface {
 	FinaliseUpload(ctx context.Context, in FinaliseUploadInput) error

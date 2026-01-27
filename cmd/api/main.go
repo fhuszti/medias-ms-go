@@ -69,6 +69,10 @@ func main() {
 	r.With(cMiddleware.WithMediaID()).
 		Post("/medias/{id}/initiate_update", api.InitiateUpdateHandler(updateInitiatorSvc))
 
+	updateFinaliserSvc := mediaSvc.NewUpdateFinaliser(mediaRepo, strg, dispatcher)
+	r.With(cMiddleware.WithMediaID()).
+		Post("/medias/{id}/finalise_update", api.FinaliseUpdateHandler(updateFinaliserSvc, cfg.Buckets))
+
 	getMediaSvc := mediaSvc.NewMediaGetter(mediaRepo, strg)
 	rendererSvc := renderer.NewHTTPRenderer(ca)
 	r.With(cMiddleware.WithMediaID()).
