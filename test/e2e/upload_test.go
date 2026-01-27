@@ -78,19 +78,26 @@ func setupServer(t *testing.T) *httptest.Server {
 	// Initialize repo and services
 	repo := mariadb.NewMediaRepository(dbConn)
 	uploadLinkSvc := mediaSvc.NewUploadInitiator(repo, GlobalStrg, msuuid.NewUUID)
-	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, task.NewDispatcher(RedisAddr, ""))
+	dispatcher := task.NewDispatcher(RedisAddr, "")
+	finaliserSvc := mediaSvc.NewUploadFinaliser(repo, GlobalStrg, dispatcher)
 	workerStop := testutil.StartWorker(&db.Database{dbConn}, GlobalStrg, RedisAddr)
 	t.Cleanup(workerStop)
 	ca := cache.NewNoop()
 	getterSvc := mediaSvc.NewMediaGetter(repo, GlobalStrg)
 	deleterSvc := mediaSvc.NewMediaDeleter(repo, ca, GlobalStrg)
 	rendererSvc := renderer.NewHTTPRenderer(ca)
+	updateInitiatorSvc := mediaSvc.NewUpdateInitiator(repo, GlobalStrg)
+	updateFinaliserSvc := mediaSvc.NewUpdateFinaliser(repo, GlobalStrg, dispatcher)
 
 	// Setup HTTP handlers
 	r := chi.NewRouter()
 	r.Post("/medias/initiate_upload", api.InitiateUploadHandler(uploadLinkSvc))
 	r.With(middleware.WithMediaID()).
 		Post("/medias/{id}/finalise_upload", api.FinaliseUploadHandler(finaliserSvc, []string{"staging", "images", "docs"}))
+	r.With(middleware.WithMediaID()).
+		Post("/medias/{id}/initiate_update", api.InitiateUpdateHandler(updateInitiatorSvc))
+	r.With(middleware.WithMediaID()).
+		Post("/medias/{id}/finalise_update", api.FinaliseUpdateHandler(updateFinaliserSvc, []string{"staging", "images", "docs"}))
 	r.With(middleware.WithMediaID()).
 		Get("/medias/{id}", api.GetMediaHandler(rendererSvc, getterSvc))
 	r.With(middleware.WithMediaID()).
